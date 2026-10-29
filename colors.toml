@@ -1,0 +1,33 @@
+# Annihilation — Swamp Dark (base16) x Area X
+mode = "dark"
+
+# The Shimmer: the teal refraction cutting through the brown marsh
+accent = "#61A0A8"
+selection = "#4D3F32"
+muted = "#5F4E41"
+
+background = "#242015"
+dark_background = "#1B1810"
+darker_background = "#131109"
+lighter_background = "#3A3124"
+
+foreground = "#D2C3A4"
+dark_foreground = "#B8A58C"
+light_foreground = "#EBE0BB"
+bright_foreground = "#F1E9D0"
+
+red = "#A82D56"
+yellow = "#DB930D"
+orange = "#DB930D"
+green = "#7A7653"
+cyan = "#61A0A8"
+blue = "#C1666B"
+magenta = "#91506C"
+brown = "#4D3F32"
+
+bright_red = "#C1666B"
+bright_yellow = "#EBE0BB"
+bright_green = "#9A9669"
+bright_cyan = "#84BDC4"
+bright_blue = "#D98388"
+bright_magenta = "#B06C8A"
