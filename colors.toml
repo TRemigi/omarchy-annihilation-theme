@@ -4,6 +4,9 @@ mode = "dark"
 # The Shimmer: the teal refraction cutting through the brown marsh
 accent = "#61A0A8"
 selection = "#4D3F32"
+selection_background = "#61A0A8"
+selection_foreground = "#242015"
+cursor = "#F1E9D0"
 muted = "#5F4E41"
 
 background = "#242015"
@@ -23,6 +26,7 @@ green = "#7A7653"
 cyan = "#61A0A8"
 blue = "#C1666B"
 magenta = "#91506C"
+purple = "#91506C"
 brown = "#4D3F32"
 
 bright_red = "#C1666B"
