@@ -3,10 +3,15 @@
 // The Shimmer, as it looks in the film: the air itself seems to bend light.
 // Two layers work together.
 //
-// The WASH is a broad, soft spectral tint blended over the scene, running from
-// teal through blue, violet, magenta and pink to orange and amber. It shifts the
-// hue of what is behind it while keeping its brightness and detail, the way
-// light is dispersed by glass, and it is only a gentle tint, not a fog.
+// The TINT is a continuous, translucent film of spectral colour over the whole
+// scene, blended so that it shifts the hue of what is behind it while keeping its
+// brightness and detail, the way light is dispersed by uneven glass. It has no
+// mask and so no shape: its strength varies gently from place to place. Its hue
+// is a single smooth value that runs once through the spectrum (teal, blue,
+// violet, magenta, pink, orange, amber) and is warped so that it swirls, like
+// colour in oil on water. It is deliberately not cyclic: a hue that wraps
+// repeatedly gives parallel stripes, or concentric rings around the peaks of the
+// noise, and both look artificial.
 //
 // The LIGHT is added on top: a few curtains at a time, each swelling and fading
 // on its own, faintly striated by straight vertical columns, its colour running
@@ -174,17 +179,25 @@ void main() {
     float wy = fbm3(vec3(p * 0.9 + vec2(7.3, 3.1), t * 0.0783 + s * 1.7), 2);
     vec2 q = p + 0.30 * (vec2(wx, wy) - 0.5);
 
-    // The wash: where it is, and which hue it has there. The hue runs across the
-    // screen along a slowly turning direction, and its centre drifts, so any
-    // given patch is sometimes mostly blue, sometimes mostly pink.
-    float dw = fbm3(vec3(q * vec2(2.8, 2.1) + vec2(6.3, 1.9), t * 0.070 + s * 1.9), 3);
-    float wmask = smoothstep(0.52, 0.72, dw) * mix(0.6, 1.0, 1.0 - uv.y);
+    // The tint has no mask, so it has no shape. It covers the screen continuously
+    // and its strength varies gently from place to place. `pc` is the older sweep
+    // of hue across the screen, which the curtains of light below still use.
     float ang = 0.5 + 0.6 * sin(t * 0.040 + s * 2.1);
     float pc = ((q.x - aspect * 0.5) * cos(ang) + (q.y - 0.5) * sin(ang)) * 0.75
         + 0.5 * (fbm3(vec3(q * 0.7 + vec2(0.0, 4.0), t * 0.06 + s * 5.3), 2) - 0.5)
         + 0.5 + 0.14 * sin(t * 0.026 + s * 3.3);
-    float wa = wmask * 0.42;
-    vec3 rgb = washSpectrum(pc) * wa;
+    // The hue is one smooth value, not a cycle: teal at one extreme and amber at
+    // the other, so colour flows into other colour and never repeats as bands or
+    // closes into rings. The field is warped so that it swirls, the way colour
+    // does in oil on water.
+    vec2 hq = q + 0.45 * (vec2(fbm3(vec3(q * 1.3 + vec2(3.1, 7.7), t * 0.1260 + s * 6.7), 2),
+                                 fbm3(vec3(q * 1.3 + vec2(9.4, 1.2), t * 0.1120 + s * 7.9), 2)) - 0.5);
+    float h1 = fbm3(vec3(hq * vec2(1.6, 1.3) + vec2(6.3, 1.9), t * 0.1862 + s * 1.9), 3);
+    float h2 = fbm3(vec3(hq * vec2(3.4, 2.7) + vec2(2.2, 5.1), t * 0.1680 + s * 3.7), 2);
+    float hx = 0.46 + 2.0 * (h1 - 0.55) + 0.5 * (h2 - 0.5);
+    float ws = fbm3(vec3(q * vec2(1.4, 1.1) + vec2(1.7, 8.3), t * 0.0950 + s * 2.9), 3);
+    float wa = 0.34 * (0.1 + 0.90 * smoothstep(0.3, 0.8, ws)) * mix(0.7, 1.0, 1.0 - uv.y);
+    vec3 rgb = washSpectrum(hx) * wa;
     float a = wa;
 
     // The light: small curtains, each born and dying on its own.

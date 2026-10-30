@@ -45,46 +45,70 @@ The brief: **subdued psychedelic horror mixed with the beauty of nature.**
   halos, a faint band, spores. Never a rainbow, never saturated fill.
 - **What the Shimmer actually looks like** (from the user's reference stills and
   a trailer recording in `~/Videos`, studied with `ffmpeg` frame extraction, and
-  with saturation boosted to see structure). Two things, and the shader needs
-  both:
-  1. A **spectral tint**: a broad, soft sweep of hue across the scene (blue and
-     violet through magenta and pink to orange, teal-green at the far end),
-     blended so that it shifts the *hue* of the foliage while keeping its
-     brightness and detail. In the reference photo the tinted band is only 0.24
-     saturated against 0.42 for clean foliage, and no brighter than its
-     surroundings. It looks like air bending light; there are no streaks and no
-     glow. This is the `wash` in `shimmer.frag`.
-  2. Occasional **light**: a narrow curtain with a warm-white core made of thin
-     straight vertical columns, its colour separating across the width. This is
-     added on top (`light`), kept gentle.
-  Earlier versions each had only one of these and were wrong in instructive
-  ways: a crossing band on a 90 s schedule (scripted), big pale translucent
-  veils (large, pale, a flat layer), additive curtains alone with a domain warp
-  (wavy streaks, and no pink), and strong hot cores (glowing orbs, pale pink
-  blooms). The user said "pinkish hues in addition to the ones it has", so the
-  wash spectrum is teal, blue, violet, magenta, pink, orange, amber, with the
-  stops spaced so magenta and pink get the widest share (about a third of the
-  wash); measure hue shares over time rather than trusting the stop list, since
-  where a patch sits sets its hue and a wide sweep puts most of the screen at
-  the two ends.
+  with saturation boosted to see structure). The user's words: the air itself
+  seems to *refract light like a prism*. In the reference photo the effect is a
+  broad sweep of hue (blue, violet, magenta, orange, olive) that shifts the
+  colour of the foliage while keeping its brightness and detail: only 0.24
+  saturated against 0.42 for clean foliage, no glow, no streaks. In the trailer
+  it is also light: a narrow curtain with a warm core made of thin straight
+  columns, its colour separating across the width.
+- **The current design** (`shimmer.frag`) is a continuous *tint* plus gentle
+  *light*:
+  - The **tint** has no mask and so no shape. It covers the screen, its strength
+    varies smoothly (the floor is 10% of its peak), and its hue is *one smooth
+    value* that runs once through the spectrum, from a noise field that is warped
+    so that it swirls, plus a finer second field for irregularity. It is blended,
+    so the scene keeps its detail.
+  - The **light** is a few additive curtains with faint straight columns and a
+    weak warm core, as before.
+- **Lessons from the versions that were wrong** (each rejected by the user for
+  the stated reason): a band crossing on a 90 s schedule (scripted); big pale
+  translucent veils (large, pale, a flat layer on the wallpaper); additive
+  columns with a domain warp (wavy streaks, no pink); strong hot cores (glowing
+  orbs, pale pink blooms); a tint whose *shape* came from thresholding noise
+  (`smoothstep` of fbm into a mask), which gave "splotchy, like the goo in a lava
+  lamp" (thresholded noise always makes blobs); and **prism fans** from point
+  sources beyond the screen edges, with colour by angle, rays and RGB-split
+  fringes: physically more literal, but "too spotlight-y, too uniform, very
+  artificial" (a single source reads as a spotlight, and every fan has the same
+  structure). The user preferred the tint-plus-curtains version, so the final
+  design keeps that and removes only what made it blobby. The lesson: for this
+  effect, organic irregularity matters more than optical accuracy. Do not use a
+  noise threshold as a shape, and do not use a point source.
+- **Never make hue cyclic.** If hue wraps through the spectrum repeatedly as a
+  function of a noise field (`sin(2*pi*field*k)`), its contours close into
+  concentric rings around the peaks (they look like soap bubbles). Adding a
+  steady linear ramp to open the rings makes the bands parallel, which reads as
+  stripes ("the bands definitely read as stripes"). Both were tried and rejected.
+  What works is a single smooth value, mapped once from one end of the spectrum to
+  the other, from a warped noise field.
+- The colour scale (`washSpectrum`, `lightSpectrum`) has teal, blue, violet,
+  magenta, pink, orange and amber, with stops spaced so magenta and pink get the
+  widest share. The user asked for "pinkish hues in addition to the ones it has".
+  Measured over 15 minutes and four seeds, brightness-weighted: pink and magenta
+  about 31%, blue 22%, violet 19%, orange and amber 15%, teal and green 14%
+  (`extras/dev/hue-shares.py`, on the real shader). Measure hue shares over
+  time rather than trusting a stop list; a mapping's centre and slope decide
+  which colours dominate.
+- The colour scale (`washSpectrum`, `lightSpectrum`) has teal, blue, violet,
+  magenta, pink, orange and amber, with stops spaced so magenta and pink get the
+  widest share. The user asked for "pinkish hues in addition to the ones it has".
+  Measure hue shares over time rather than trusting a stop list.
 - The palette lives in the shader as constants (`W_*` mid-tone colours for the
-  wash, `L_*` lighter ones for the light), not as uniforms and not from the shell
+  tint, `L_*` lighter ones for the light), not as uniforms and not from the shell
   theme. Blend only neighbouring hues; violet with teal passes through grey. Pink
   over a green forest mixes toward grey-mauve (near-complements), so pink reads
   best in the additive light and looks dustier in the tint.
 - Nothing about the Shimmer may be a scheduled sweep. It is 3D value noise with
-  time as the third axis plus a random per-session `seed`. Patch size matters:
-  with features as big as the screen, coverage swung from empty to smothered;
-  several small patches keep the wash at a median near 27% of the screen (10th
-  to 90th percentile 14% to 45%), still varied, and the light curtains similar.
-  Check such statistics over many minutes and seeds, not at one instant.
-  "Dynamic" can be measured as the overlay's mean change per second relative to
-  its own level (`extras/dev/overlay-rate.py`, run on the real shader): the veil
-  version was 0.04, the light curtains about 0.21 and felt alive (0.38 felt like
-  flicker), the first spectral tint 0.10-0.14 (the user asked for a little more),
-  and the tint now about 0.20, from evolving the patches, hue sweep and warp at
-  twice the speed. A finer "heat haze" ripple inside the tint changed the rate
-  by almost nothing, so it was left out.
+  time as the third axis plus a random per-session `seed`. Check statistics over
+  many minutes and seeds, not at one instant. "Dynamic" is measured as the
+  overlay's mean change per second relative to its own level
+  (`extras/dev/overlay-rate.py`, on the real shader): the veil version was 0.04,
+  light curtains about 0.21 and felt alive (0.38 felt like flicker), the first
+  tint 0.10-0.14 (the user asked for a little more), and the current one 0.18-0.20.
+  Overall overlay brightness (mean of the largest colour channel) has a median of
+  about 0.11, against 0.07 for the masked version; a first draft at 0.13 looked
+  hazy, so the tint strength is 0.34, and the user can use the intensity slider.
 - **The shader's clock is accumulated, not read from the wall clock**
   (`Service.shimmerClock`, advanced by a service timer by elapsed time times
   `layerSpeed`, with a stall clamped to 0.25 s). Multiplying wall time by a speed
