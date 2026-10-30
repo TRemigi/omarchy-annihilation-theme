@@ -50,8 +50,9 @@ hl.curve("tendril", { type = "bezier", points = { { 0.22, 1 }, { 0.36, 1 } } })
 hl.curve("exhale", { type = "bezier", points = { { 0.5, 0 }, { 0.75, 1 } } })
 hl.curve("drift", { type = "bezier", points = { { 0, 0 }, { 1, 1 } } })
 
--- One full turn of the border gradient per minute (speed is in deciseconds).
-hl.animation({ leaf = "borderangle", enabled = true, speed = 600, bezier = "drift", style = "loop" })
+-- The border gradient turns slowly. Hyprland caps speed at 100 (deciseconds),
+-- so this is as slow as it goes; lower the value to make it faster.
+hl.animation({ leaf = "borderangle", enabled = true, speed = 100, bezier = "drift", style = "loop" })
 
 -- Windows bloom in slowly and recede a little faster.
 hl.animation({ leaf = "windowsIn", enabled = true, speed = 5.5, bezier = "tendril", style = "popin 92%" })
