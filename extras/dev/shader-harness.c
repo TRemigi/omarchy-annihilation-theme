@@ -9,7 +9,8 @@
 //
 // FRAMES=N in the environment also times N further draws (ms per draw on stderr).
 // The uniforms set are those of shimmer.frag (ubuf.time, .intensity, .motes, .seed,
-// .resolution and the six colours); another shader needs its own list below.
+// .additive, .resolution and the seven colours; ADDITIVE=0 in the environment turns
+// additive blending off); another shader needs its own list below.
 // qt_TexCoord0 has y = 0 at the top, as in Qt. This tests the shader, not the Qt
 // integration, and llvmpipe timings are not GPU timings.
 #include <EGL/egl.h>
@@ -53,10 +54,11 @@ int main(int argc, char **argv) {
   glUniform1f(glGetUniformLocation(prog, "ubuf.intensity"), inten);
   glUniform1f(glGetUniformLocation(prog, "ubuf.motes"), motes);
   glUniform1f(glGetUniformLocation(prog, "ubuf.seed"), seed);
+  glUniform1f(glGetUniformLocation(prog, "ubuf.additive"), getenv("ADDITIVE") ? (float)atof(getenv("ADDITIVE")) : 1.f);
   glUniform2f(glGetUniformLocation(prog, "ubuf.resolution"), (float)W, (float)H);
-  const char *names[] = { "teal", "slate", "violet", "rose", "aqua", "peach" };
-  const char *cols[]  = { "#3FB4C6", "#6482EA", "#9064DC", "#CC6CB0", "#D4EAEC", "#E0A98A" };
-  for (int i = 0; i < 6; i++) { char nm[64]; float c[4]; snprintf(nm, sizeof nm, "ubuf.%sColor", names[i]); hex(cols[i], c); glUniform4fv(glGetUniformLocation(prog, nm), 1, c); }
+  const char *names[] = { "teal", "blue", "violet", "green", "peach", "warm", "aqua" };
+  const char *cols[]  = { "#33C4D0", "#5F84FF", "#9A66F2", "#86D69A", "#F2B48C", "#FFE9CF", "#D4EAEC" };
+  for (int i = 0; i < 7; i++) { char nm[64]; float c[4]; snprintf(nm, sizeof nm, "ubuf.%sColor", names[i]); hex(cols[i], c); glUniform4fv(glGetUniformLocation(prog, nm), 1, c); }
 
   GLuint fbo, tex; glGenTextures(1, &tex); glBindTexture(GL_TEXTURE_2D, tex);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, W, H, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);

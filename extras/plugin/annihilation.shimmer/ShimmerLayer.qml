@@ -53,12 +53,14 @@ PanelWindow {
     property real motes: win.service.motes ? 1.0 : 0.0
     property size resolution: Qt.size(width, height)
     property real seed: win.service.shimmerSeed
-    property color tealColor: win.service.shimmerTeal
-    property color slateColor: win.service.shimmerSlate
+    property real additive: win.service.layerAdditive ? 1.0 : 0.0
     property color violetColor: win.service.shimmerViolet
-    property color roseColor: win.service.shimmerRose
-    property color aquaColor: win.service.shimmerAqua
+    property color blueColor: win.service.shimmerBlue
+    property color tealColor: win.service.shimmerTeal
+    property color greenColor: win.service.shimmerGreen
     property color peachColor: win.service.shimmerPeach
+    property color warmColor: win.service.shimmerWarm
+    property color aquaColor: win.service.shimmerAqua
 
     fragmentShader: Qt.resolvedUrl("shaders/shimmer.frag.qsb")
   }

@@ -5,6 +5,7 @@
 //
 // Settings are inline fields on this plugin's entry in shell.json `plugins[]`:
 //   layerEnabled (bool, true), layerIntensity (0-1, 0.35), motes (bool, true),
+//   layerAdditive (bool, true),
 //   fpsCap (5-60, 30), screensaver (bool, true),
 //   screensaverSeconds (0 = follow idle.screensaver in shell.json),
 //   screensaverBrightness (0.02-1, 0.08: how much of the photo shows),
@@ -30,16 +31,17 @@ Scope {
   readonly property string home: Quickshell.env("HOME")
   readonly property string dir: Qt.resolvedUrl(".").toString().replace(/^file:\/\//, "")
 
-  // The Shimmer's own colours, taken from the film: cool teal-blue veils with
-  // lavender haze and the occasional warm glow. They are lifted and saturated
-  // compared with the stills, because they have to tint what is behind them;
-  // pale colours only whiten it. Not the shell theme's palette, on purpose.
-  readonly property color shimmerTeal: "#3fb4c6"
-  readonly property color shimmerSlate: "#6482ea"
-  readonly property color shimmerViolet: "#9064dc"
-  readonly property color shimmerRose: "#cc6cb0"
+  // The Shimmer's own colours, taken from the film, where its light separates
+  // into lavender, blue, teal, green and peach with a warm white core. They are
+  // saturated because they are added to the scene, and pale colours only wash it
+  // out. Not the shell theme's palette, on purpose.
+  readonly property color shimmerViolet: "#9a66f2"
+  readonly property color shimmerBlue: "#5f84ff"
+  readonly property color shimmerTeal: "#33c4d0"
+  readonly property color shimmerGreen: "#86d69a"
+  readonly property color shimmerPeach: "#f2b48c"
+  readonly property color shimmerWarm: "#ffe9cf"
   readonly property color shimmerAqua: "#d4eaec"
-  readonly property color shimmerPeach: "#e0a98a"
 
   // Random per session, so the veils are never in the same places twice.
   readonly property real shimmerSeed: Math.random() * 100.0
@@ -47,6 +49,10 @@ Scope {
   property bool themeActive: false
 
   property bool layerEnabled: true
+  // Add the light to the wallpaper (true), or blend it as an ordinary
+  // translucent layer. Additive stores colour values above their alpha, which a
+  // compositor is free to mishandle; this is the way back if it does.
+  property bool layerAdditive: true
   property real layerIntensity: 0.35
   property bool motes: true
   property int fpsCap: 30
@@ -129,6 +135,7 @@ Scope {
     } catch (e) {}
 
     layerEnabled = entry.layerEnabled !== false
+    layerAdditive = entry.layerAdditive !== false
     motes = entry.motes !== false
     layerIntensity = typeof entry.layerIntensity === "number" ? clamp(entry.layerIntensity, 0, 1) : 0.35
     fpsCap = typeof entry.fpsCap === "number" ? Math.round(clamp(entry.fpsCap, 5, 60)) : 30
@@ -287,6 +294,7 @@ Scope {
         themeActive: root.themeActive,
         running: root.running,
         layerEnabled: root.layerEnabled,
+        layerAdditive: root.layerAdditive,
         layerIntensity: root.layerIntensity,
         motes: root.motes,
         fpsCap: root.fpsCap,

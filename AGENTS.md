@@ -43,22 +43,34 @@ The brief: **subdued psychedelic horror mixed with the beauty of nature.**
 - The palette is the brown marsh. The Shimmer (teal `#61A0A8`, bruised magenta
   `#91506C`, amber `#DB930D`, moss `#7A7653`) shows up only at edges: borders,
   halos, a faint band, spores. Never a rainbow, never saturated fill.
-- The Shimmer layer's colours are its own, not the shell theme's, and come from
-  the film (the user's reference stills: `~/Pictures/shimmer-example*.png|jpg`).
-  There the Shimmer **tints** the scene (greens shift toward blue and lavender)
-  and looks like glossy, silky, vertically stretched sheets with pale rims. It
-  is not white fog and not stripes. So the veil body colours are saturated
-  mid-tones (`Service.shimmer*`) and white is kept to thin rims and sheen: a
-  pale colour at low opacity just whitens the scene. Blend only neighbouring
-  hues (teal, periwinkle, violet, rose); mixing violet with teal passes through
-  grey. Warm peach appears only as an occasional light leak from an edge.
-- Nothing about the Shimmer may be a scheduled sweep (the first version was a
-  band crossing from the top left every 90 s, which felt scripted). It is 3D
-  value noise with time as the third axis plus a random per-session `seed`.
-  Patch size matters: with features as big as the screen, coverage swung from
-  empty to smothered; with several patches at once it stays between about 5%
-  and 90% with a median near 40%, still varied. Check such statistics over many
-  minutes and seeds, not at one instant.
+- **What the Shimmer actually looks like** (from the user's reference stills and
+  a trailer recording in `~/Videos`, studied with `ffmpeg` frame extraction): it
+  is *light*, not a veil. A narrow curtain with a blown-out warm-white core,
+  built of thin vertical columns, its colour separating across the width like a
+  prism (lavender, blue, teal, green, peach side by side), localised to part of
+  the frame with the rest of the scene untouched. Two earlier versions were
+  wrong in instructive ways: a crossing band on a 90 s schedule felt scripted,
+  and big soft translucent veils felt "large, pale and flat, like a layer on the
+  wallpaper". The fix was additive light (the wallpaper keeps its contrast),
+  small events, vertical columns, saturated colours, and hot cores.
+- The layer's colours are its own, not the shell theme's (`Service.shimmer*`).
+  Blend only neighbouring hues; mixing violet with teal passes through grey. Warm
+  peach shows up as cores and the occasional light leak from an edge.
+- Nothing about the Shimmer may be a scheduled sweep. It is 3D value noise with
+  time as the third axis plus a random per-session `seed`. Patch size matters:
+  with features as big as the screen, coverage swung from empty to smothered;
+  several small patches keep the light events at a median near 24% of the screen
+  (10th to 90th percentile 11% to 43%), still varied. Check such statistics over
+  many minutes and seeds, not at one instant. "Dynamic" can be measured as the
+  overlay's mean change per second relative to its own level: the veil version
+  was 0.04, the light events are about 0.21 (0.38 felt like flicker).
+- **Additive blending.** In the default mode the shader outputs colour larger
+  than its alpha, which a premultiplied "over" blend turns into added light.
+  That is outside what the Wayland spec promises, so the `layerAdditive` setting
+  (and the `additive` uniform) falls back to an ordinary translucent layer. If
+  the light ever shows up black or washed out on another compositor, turn it off
+  first. `intensity` is multiplied by 2 inside the shader so that the default
+  0.35 is the strength the look was designed at.
 - **Everything is slow and low-alpha.** Periods of 20 to 90 s, intensities that
   you notice only afterwards. If a change makes something louder, it is
   probably wrong. Defaults: layer intensity 0.35, spores faint, caustics

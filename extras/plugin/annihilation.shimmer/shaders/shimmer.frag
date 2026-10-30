@@ -1,16 +1,23 @@
 #version 440
 
-// The Shimmer, as it looks in the film: a translucent, silky haze that tints
-// whatever is behind it. Soft patches of veil swell, drift and dissolve in
-// places that are never the same twice, shaded as stretched folds with glossy
-// rims; their colour wanders between teal, periwinkle, violet and rose; warm
-// and violet glows wander in from the edges and fade; spores rise through it.
+// The Shimmer, as it looks in the film: not a veil laid over the picture but
+// light. A few narrow curtains of it appear at a time, in different places and
+// for different lengths of time; each is built from thin vertical columns that
+// slide and shimmer at their own speeds, its colour disperses across its width
+// (lavender, blue, teal, green, peach) like light through a prism, and its
+// brightest part burns warm white. It is added to what is behind it, so the
+// wallpaper keeps its contrast instead of being washed out.
 //
-// Nothing here is a scheduled sweep. Everything comes from 3D value noise with
-// time as the third axis, so the patterns evolve instead of looping, and `seed`
-// (random per session) makes every session different. Output is premultiplied
-// alpha, kept low so it reads as something seen at the edge of vision.
-// Rebuild with shaders/build-shaders.sh after editing.
+// Nothing is scheduled. Everything comes from 3D value noise with time as the
+// third axis, so the patterns evolve instead of looping, and `seed` (random per
+// session) makes every session different. A couple of warm and violet glows
+// wander in from the screen edges, and spores rise through it all.
+//
+// The output is premultiplied alpha. In the default additive mode the colour is
+// deliberately allowed to exceed alpha, which a premultiplied "over" blend turns
+// into added light; with `additive` off, alpha is raised to cover the colour so
+// the result is an ordinary translucent layer. Rebuild with
+// shaders/build-shaders.sh after editing.
 
 layout(location = 0) in vec2 qt_TexCoord0;
 layout(location = 0) out vec4 fragColor;
@@ -22,13 +29,15 @@ layout(std140, binding = 0) uniform buf {
     float intensity;
     float motes;
     float seed;
+    float additive;
     vec2 resolution;
     vec4 tealColor;
-    vec4 slateColor;
+    vec4 blueColor;
     vec4 violetColor;
-    vec4 roseColor;
-    vec4 aquaColor;
+    vec4 greenColor;
     vec4 peachColor;
+    vec4 warmColor;
+    vec4 aquaColor;
 } ubuf;
 
 float hash13(vec3 p3) {
@@ -73,14 +82,15 @@ float fbm3(vec3 p, int octaves) {
     return s / norm;
 }
 
-// teal -> periwinkle -> violet -> rose. Only neighbouring hues are ever
-// blended, so a mix never passes through grey.
+// violet -> blue -> teal -> green -> peach, the order in which the film's light
+// separates. Only neighbours are ever blended, so a mix never passes through grey.
 vec3 palette(float x) {
-    float s = clamp(x, 0.0, 0.9999) * 3.0;
+    float s = clamp(x, 0.0, 0.9999) * 4.0;
     float f = smoothstep(0.0, 1.0, fract(s));
-    if (s < 1.0) return mix(ubuf.tealColor.rgb, ubuf.slateColor.rgb, f);
-    if (s < 2.0) return mix(ubuf.slateColor.rgb, ubuf.violetColor.rgb, f);
-    return mix(ubuf.violetColor.rgb, ubuf.roseColor.rgb, f);
+    if (s < 1.0) return mix(ubuf.violetColor.rgb, ubuf.blueColor.rgb, f);
+    if (s < 2.0) return mix(ubuf.blueColor.rgb, ubuf.tealColor.rgb, f);
+    if (s < 3.0) return mix(ubuf.tealColor.rgb, ubuf.greenColor.rgb, f);
+    return mix(ubuf.greenColor.rgb, ubuf.peachColor.rgb, f);
 }
 
 // Spores: about half the cells of a coarse grid host a drifting, flickering
@@ -126,62 +136,61 @@ void main() {
     float t = ubuf.time;
     float s = ubuf.seed;
 
-    // A slow domain warp, so the folds morph rather than slide.
-    float wx = fbm3(vec3(p * 0.85, t * 0.030 + s), 2);
-    float wy = fbm3(vec3(p * 0.85 + vec2(7.3, 3.1), t * 0.026 + s * 1.7), 2);
-    vec2 q = p + 0.8 * (vec2(wx, wy) - 0.5);
+    // A slow domain warp, so the curtains lean and bend rather than stand rigid.
+    float wx = fbm3(vec3(p * 0.9, t * 0.060 + s), 2);
+    float wy = fbm3(vec3(p * 0.9 + vec2(7.3, 3.1), t * 0.0522 + s * 1.7), 2);
+    vec2 q = p + 0.6 * (vec2(wx, wy) - 0.5);
 
-    // Where the veils are: several patches at once, each swelling and dissolving
-    // on its own, a little more of them toward the top. `haze` is the broad soft
-    // layer, `sheet` the defined silhouettes, `rim` a thin glossy edge.
-    float d = fbm3(vec3(q * vec2(2.4, 1.8) + vec2(2.1, 9.4), t * 0.022 + s * 2.3), 3);
-    float top = mix(0.5, 1.0, 1.0 - uv.y);
-    float haze = smoothstep(0.30, 0.70, d) * top;
-    float sheet = smoothstep(0.44, 0.70, d) * top;
-    float rimDist = (d - 0.57) / 0.06;
-    float rim = exp(-rimDist * rimDist) * top;
+    // Where the light is: small patches, taller than wide, each swelling and
+    // dying on its own. `core` is the curtain, `halo` a soft glow around it and
+    // `hot` its brightest part.
+    float d = fbm3(vec3(q * vec2(3.4, 1.5) + vec2(2.1, 9.4), t * 0.045 + s * 2.3), 3);
+    float core = smoothstep(0.54, 0.72, d);
+    float halo = smoothstep(0.44, 0.68, d);
+    float hot = smoothstep(0.60, 0.76, d);
 
-    // Silky folds: stretched vertically, with glossy ridge lines.
-    float f = fbm3(vec3(q * vec2(2.6, 0.9) + vec2(4.0, 1.0), t * 0.045 + s * 3.1), 3);
-    float ridge = 1.0 - abs(2.0 * f - 1.0);
-    float sheen = ridge * ridge * ridge;
-    float body = 0.4 + 0.6 * smoothstep(0.3, 0.8, f);
+    // Thin vertical columns that slide sideways and shimmer, each at its own pace.
+    float drift = 0.35 * fbm3(vec3(q.x * 3.0 + 5.0, q.y * 0.5, t * 0.05 + s), 2);
+    float sx = fbm3(vec3((q.x + drift) * 16.0, q.y * 0.7 + 3.0, t * 0.14 + s * 3.1), 3);
+    float streak = smoothstep(0.32, 0.82, sx);
+    float colIdx = floor(q.x * 16.0);
+    float fine = 0.88 + 0.12 * sin(t * (0.5 + 1.2 * fract(colIdx * 0.37)) + colIdx * 5.1);
 
-    // Which colour: varies slowly across the screen and in time.
-    float cf = fbm3(vec3(q * 0.55 + vec2(11.0, 5.0), t * 0.018 + s * 4.7), 2);
-    vec3 col = palette(smoothstep(0.28, 0.72, cf));
+    // Dispersion: the colour runs across each curtain, like light through a prism.
+    float hf = fbm3(vec3(q.x * 1.7 + 0.5 * sx, q.y * 0.45 + 11.0, t * 0.030 + s * 4.7), 2);
+    vec3 col = palette(smoothstep(0.30, 0.72, hf));
 
-    float a = haze * 0.20 + sheet * (0.34 * body + 0.16 * sheen) + rim * 0.10;
-    vec3 rgb = col * (haze * 0.30 + sheet * body * 0.55)
-        + ubuf.aquaColor.rgb * (sheet * sheen * 0.24 + rim * 0.20);
+    float light = core * (0.30 + 0.70 * streak) * fine;
+    vec3 rgb = col * (light * 0.70 + halo * 0.10)
+        + ubuf.warmColor.rgb * (hot * (0.35 + 0.65 * streak) * 0.85);
+    float a = (halo * 0.6 + core * 0.4) * 0.10;
 
     // Light leaks: a warm glow and a violet one wander in from the edges, and
     // each fades in and out on its own slow clock.
     for (int k = 0; k < 2; k++) {
         float kk = float(k);
         float ph = s * (1.3 + kk);
-        vec2 c = vec2(aspect * (0.5 + 0.62 * sin(t * (0.011 + 0.007 * kk) + ph * 3.1)),
-                      0.5 + 0.62 * sin(t * (0.009 + 0.0065 * kk) + ph * 5.3 + 1.7));
+        vec2 c = vec2(aspect * (0.5 + 0.62 * sin(t * (0.011 + 0.007 * kk) * 2.0 + ph * 3.1)),
+                      0.5 + 0.62 * sin(t * (0.009 + 0.0065 * kk) * 2.0 + ph * 5.3 + 1.7));
         vec2 dv = vec2(p.x - c.x, (p.y - c.y) * 1.3);
-        float rr = 0.30 + 0.1 * kk;
+        float rr = 0.20 + 0.05 * kk;
         float g = exp(-dot(dv, dv) / (rr * rr));
-        float amp = smoothstep(0.3, 0.9, 0.5 + 0.5 * sin(t * (0.017 + 0.006 * kk) + ph * 7.7));
+        float amp = smoothstep(0.3, 0.9, 0.5 + 0.5 * sin(t * (0.017 + 0.006 * kk) * 2.0 + ph * 7.7));
         vec3 lc = k == 0 ? ubuf.peachColor.rgb : ubuf.violetColor.rgb;
-        rgb += lc * (g * amp * 0.30);
-        a += g * amp * 0.22;
+        rgb += lc * (g * amp * 0.20);
     }
 
     vec4 sp = spores(p, t) * ubuf.motes;
-    rgb += sp.rgb;
-    a += sp.a;
+    rgb += sp.rgb * 0.8;
+    a += sp.a * 0.15;
 
-    float c = caustics(p, t) * smoothstep(0.6, 1.0, uv.y) * 0.05;
+    float c = caustics(p, t) * smoothstep(0.6, 1.0, uv.y) * 0.04;
     rgb += ubuf.aquaColor.rgb * c;
-    a += c;
 
-    vec4 acc = vec4(rgb, a) * ubuf.intensity;
-    acc.a = clamp(acc.a, 0.0, 1.0);
-    acc.rgb = min(acc.rgb, vec3(acc.a));
+    // intensity 0.35 (the default) is the strength this was designed at.
+    vec4 acc = vec4(rgb, a) * (ubuf.intensity * 2.0);
+    if (ubuf.additive < 0.5) acc.a = max(acc.a, max(acc.r, max(acc.g, acc.b)));
+    acc = clamp(acc, 0.0, 1.0);
 
     fragColor = acc * ubuf.qt_Opacity;
 }
