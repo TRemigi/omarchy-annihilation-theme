@@ -394,12 +394,14 @@ is `Service.passageStyle`.
 
 ## State at the end of the first session
 
-User-confirmed working live: the portable theme, Hyprland extras (after the
-speed-cap fix), plugin loading, wallpaper layer, bar glyph and popup, screensaver
-(wallpaper effect and journal text, before the passage rework). The user then
-approved the direction of: very dark screensaver photo, no stretching, Jost
-capitals, a stronger glow. Those last changes were verified by port and by
-offscreen text tests, not by sight.
+Confirmed by the user by sight: the portable theme, the Hyprland extras, plugin
+loading, the bar glyph and popup including the **Speed slider**, the screensaver
+(fade-in from black, the crawling passage and its timing, the **stronger text
+glow**, and the **darkness at `screensaverBrightness` 0.08**), and the **final
+Shimmer layer** ("looking quite good now, keep it"). The Shimmer took seven rounds
+of feedback to reach (see the lessons above); do not redesign it without a new
+complaint from the user, and if you must change it, change one thing and measure
+with `extras/dev/overlay-rate.py` and `extras/dev/hue-shares.py`.
 
 Open items:
 
@@ -408,13 +410,18 @@ Open items:
 - Border rotation period under the 100-speed cap is unconfirmed; the user may
   prefer it static or slower (a slower version would need the plugin to drive
   the angle itself).
-- Glow strength, `screensaverBrightness` and seam strength are taste calls and
-  may need tuning after the user sees them.
 - A themed `[lock]` placeholder phrase was in the original plan and never done.
 - The `shell.toml` gradient strings and `updateEntryInline` from a bar widget
   were assumed to work and appeared to, but were never inspected in the source.
-- The lighthouse wallpaper already contains baked-in iridescence, so the
-  shimmer layer is hardest to see on it; the darker stills show it best.
+- Additive blending (`layerAdditive`) is assumed to work on the user's
+  compositor; it did, as far as the user has said, but it is outside what the
+  Wayland spec promises.
+- The film's effect also seems to bend the picture behind it. Doing that would
+  mean the layer samples the wallpaper and displaces it: a bigger change that
+  risks mismatching the real wallpaper during theme transitions. Only worth
+  trying if the user says the Shimmer feels flat.
+- The user's wallpaper already contains baked-in iridescence, so the layer is
+  hardest to see on that still; the darker stills show it best.
 
 ## Resources
 
