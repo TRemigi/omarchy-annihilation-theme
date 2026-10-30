@@ -23,7 +23,6 @@ PanelWindow {
 
   property real startedAt: 0
   property real elapsed: 0
-  property bool crawling: false
 
   function dismiss() {
     service.screensaverForced = false
@@ -42,12 +41,10 @@ PanelWindow {
     if (visible) {
       startedAt = Date.now()
       elapsed = 0
-      crawling = false
       crawl.opacity = 0
       crawlIn.restart()
     } else {
       crawlIn.stop()
-      crawling = false
       // Next time, carry on from the first part that was still on screen.
       service.passageIndex = crawl.resumeIndex()
     }
@@ -103,7 +100,7 @@ PanelWindow {
 
     parts: win.service.passageParts
     startIndex: win.service.passageIndex
-    running: win.crawling
+    running: win.visible
     speed: win.service.crawlSpeed * win.passageSize
     gap: win.passageSize * 7
 
@@ -119,13 +116,18 @@ PanelWindow {
     coreColor: Qt.lighter(Color.accent, 1.8)
   }
 
-  // Let the wallpaper settle, then start the crawl and bring it up together,
-  // so the first words are in view as they begin to move.
-  SequentialAnimation {
+  // Fades up with the photo: same start, same length, same curve. The shader
+  // uses smoothstep(0, 3, t), which is exactly this cubic Bezier (control points
+  // at one third and two thirds), so the two are one transition.
+  NumberAnimation {
     id: crawlIn
-    PauseAnimation { duration: 2000 }
-    ScriptAction { script: win.crawling = true }
-    NumberAnimation { target: crawl; property: "opacity"; from: 0; to: 1; duration: 2000; easing.type: Easing.InOutSine }
+    target: crawl
+    property: "opacity"
+    from: 0
+    to: 1
+    duration: 3000
+    easing.type: Easing.Bezier
+    easing.bezierCurve: [1 / 3, 0, 2 / 3, 1, 1, 1]
   }
 
   Item {

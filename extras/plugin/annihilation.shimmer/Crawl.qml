@@ -86,11 +86,12 @@ Item {
   function advance(dt) {
     if (parts.length === 0) return
 
-    // The first words begin where they are already starting to fade in, so
-    // they are never spent unseen.
+    // The first words begin at the inner end of the fade-in zone, already in
+    // view, so the text can fade up together with whatever is behind it instead
+    // of waiting to scroll into sight.
     if (!primed) {
       if (width <= 0) return
-      ribbonX = width * (1.0 - fadeInset)
+      ribbonX = width * (1.0 - fadeInset - fadeWidth)
       primed = true
     }
 

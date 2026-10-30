@@ -194,10 +194,16 @@ iridescence (oil on water); bioluminescent fungi.
 - **A layer-shell window is often zero-wide the instant it becomes visible.**
   `Crawl` therefore sets its start position on the first `advance()` with a real
   width (`primed`), not in `restart()`. Reading `width` too early started the
-  text at the left edge, so the first words crawled away unseen. The crawl also
-  only starts moving once `Screensaver.crawling` is set, so the first words are
-  fading in as they begin to move. A zero-width regression test (a Crawl with
-  `width: 0`, widened a few steps later) reproduces the old failure.
+  text at the left edge, so the first words crawled away unseen. A zero-width
+  regression test (a Crawl with `width: 0`, widened a few steps later)
+  reproduces the old failure.
+- **The screensaver is one transition.** The photo fades from black with
+  `smoothstep(0, 3, t)` straight to its dark level (`bloom.frag`), and the crawl
+  fades its opacity over the same 3 s on the identical curve (a cubic Bezier
+  with control points at 1/3 and 2/3 is exactly smoothstep). Both start when
+  the window becomes visible; do not reintroduce a delay or a separate dimming
+  ramp, which showed up as a double fade. The first part starts at the inner end
+  of the fade-in zone so it is already in view.
 - Recycling in `Crawl.advance` must add the removed part's width plus the gap
   back onto `ribbonX`, or everything visibly jumps. The simulation test below
   catches that.
