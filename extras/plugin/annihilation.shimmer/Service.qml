@@ -30,9 +30,19 @@ Scope {
   readonly property string home: Quickshell.env("HOME")
   readonly property string dir: Qt.resolvedUrl(".").toString().replace(/^file:\/\//, "")
 
-  // The palette's teal and magenta come from the shell theme (Color.accent,
-  // Color.bar.active); amber is not exposed there, so it lives here.
-  readonly property color amber: "#db930d"
+  // The Shimmer's own colours, taken from the film: cool teal-blue veils with
+  // lavender haze and the occasional warm glow. They are lifted and saturated
+  // compared with the stills, because they have to tint what is behind them;
+  // pale colours only whiten it. Not the shell theme's palette, on purpose.
+  readonly property color shimmerTeal: "#3fb4c6"
+  readonly property color shimmerSlate: "#6482ea"
+  readonly property color shimmerViolet: "#9064dc"
+  readonly property color shimmerRose: "#cc6cb0"
+  readonly property color shimmerAqua: "#d4eaec"
+  readonly property color shimmerPeach: "#e0a98a"
+
+  // Random per session, so the veils are never in the same places twice.
+  readonly property real shimmerSeed: Math.random() * 100.0
 
   property bool themeActive: false
 

@@ -43,6 +43,22 @@ The brief: **subdued psychedelic horror mixed with the beauty of nature.**
 - The palette is the brown marsh. The Shimmer (teal `#61A0A8`, bruised magenta
   `#91506C`, amber `#DB930D`, moss `#7A7653`) shows up only at edges: borders,
   halos, a faint band, spores. Never a rainbow, never saturated fill.
+- The Shimmer layer's colours are its own, not the shell theme's, and come from
+  the film (the user's reference stills: `~/Pictures/shimmer-example*.png|jpg`).
+  There the Shimmer **tints** the scene (greens shift toward blue and lavender)
+  and looks like glossy, silky, vertically stretched sheets with pale rims. It
+  is not white fog and not stripes. So the veil body colours are saturated
+  mid-tones (`Service.shimmer*`) and white is kept to thin rims and sheen: a
+  pale colour at low opacity just whitens the scene. Blend only neighbouring
+  hues (teal, periwinkle, violet, rose); mixing violet with teal passes through
+  grey. Warm peach appears only as an occasional light leak from an edge.
+- Nothing about the Shimmer may be a scheduled sweep (the first version was a
+  band crossing from the top left every 90 s, which felt scripted). It is 3D
+  value noise with time as the third axis plus a random per-session `seed`.
+  Patch size matters: with features as big as the screen, coverage swung from
+  empty to smothered; with several patches at once it stays between about 5%
+  and 90% with a median near 40%, still varied. Check such statistics over many
+  minutes and seeds, not at one instant.
 - **Everything is slow and low-alpha.** Periods of 20 to 90 s, intensities that
   you notice only afterwards. If a change makes something louder, it is
   probably wrong. Defaults: layer intensity 0.35, spores faint, caustics
@@ -241,9 +257,19 @@ render. The user is the only one who can confirm anything live. What works:
 - Installer and hook: run them with `HOME=$TMPDIR/fakehome` and a copied
   `~/.local/state/omarchy/current/theme/hyprland.lua`. This is how idempotency,
   conflicts and the screensaver marker were tested.
-- Shaders: compile with `qsb`; judge composition with a small pure-Python port
-  of the GLSL over the real wallpaper (no NumPy was available). Port the exact
-  math, resize small, and view the PNG. This tests the maths, not Qt.
+- **Shaders can be run for real here.** `extras/dev/shader-harness.c` runs a
+  compiled shader on Mesa's software GL through headless EGL (`gcc`, EGL and
+  GLES3 headers and llvmpipe are installed) and writes a PAM frame. Extract the
+  GLSL ES variant Qt would use with `qsb -x "glsl,100 es"`; the commands are in
+  the file's header. It proved `shimmer.frag` equal to its NumPy preview to a
+  mean 0.001-0.003 per channel. Output is **premultiplied**: composite with
+  `rgb + bg * (1 - alpha)`, not as straight alpha. It does not test the Qt
+  integration (uniform names must match the QML properties by name; check them
+  against `qsb --dump`), and its timings are a CPU rasteriser's, not a GPU's.
+- For look development, a vectorised NumPy port of the shader in a throwaway
+  venv (`python3 -m venv $TMPDIR/venv && pip install numpy pillow`; PyPI is
+  reachable) renders a frame in about 2 s, versus minutes in pure Python. Port
+  it line for line, then run the real thing through the harness to catch typos.
 - Text and fonts: `/usr/bin/qml` is **Qt5**; use `/usr/lib/qt6/bin/qml` with
   `env -u DISPLAY -u WAYLAND_DISPLAY QT_QPA_PLATFORMTHEME=
   QT_QPA_PLATFORM=offscreen` and pass args after `--`. The software renderer

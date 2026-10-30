@@ -6,7 +6,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Wayland
-import qs.Commons
 
 PanelWindow {
   id: win
@@ -53,9 +52,13 @@ PanelWindow {
     property real intensity: win.service.effectiveIntensity
     property real motes: win.service.motes ? 1.0 : 0.0
     property size resolution: Qt.size(width, height)
-    property color tealColor: Color.accent
-    property color bruiseColor: Color.bar.active
-    property color amberColor: win.service.amber
+    property real seed: win.service.shimmerSeed
+    property color tealColor: win.service.shimmerTeal
+    property color slateColor: win.service.shimmerSlate
+    property color violetColor: win.service.shimmerViolet
+    property color roseColor: win.service.shimmerRose
+    property color aquaColor: win.service.shimmerAqua
+    property color peachColor: win.service.shimmerPeach
 
     fragmentShader: Qt.resolvedUrl("shaders/shimmer.frag.qsb")
   }
