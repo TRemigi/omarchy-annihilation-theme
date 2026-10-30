@@ -199,11 +199,15 @@ iridescence (oil on water); bioluminescent fungi.
   reproduces the old failure.
 - **The screensaver is one transition.** The photo fades from black with
   `smoothstep(0, 3, t)` straight to its dark level (`bloom.frag`), and the crawl
-  fades its opacity over the same 3 s on the identical curve (a cubic Bezier
-  with control points at 1/3 and 2/3 is exactly smoothstep). Both start when
-  the window becomes visible; do not reintroduce a delay or a separate dimming
-  ramp, which showed up as a double fade. The first part starts at the inner end
-  of the fade-in zone so it is already in view.
+  starts fading at the same moment (`Screensaver.crawlIn`, a smoothstep Bezier).
+  Do not reintroduce a delay or a separate dimming ramp: that showed up as a
+  double fade. Matching the photo's *curve* was not enough, though: the photo
+  only reaches 16% brightness while the text goes to full, and opacity is linear
+  light, so the text looked like it popped in. It now takes 6 s and its opacity
+  is `reveal^2`, which keeps pace with the photo perceptually (see the table in
+  the commit message). Judge fades by perceived brightness (about `x^(1/2.2)`),
+  not by the number. The first part starts at the inner end of the fade-in zone
+  so it is already in view.
 - Recycling in `Crawl.advance` must add the removed part's width plus the gap
   back onto `ribbonX`, or everything visibly jumps. The simulation test below
   catches that.

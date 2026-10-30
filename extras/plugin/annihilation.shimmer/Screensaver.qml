@@ -23,6 +23,8 @@ PanelWindow {
 
   property real startedAt: 0
   property real elapsed: 0
+  // How far the text has come up, 0 to 1; see crawlIn.
+  property real reveal: 0
 
   function dismiss() {
     service.screensaverForced = false
@@ -41,7 +43,7 @@ PanelWindow {
     if (visible) {
       startedAt = Date.now()
       elapsed = 0
-      crawl.opacity = 0
+      reveal = 0
       crawlIn.restart()
     } else {
       crawlIn.stop()
@@ -96,7 +98,9 @@ PanelWindow {
     anchors.verticalCenter: parent.verticalCenter
     width: parent.width
     height: Math.max(win.passageSize * 5, win.passageSize * 1.5 + 160)
-    opacity: 0
+    // Squared: opacity is linear light, and bright text on near-black looks
+    // far stronger than its number, so a straight ramp seems to pop in.
+    opacity: win.reveal * win.reveal
 
     parts: win.service.passageParts
     startIndex: win.service.passageIndex
@@ -116,16 +120,16 @@ PanelWindow {
     coreColor: Qt.lighter(Color.accent, 1.8)
   }
 
-  // Fades up with the photo: same start, same length, same curve. The shader
-  // uses smoothstep(0, 3, t), which is exactly this cubic Bezier (control points
-  // at one third and two thirds), so the two are one transition.
+  // Starts with the photo (smoothstep, which is exactly this cubic Bezier with
+  // control points at one third and two thirds) but takes twice as long, so
+  // the text keeps pace with the dim photo and then settles in.
   NumberAnimation {
     id: crawlIn
-    target: crawl
-    property: "opacity"
+    target: win
+    property: "reveal"
     from: 0
     to: 1
-    duration: 3000
+    duration: 6000
     easing.type: Easing.Bezier
     easing.bezierCurve: [1 / 3, 0, 2 / 3, 1, 1, 1]
   }
