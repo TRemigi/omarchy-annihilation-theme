@@ -109,7 +109,9 @@ void main() {
                     texture(source, cover(wuv - dir * sep, aspect)).b);
 
     // Dim the photograph first, so the seams below stay as bright as they are.
-    col *= mix(1.0, ubuf.brightness, smoothstep(0.0, 10.0, t));
+    // Dimmed from the first frame: the fade-in below runs black to the dark
+    // image, never passing through the photo at full brightness.
+    col *= ubuf.brightness;
 
     float on = smoothstep(15.0, 100.0, t);
     vec3 c = cells(p * 3.5, t);
