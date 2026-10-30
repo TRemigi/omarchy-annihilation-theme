@@ -90,9 +90,10 @@ PanelWindow {
     fragmentShader: Qt.resolvedUrl("shaders/bloom.frag.qsb")
   }
 
-  // The passage, as living light: a dark halo for legibility, three blooms of
-  // teal that breathe slowly, and a pale core that now and then gutters. The
-  // band is tall enough for the widest bloom not to be clipped.
+  // The passage, as living light: a dark halo for legibility, layered blooms of
+  // teal that breathe slowly, and a pale core that now and then gutters (the
+  // layers are in Crawl.qml). The band is tall enough for the widest bloom not
+  // to be clipped.
   Crawl {
     id: crawl
     anchors.verticalCenter: parent.verticalCenter
@@ -114,7 +115,7 @@ PanelWindow {
     pixelSize: win.passageSize
     letterSpacing: win.passageSize * win.passageStyle.tracking
 
-    wideColor: Color.accent
+    wideColor: Qt.lighter(Color.accent, 1.1)
     midColor: Qt.lighter(Color.accent, 1.25)
     nearColor: Qt.lighter(Color.accent, 1.5)
     coreColor: Qt.lighter(Color.accent, 1.8)

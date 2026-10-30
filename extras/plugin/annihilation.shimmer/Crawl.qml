@@ -58,12 +58,21 @@ Item {
 
   readonly property int count: partModel.count
 
+  // Back to front. The glow of thin letters is faint once blurred, so the
+  // bloom is built up from several layers of staggered radius (blurMax, in
+  // pixels). The wide and mid ones are drawn with a 1 px outline for roughly
+  // twice the light from the same letters: a heavier font weight would do it
+  // too, but it changes the letter widths and the halo would drift off the text.
+  // The near bloom and core are left plain so the letterforms stay thin.
   readonly property var glowLayers: [
-    { kind: "shadow", blur: 40, tint: shadowColor, alpha: 0.7 },
-    { kind: "halo", blur: 64, tint: wideColor, alpha: 0.9 },
-    { kind: "halo", blur: 32, tint: midColor, alpha: 0.9 },
-    { kind: "halo", blur: 14, tint: nearColor, alpha: 1.0 },
-    { kind: "core", blur: 0, tint: coreColor, alpha: 0.95 }
+    { kind: "shadow", blur: 40, tint: shadowColor, alpha: 0.7, outline: false },
+    { kind: "halo", blur: 64, tint: wideColor, alpha: 1.0, outline: true },
+    { kind: "halo", blur: 52, tint: wideColor, alpha: 1.0, outline: true },
+    { kind: "halo", blur: 40, tint: wideColor, alpha: 1.0, outline: true },
+    { kind: "halo", blur: 32, tint: midColor, alpha: 1.0, outline: true },
+    { kind: "halo", blur: 24, tint: midColor, alpha: 1.0, outline: true },
+    { kind: "halo", blur: 14, tint: nearColor, alpha: 1.0, outline: false },
+    { kind: "core", blur: 0, tint: coreColor, alpha: 0.95, outline: false }
   ]
   readonly property var plainLayers: [{ kind: "core", blur: 0, tint: coreColor, alpha: 0.95 }]
 
@@ -122,7 +131,7 @@ Item {
     running: root.running && root.glow
     loops: Animation.Infinite
     NumberAnimation { to: 1.0; duration: 3200; easing.type: Easing.InOutSine }
-    NumberAnimation { to: 0.7; duration: 3800; easing.type: Easing.InOutSine }
+    NumberAnimation { to: 0.85; duration: 3800; easing.type: Easing.InOutSine }
   }
 
   Behavior on flicker { NumberAnimation { duration: 140 } }
@@ -194,6 +203,8 @@ Item {
               line: part.line
               anchors.verticalCenter: parent.verticalCenter
               color: modelData.tint
+              style: modelData.outline === true ? Text.Outline : Text.Normal
+              styleColor: modelData.tint
               opacity: modelData.alpha * (modelData.kind === "halo" ? root.breath
                 : modelData.kind === "core" ? root.flicker : 1)
 

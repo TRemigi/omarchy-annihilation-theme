@@ -178,6 +178,14 @@ iridescence (oil on water); bioluminescent fungi.
   `property size` becomes `vec2`.
 - `MultiEffect` as `layer.effect` makes the blurred glow layers; `blurMax` is
   the radius.
+- **Glow strength** is the layer list `Crawl.glowLayers`: staggered blur radii
+  (blurMax is pixels, keep it at or under 64) rather than one big blur, because
+  thin letters carry little light once blurred. The wide and mid layers use
+  `Text.Outline` (1 px) for roughly double the ink. Do not get the same effect
+  with a heavier font weight on the halo copies: Jost's letter widths change
+  with weight, so the halos drift off the real letters along a long line. Each
+  blurred layer is a GPU texture per part (about 4.5 MB for the widest part on
+  an ultrawide), so add layers sparingly.
 - **Do not use `MultiEffect`'s mask for a soft fade.** With a gradient mask and
   default thresholds it produced a hard straight edge where the gradient starts
   (text looked "revealed from under a line"). The crawl's edge fade is
