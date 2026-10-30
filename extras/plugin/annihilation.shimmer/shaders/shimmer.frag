@@ -1,19 +1,24 @@
 #version 440
 
-// The Shimmer, as it looks in the film: not a veil laid over the picture but
-// light. A few narrow curtains of it appear at a time, in different places and
-// for different lengths of time; each is built from thin vertical columns that
-// slide and shimmer at their own speeds, its colour disperses across its width
-// (lavender, blue, teal, green, peach) like light through a prism, and its
-// brightest part burns warm white. It is added to what is behind it, so the
-// wallpaper keeps its contrast instead of being washed out.
+// The Shimmer, as it looks in the film: the air itself seems to bend light.
+// Two layers work together.
+//
+// The WASH is a broad, soft spectral tint blended over the scene, running from
+// teal through blue, violet, magenta and pink to orange and amber. It shifts the
+// hue of what is behind it while keeping its brightness and detail, the way
+// light is dispersed by glass, and it is only a gentle tint, not a fog.
+//
+// The LIGHT is added on top: a few curtains at a time, each swelling and fading
+// on its own, faintly striated by straight vertical columns, its colour running
+// across it in the same spectrum, with a warm white glint in the brightest part.
+// Warm and pink glows wander in from the edges, and spores rise through it all.
 //
 // Nothing is scheduled. Everything comes from 3D value noise with time as the
 // third axis, so the patterns evolve instead of looping, and `seed` (random per
-// session) makes every session different. A couple of warm and violet glows
-// wander in from the screen edges, and spores rise through it all.
+// session) makes every session different. The colours are the Shimmer's own, not
+// the shell theme's, so they live here.
 //
-// The output is premultiplied alpha. In the default additive mode the colour is
+// The output is premultiplied alpha. In the default additive mode the light is
 // deliberately allowed to exceed alpha, which a premultiplied "over" blend turns
 // into added light; with `additive` off, alpha is raised to cover the colour so
 // the result is an ordinary translucent layer. Rebuild with
@@ -31,14 +36,26 @@ layout(std140, binding = 0) uniform buf {
     float seed;
     float additive;
     vec2 resolution;
-    vec4 tealColor;
-    vec4 blueColor;
-    vec4 violetColor;
-    vec4 greenColor;
-    vec4 peachColor;
-    vec4 warmColor;
-    vec4 aquaColor;
 } ubuf;
+
+// Mid-tone colours for the wash, so that it tints instead of whitening.
+const vec3 W_TEAL = vec3(0.2078, 0.6902, 0.7059);  // #35B0B4
+const vec3 W_BLUE = vec3(0.2902, 0.3608, 0.8784);  // #4A5CE0
+const vec3 W_VIOLET = vec3(0.5098, 0.3137, 0.8235);  // #8250D2
+const vec3 W_MAGENTA = vec3(0.8157, 0.2902, 0.6510);  // #D04AA6
+const vec3 W_PINK = vec3(0.9333, 0.4980, 0.7490);  // #EE7FBF
+const vec3 W_ORANGE = vec3(0.8863, 0.4392, 0.2510);  // #E27040
+const vec3 W_AMBER = vec3(0.7843, 0.6275, 0.2196);  // #C8A038
+
+// Lighter colours for the added light.
+const vec3 L_GREEN = vec3(0.5255, 0.8392, 0.6039);  // #86D69A
+const vec3 L_TEAL = vec3(0.2000, 0.7686, 0.8157);  // #33C4D0
+const vec3 L_BLUE = vec3(0.3725, 0.5176, 1.0000);  // #5F84FF
+const vec3 L_VIOLET = vec3(0.6039, 0.4000, 0.9490);  // #9A66F2
+const vec3 L_PINK = vec3(0.9490, 0.4784, 0.7843);  // #F27AC8
+const vec3 L_PEACH = vec3(0.9569, 0.6588, 0.4706);  // #F4A878
+const vec3 WARM = vec3(1.0000, 0.9137, 0.8118);  // #FFE9CF
+const vec3 AQUA = vec3(0.8314, 0.9176, 0.9255);  // #D4EAEC
 
 float hash13(vec3 p3) {
     p3 = fract(p3 * 0.1031);
@@ -82,15 +99,31 @@ float fbm3(vec3 p, int octaves) {
     return s / norm;
 }
 
-// violet -> blue -> teal -> green -> peach, the order in which the film's light
-// separates. Only neighbours are ever blended, so a mix never passes through grey.
-vec3 palette(float x) {
-    float s = clamp(x, 0.0, 0.9999) * 4.0;
-    float f = smoothstep(0.0, 1.0, fract(s));
-    if (s < 1.0) return mix(ubuf.violetColor.rgb, ubuf.blueColor.rgb, f);
-    if (s < 2.0) return mix(ubuf.blueColor.rgb, ubuf.tealColor.rgb, f);
-    if (s < 3.0) return mix(ubuf.tealColor.rgb, ubuf.greenColor.rgb, f);
-    return mix(ubuf.greenColor.rgb, ubuf.peachColor.rgb, f);
+// Blend between stop a (at pa) and stop b (at pb) with a smooth ease.
+vec3 seg(vec3 a, vec3 b, float pa, float pb, float x) {
+    return mix(a, b, smoothstep(0.0, 1.0, (x - pa) / (pb - pa)));
+}
+
+// teal, blue, violet, magenta, pink, orange, amber. Magenta and pink get a wide
+// share of the range; only neighbouring hues are ever blended.
+vec3 washSpectrum(float x) {
+    x = clamp(x, 0.0, 0.9999);
+    if (x < 0.14) return seg(W_TEAL, W_BLUE, 0.00, 0.14, x);
+    if (x < 0.28) return seg(W_BLUE, W_VIOLET, 0.14, 0.28, x);
+    if (x < 0.46) return seg(W_VIOLET, W_MAGENTA, 0.28, 0.46, x);
+    if (x < 0.62) return seg(W_MAGENTA, W_PINK, 0.46, 0.62, x);
+    if (x < 0.80) return seg(W_PINK, W_ORANGE, 0.62, 0.80, x);
+    return seg(W_ORANGE, W_AMBER, 0.80, 1.00, x);
+}
+
+// green, teal, blue, violet, pink, peach.
+vec3 lightSpectrum(float x) {
+    x = clamp(x, 0.0, 0.9999);
+    if (x < 0.14) return seg(L_GREEN, L_TEAL, 0.00, 0.14, x);
+    if (x < 0.30) return seg(L_TEAL, L_BLUE, 0.14, 0.30, x);
+    if (x < 0.46) return seg(L_BLUE, L_VIOLET, 0.30, 0.46, x);
+    if (x < 0.66) return seg(L_VIOLET, L_PINK, 0.46, 0.66, x);
+    return seg(L_PINK, L_PEACH, 0.66, 1.00, x);
 }
 
 // Spores: about half the cells of a coarse grid host a drifting, flickering
@@ -113,7 +146,7 @@ vec4 spores(vec2 p, float t) {
             float r = mix(0.025, 0.07, fract(h * 7.0));
             float g = exp(-dist * dist / (r * r));
             float tw = 0.55 + 0.45 * sin(t * (0.4 + h) + h * 50.0);
-            vec3 col = mix(ubuf.peachColor.rgb, ubuf.aquaColor.rgb, step(0.8, fract(h * 13.0)));
+            vec3 col = mix(L_PEACH, AQUA, step(0.8, fract(h * 13.0)));
             rgb += col * g * tw;
             a += g * tw;
         }
@@ -136,48 +169,49 @@ void main() {
     float t = ubuf.time;
     float s = ubuf.seed;
 
-    // A slow domain warp, so the curtains lean and bend rather than stand rigid.
-    float wx = fbm3(vec3(p * 0.9, t * 0.060 + s), 2);
-    float wy = fbm3(vec3(p * 0.9 + vec2(7.3, 3.1), t * 0.0522 + s * 1.7), 2);
-    vec2 q = p + 0.6 * (vec2(wx, wy) - 0.5);
+    // A gentle domain warp, so nothing stands rigid.
+    float wx = fbm3(vec3(p * 0.9, t * 0.050 + s), 2);
+    float wy = fbm3(vec3(p * 0.9 + vec2(7.3, 3.1), t * 0.0435 + s * 1.7), 2);
+    vec2 q = p + 0.30 * (vec2(wx, wy) - 0.5);
 
-    // Where the light is: small patches, taller than wide, each swelling and
-    // dying on its own. `core` is the curtain, `halo` a soft glow around it and
-    // `hot` its brightest part.
-    float d = fbm3(vec3(q * vec2(3.4, 1.5) + vec2(2.1, 9.4), t * 0.045 + s * 2.3), 3);
-    float core = smoothstep(0.54, 0.72, d);
-    float halo = smoothstep(0.44, 0.68, d);
-    float hot = smoothstep(0.60, 0.76, d);
+    // The wash: where it is, and which hue it has there. The hue runs across the
+    // screen along a slowly turning direction, and its centre drifts, so any
+    // given patch is sometimes mostly blue, sometimes mostly pink.
+    float dw = fbm3(vec3(q * vec2(2.8, 2.1) + vec2(6.3, 1.9), t * 0.035 + s * 1.9), 3);
+    float wmask = smoothstep(0.52, 0.72, dw) * mix(0.6, 1.0, 1.0 - uv.y);
+    float ang = 0.5 + 0.6 * sin(t * 0.021 + s * 2.1);
+    float pc = ((q.x - aspect * 0.5) * cos(ang) + (q.y - 0.5) * sin(ang)) * 0.75
+        + 0.5 * (fbm3(vec3(q * 0.7 + vec2(0.0, 4.0), t * 0.03 + s * 5.3), 2) - 0.5)
+        + 0.5 + 0.14 * sin(t * 0.013 + s * 3.3);
+    float wa = wmask * 0.42;
+    vec3 rgb = washSpectrum(pc) * wa;
+    float a = wa;
 
-    // Thin vertical columns that slide sideways and shimmer, each at its own pace.
-    float drift = 0.35 * fbm3(vec3(q.x * 3.0 + 5.0, q.y * 0.5, t * 0.05 + s), 2);
-    float sx = fbm3(vec3((q.x + drift) * 16.0, q.y * 0.7 + 3.0, t * 0.14 + s * 3.1), 3);
-    float streak = smoothstep(0.32, 0.82, sx);
-    float colIdx = floor(q.x * 16.0);
-    float fine = 0.88 + 0.12 * sin(t * (0.5 + 1.2 * fract(colIdx * 0.37)) + colIdx * 5.1);
+    // The light: small curtains, each born and dying on its own.
+    float d = fbm3(vec3(q * vec2(2.5, 1.9) + vec2(2.1, 9.4), t * 0.0455 + s * 2.3), 3);
+    float core = smoothstep(0.56, 0.76, d);
+    float halo = smoothstep(0.44, 0.70, d);
+    float hot = smoothstep(0.70, 0.84, d);
 
-    // Dispersion: the colour runs across each curtain, like light through a prism.
-    float hf = fbm3(vec3(q.x * 1.7 + 0.5 * sx, q.y * 0.45 + 11.0, t * 0.030 + s * 4.7), 2);
-    vec3 col = palette(smoothstep(0.30, 0.72, hf));
+    // Faint, straight vertical columns: no warp on x, so they stay vertical.
+    float sx = fbm3(vec3((p.x + 0.04 * sin(t * 0.05 + s)) * 9.0, p.y * 0.45 + 3.0, t * 0.12 + s * 3.1), 3);
+    float cols = smoothstep(0.25, 0.90, sx);
+    float light = core * (0.75 + 0.25 * cols);
+    rgb += lightSpectrum(pc) * (light * 0.38 + halo * 0.06) + WARM * (hot * 0.10);
 
-    float light = core * (0.30 + 0.70 * streak) * fine;
-    vec3 rgb = col * (light * 0.70 + halo * 0.10)
-        + ubuf.warmColor.rgb * (hot * (0.35 + 0.65 * streak) * 0.85);
-    float a = (halo * 0.6 + core * 0.4) * 0.10;
-
-    // Light leaks: a warm glow and a violet one wander in from the edges, and
-    // each fades in and out on its own slow clock.
+    // Light leaks: a warm glow and a pink one wander in from the edges, and each
+    // fades in and out on its own slow clock.
     for (int k = 0; k < 2; k++) {
         float kk = float(k);
         float ph = s * (1.3 + kk);
         vec2 c = vec2(aspect * (0.5 + 0.62 * sin(t * (0.011 + 0.007 * kk) * 2.0 + ph * 3.1)),
                       0.5 + 0.62 * sin(t * (0.009 + 0.0065 * kk) * 2.0 + ph * 5.3 + 1.7));
         vec2 dv = vec2(p.x - c.x, (p.y - c.y) * 1.3);
-        float rr = 0.20 + 0.05 * kk;
+        float rr = 0.24 + 0.05 * kk;
         float g = exp(-dot(dv, dv) / (rr * rr));
         float amp = smoothstep(0.3, 0.9, 0.5 + 0.5 * sin(t * (0.017 + 0.006 * kk) * 2.0 + ph * 7.7));
-        vec3 lc = k == 0 ? ubuf.peachColor.rgb : ubuf.violetColor.rgb;
-        rgb += lc * (g * amp * 0.20);
+        vec3 lc = k == 0 ? L_PEACH : L_PINK;
+        rgb += lc * (g * amp * 0.18);
     }
 
     vec4 sp = spores(p, t) * ubuf.motes;
@@ -185,7 +219,7 @@ void main() {
     a += sp.a * 0.15;
 
     float c = caustics(p, t) * smoothstep(0.6, 1.0, uv.y) * 0.04;
-    rgb += ubuf.aquaColor.rgb * c;
+    rgb += AQUA * c;
 
     // intensity 0.35 (the default) is the strength this was designed at.
     vec4 acc = vec4(rgb, a) * (ubuf.intensity * 2.0);

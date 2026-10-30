@@ -44,28 +44,45 @@ The brief: **subdued psychedelic horror mixed with the beauty of nature.**
   `#91506C`, amber `#DB930D`, moss `#7A7653`) shows up only at edges: borders,
   halos, a faint band, spores. Never a rainbow, never saturated fill.
 - **What the Shimmer actually looks like** (from the user's reference stills and
-  a trailer recording in `~/Videos`, studied with `ffmpeg` frame extraction): it
-  is *light*, not a veil. A narrow curtain with a blown-out warm-white core,
-  built of thin vertical columns, its colour separating across the width like a
-  prism (lavender, blue, teal, green, peach side by side), localised to part of
-  the frame with the rest of the scene untouched. Two earlier versions were
-  wrong in instructive ways: a crossing band on a 90 s schedule felt scripted,
-  and big soft translucent veils felt "large, pale and flat, like a layer on the
-  wallpaper". The fix was additive light (the wallpaper keeps its contrast),
-  small events, vertical columns, saturated colours, and hot cores.
-- The layer's colours are its own, not the shell theme's (`Service.shimmer*`).
-  Blend only neighbouring hues; mixing violet with teal passes through grey. Warm
-  peach shows up as cores and the occasional light leak from an edge.
+  a trailer recording in `~/Videos`, studied with `ffmpeg` frame extraction, and
+  with saturation boosted to see structure). Two things, and the shader needs
+  both:
+  1. A **spectral tint**: a broad, soft sweep of hue across the scene (blue and
+     violet through magenta and pink to orange, teal-green at the far end),
+     blended so that it shifts the *hue* of the foliage while keeping its
+     brightness and detail. In the reference photo the tinted band is only 0.24
+     saturated against 0.42 for clean foliage, and no brighter than its
+     surroundings. It looks like air bending light; there are no streaks and no
+     glow. This is the `wash` in `shimmer.frag`.
+  2. Occasional **light**: a narrow curtain with a warm-white core made of thin
+     straight vertical columns, its colour separating across the width. This is
+     added on top (`light`), kept gentle.
+  Earlier versions each had only one of these and were wrong in instructive
+  ways: a crossing band on a 90 s schedule (scripted), big pale translucent
+  veils (large, pale, a flat layer), additive curtains alone with a domain warp
+  (wavy streaks, and no pink), and strong hot cores (glowing orbs, pale pink
+  blooms). The user said "pinkish hues in addition to the ones it has", so the
+  wash spectrum is teal, blue, violet, magenta, pink, orange, amber, with the
+  stops spaced so magenta and pink get the widest share (about a third of the
+  wash); measure hue shares over time rather than trusting the stop list, since
+  where a patch sits sets its hue and a wide sweep puts most of the screen at
+  the two ends.
+- The palette lives in the shader as constants (`W_*` mid-tone colours for the
+  wash, `L_*` lighter ones for the light), not as uniforms and not from the shell
+  theme. Blend only neighbouring hues; violet with teal passes through grey. Pink
+  over a green forest mixes toward grey-mauve (near-complements), so pink reads
+  best in the additive light and looks dustier in the tint.
 - Nothing about the Shimmer may be a scheduled sweep. It is 3D value noise with
   time as the third axis plus a random per-session `seed`. Patch size matters:
   with features as big as the screen, coverage swung from empty to smothered;
-  several small patches keep the light events at a median near 24% of the screen
-  (10th to 90th percentile 11% to 43%), still varied. Check such statistics over
-  many minutes and seeds, not at one instant. "Dynamic" can be measured as the
-  overlay's mean change per second relative to its own level: the veil version
-  was 0.04, the light events are about 0.21 (0.38 felt like flicker).
-- **Additive blending.** In the default mode the shader outputs colour larger
-  than its alpha, which a premultiplied "over" blend turns into added light.
+  several small patches keep the wash at a median near 27% of the screen (10th
+  to 90th percentile 14% to 45%), still varied, and the light curtains similar.
+  Check such statistics over many minutes and seeds, not at one instant.
+  "Dynamic" can be measured as the overlay's mean change per second relative to
+  its own level: the veil version was 0.04, the light events about 0.21 (0.38
+  felt like flicker).
+- **Additive blending.** In the default mode the light part of the shader outputs
+  colour larger than its alpha, which a premultiplied "over" blend turns into added light.
   That is outside what the Wayland spec promises, so the `layerAdditive` setting
   (and the `additive` uniform) falls back to an ordinary translucent layer. If
   the light ever shows up black or washed out on another compositor, turn it off

@@ -4,12 +4,11 @@
 //
 //   qsb -x "glsl,100 es" -o /tmp/s.frag shaders/shimmer.frag.qsb     # the variant Qt runs on GLES
 //   gcc -O2 extras/dev/shader-harness.c -o /tmp/harness -lEGL -lGLESv2
-//   EGL_PLATFORM=surfaceless LIBGL_ALWAYS_SOFTWARE=1 \
-//     /tmp/harness /tmp/s.frag W H time seed intensity motes out.pam
+//   EGL_PLATFORM=surfaceless LIBGL_ALWAYS_SOFTWARE=1 /tmp/harness /tmp/s.frag W H time seed intensity motes out.pam
 //
 // FRAMES=N in the environment also times N further draws (ms per draw on stderr).
 // The uniforms set are those of shimmer.frag (ubuf.time, .intensity, .motes, .seed,
-// .additive, .resolution and the seven colours; ADDITIVE=0 in the environment turns
+// .additive and .resolution; ADDITIVE=0 in the environment turns
 // additive blending off); another shader needs its own list below.
 // qt_TexCoord0 has y = 0 at the top, as in Qt. This tests the shader, not the Qt
 // integration, and llvmpipe timings are not GPU timings.
@@ -27,7 +26,6 @@ static GLuint compile(GLenum type, const char *src) {
   if (!ok) { char log[4096]; glGetShaderInfoLog(s, sizeof log, NULL, log); fprintf(stderr, "shader compile failed:\n%s\n", log); exit(2); }
   return s;
 }
-static void hex(const char *h, float *o) { unsigned v; sscanf(h + 1, "%x", &v); o[0] = ((v >> 16) & 255) / 255.f; o[1] = ((v >> 8) & 255) / 255.f; o[2] = (v & 255) / 255.f; o[3] = 1.f; }
 
 int main(int argc, char **argv) {
   if (argc < 9) { fprintf(stderr, "usage\n"); return 1; }
@@ -56,10 +54,6 @@ int main(int argc, char **argv) {
   glUniform1f(glGetUniformLocation(prog, "ubuf.seed"), seed);
   glUniform1f(glGetUniformLocation(prog, "ubuf.additive"), getenv("ADDITIVE") ? (float)atof(getenv("ADDITIVE")) : 1.f);
   glUniform2f(glGetUniformLocation(prog, "ubuf.resolution"), (float)W, (float)H);
-  const char *names[] = { "teal", "blue", "violet", "green", "peach", "warm", "aqua" };
-  const char *cols[]  = { "#33C4D0", "#5F84FF", "#9A66F2", "#86D69A", "#F2B48C", "#FFE9CF", "#D4EAEC" };
-  for (int i = 0; i < 7; i++) { char nm[64]; float c[4]; snprintf(nm, sizeof nm, "ubuf.%sColor", names[i]); hex(cols[i], c); glUniform4fv(glGetUniformLocation(prog, nm), 1, c); }
-
   GLuint fbo, tex; glGenTextures(1, &tex); glBindTexture(GL_TEXTURE_2D, tex);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, W, H, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
   glGenFramebuffers(1, &fbo); glBindFramebuffer(GL_FRAMEBUFFER, fbo); glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);

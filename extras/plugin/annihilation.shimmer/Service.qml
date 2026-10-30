@@ -31,19 +31,7 @@ Scope {
   readonly property string home: Quickshell.env("HOME")
   readonly property string dir: Qt.resolvedUrl(".").toString().replace(/^file:\/\//, "")
 
-  // The Shimmer's own colours, taken from the film, where its light separates
-  // into lavender, blue, teal, green and peach with a warm white core. They are
-  // saturated because they are added to the scene, and pale colours only wash it
-  // out. Not the shell theme's palette, on purpose.
-  readonly property color shimmerViolet: "#9a66f2"
-  readonly property color shimmerBlue: "#5f84ff"
-  readonly property color shimmerTeal: "#33c4d0"
-  readonly property color shimmerGreen: "#86d69a"
-  readonly property color shimmerPeach: "#f2b48c"
-  readonly property color shimmerWarm: "#ffe9cf"
-  readonly property color shimmerAqua: "#d4eaec"
-
-  // Random per session, so the veils are never in the same places twice.
+  // Random per session, so the light is never in the same places twice.
   readonly property real shimmerSeed: Math.random() * 100.0
 
   property bool themeActive: false
