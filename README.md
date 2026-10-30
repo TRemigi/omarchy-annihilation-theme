@@ -58,6 +58,7 @@ entry under `bar.layout`, or `plugins[]` if you run it without the glyph):
 | `fpsCap` | `30` | 5 to 60 |
 | `screensaver` | `true` | set `false` to keep Omarchy's idle behavior without it |
 | `screensaverSeconds` | `0` | `0` follows `idle.screensaver` |
+| `passageFont` | `"fell"` | `"fell"`, `"cormorant"`, or the name of any installed font |
 
 ### Commands
 
@@ -75,6 +76,14 @@ spell out something else, such as the passage from the book, put it in
 replaces the shipped one and is picked up as soon as you save it. Lines too
 long for the screen are broken at word boundaries, preferably after
 punctuation, so a pasted paragraph still reads in turn.
+
+### Fonts
+
+The passage is set in IM Fell English Italic (Igino Marini), whose uneven,
+ink-pressed letterforms suit the writing on the tower wall; Cormorant Garamond
+Italic (the Cormorant Project Authors) is bundled as a more delicate
+alternative. Both are under the SIL Open Font License; the licences are in
+`extras/plugin/annihilation.shimmer/fonts/`.
 
 ### Editing the shaders
 

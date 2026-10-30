@@ -6,7 +6,8 @@
 // Settings are inline fields on this plugin's entry in shell.json `plugins[]`:
 //   layerEnabled (bool, true), layerIntensity (0-1, 0.35), motes (bool, true),
 //   fpsCap (5-60, 30), screensaver (bool, true),
-//   screensaverSeconds (0 = follow idle.screensaver in shell.json).
+//   screensaverSeconds (0 = follow idle.screensaver in shell.json),
+//   passageFont ("fell", "cormorant", or any installed family name).
 
 import QtQuick
 import Quickshell
@@ -40,6 +41,15 @@ Scope {
   property bool screensaverEnabled: true
   property int screensaverSecondsSetting: 0
   property int idleScreensaverSeconds: 150
+  property string passageFont: "fell"
+
+  // The bundled fonts load from fonts/ (SIL OFL, licences alongside); anything
+  // else is taken as the name of an installed family.
+  readonly property string passageFontFamily: {
+    if (passageFont === "fell") return fellFont.status === FontLoader.Ready ? fellFont.name : "serif"
+    if (passageFont === "cormorant") return cormorantFont.status === FontLoader.Ready ? cormorantFont.name : "serif"
+    return passageFont
+  }
 
   readonly property int screensaverSeconds: screensaverSecondsSetting > 0
     ? screensaverSecondsSetting : idleScreensaverSeconds
@@ -98,6 +108,7 @@ Scope {
     layerIntensity = typeof entry.layerIntensity === "number" ? clamp(entry.layerIntensity, 0, 1) : 0.35
     fpsCap = typeof entry.fpsCap === "number" ? Math.round(clamp(entry.fpsCap, 5, 60)) : 30
     screensaverEnabled = entry.screensaver !== false
+    passageFont = typeof entry.passageFont === "string" && entry.passageFont.length > 0 ? entry.passageFont : "fell"
     screensaverSecondsSetting = typeof entry.screensaverSeconds === "number"
       ? Math.max(0, Math.round(entry.screensaverSeconds)) : 0
 
@@ -176,6 +187,16 @@ Scope {
   }
 
   Component.onDestruction: if (screensaverActive) setCursorHidden(false)
+
+  FontLoader {
+    id: fellFont
+    source: Qt.resolvedUrl("fonts/IMFeENit28P.ttf")
+  }
+
+  FontLoader {
+    id: cormorantFont
+    source: Qt.resolvedUrl("fonts/CormorantGaramond-Italic.ttf")
+  }
 
   FileView {
     id: themeFile
@@ -273,6 +294,7 @@ Scope {
         fpsCap: root.fpsCap,
         screensaverEnabled: root.screensaverEnabled,
         screensaverSeconds: root.screensaverSeconds,
+        passageFont: root.passageFontFamily,
         screensaverActive: root.screensaverActive,
         passageParts: root.passageParts.length,
         customPassage: root.customParts.length > 0

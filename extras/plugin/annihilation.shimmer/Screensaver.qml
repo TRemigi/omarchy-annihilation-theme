@@ -19,7 +19,7 @@ PanelWindow {
   // The shader is soft, but this is a photograph: keep most of its detail.
   readonly property real renderScale: 0.75
   readonly property string wallpaperPath: Quickshell.env("HOME") + "/.local/state/omarchy/current/background"
-  readonly property real passageSize: Math.max(20, Math.round(win.height * 0.034))
+  readonly property real passageSize: Math.max(22, Math.round(win.height * 0.042))
 
   property real startedAt: 0
   property real elapsed: 0
@@ -80,9 +80,7 @@ PanelWindow {
   // teal that breathe slowly, and a pale core that now and then gutters.
   Item {
     id: passage
-    anchors.centerIn: parent
-    width: parent.width * 0.62
-    height: 1
+    anchors.fill: parent
     opacity: win.service.passageOpacity
 
     property real breath: 0.85
@@ -116,16 +114,22 @@ PanelWindow {
         id: layerText
         required property var modelData
 
+        anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
-        width: passage.width
+        width: passage.width * 0.62
         horizontalAlignment: Text.AlignHCenter
+        verticalAlignment: Text.AlignVCenter
         wrapMode: Text.WordWrap
         textFormat: Text.PlainText
         text: win.service.passageText
         color: modelData.tint
-        font.family: Style.fontFamily
+        font.family: win.service.passageFontFamily
         font.pixelSize: win.passageSize
-        font.letterSpacing: 2
+        font.letterSpacing: win.passageSize * 0.04
+        lineHeight: 1.15
+        // Letter-spacing trails the last glyph of a line; pad the other side
+        // so the text sits dead centre.
+        leftPadding: font.letterSpacing
 
         opacity: modelData.alpha * (modelData.kind === "halo" ? passage.breath
           : modelData.kind === "core" ? passage.flicker : 1)
