@@ -133,24 +133,30 @@ Scope {
 
   // One part per line. A line too long for the screen is broken at a word,
   // preferably after punctuation, so a pasted paragraph still reads in turn.
+  // Ellipsis dots (". . .") stay with the word before them: never a break
+  // point, and never a part of their own.
   function partsFrom(raw) {
     var parts = []
     String(raw || "").split("\n").forEach(function(line) {
       line = line.trim()
       if (line.length === 0 || line.charAt(0) === "#") return
+      var words = line.split(/\s+/)
       var chunk = ""
-      line.split(/\s+/).forEach(function(word) {
-        if (chunk.length > 0 && chunk.length + word.length + 1 > 90) {
+      for (var i = 0; i < words.length; i++) {
+        var word = words[i]
+        var isDots = /^[.\u2026]+$/.test(word)
+        if (!isDots && chunk.length > 0 && chunk.length + word.length + 1 > 90) {
           parts.push(chunk)
           chunk = word
         } else {
           chunk = chunk.length > 0 ? chunk + " " + word : word
         }
-        if (chunk.length > 55 && /[.;:!?,]$/.test(word)) {
+        var dotsFollow = i + 1 < words.length && /^[.\u2026]+$/.test(words[i + 1])
+        if (chunk.length > 55 && /[.;:!?,\u2026]$/.test(word) && !dotsFollow) {
           parts.push(chunk)
           chunk = ""
         }
-      })
+      }
       if (chunk.length > 0) parts.push(chunk)
     })
     return parts

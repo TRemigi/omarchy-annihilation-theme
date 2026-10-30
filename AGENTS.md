@@ -65,6 +65,12 @@ iridescence (oil on water); bioluminescent fungi.
   tower-wall passage (or other long passages) into the repo.
 - The user can drop the real text in `~/.config/omarchy/annihilation-passage.txt`
   (local, not tracked); the service prefers it automatically.
+  The user has done this with the book's opening passage. That file lives
+  outside the repo and must stay out of it: never copy it into the tree, the
+  tests or a commit message.
+- `Service.partsFrom` splits that file into screensaver parts. Ellipsis dots
+  (`. . .`) must stay attached to the preceding word and are never a break
+  point; without that rule each ellipsis became a stray part of its own.
 - The film's logotype is custom and unconfirmed. Jost is the nearest free look,
   not a match; say so rather than claiming otherwise.
 - Only bundle fonts with clear licences (SIL OFL here). Expedition Annihilation
