@@ -7,7 +7,7 @@
 //   layerEnabled (bool, true), layerIntensity (0-1, 0.35), motes (bool, true),
 //   fpsCap (5-60, 30), screensaver (bool, true),
 //   screensaverSeconds (0 = follow idle.screensaver in shell.json),
-//   screensaverBrightness (0.02-1, 0.16: how much of the photo shows),
+//   screensaverBrightness (0.02-1, 0.08: how much of the photo shows),
 //   crawlSpeed (0.5-8, 2.5: type-sizes per second),
 //   passageFont ("jost", "cinzel", or any installed family name).
 
@@ -44,7 +44,7 @@ Scope {
   property int screensaverSecondsSetting: 0
   property int idleScreensaverSeconds: 150
   property string passageFont: "jost"
-  property real screensaverBrightness: 0.16
+  property real screensaverBrightness: 0.08
   property real crawlSpeed: 2.5
 
   // Typography for the passage. The bundled fonts load from fonts/ (SIL OFL,
@@ -124,7 +124,7 @@ Scope {
     fpsCap = typeof entry.fpsCap === "number" ? Math.round(clamp(entry.fpsCap, 5, 60)) : 30
     screensaverEnabled = entry.screensaver !== false
     passageFont = typeof entry.passageFont === "string" && entry.passageFont.length > 0 ? entry.passageFont : "jost"
-    screensaverBrightness = typeof entry.screensaverBrightness === "number" ? clamp(entry.screensaverBrightness, 0.02, 1) : 0.16
+    screensaverBrightness = typeof entry.screensaverBrightness === "number" ? clamp(entry.screensaverBrightness, 0.02, 1) : 0.08
     crawlSpeed = typeof entry.crawlSpeed === "number" ? clamp(entry.crawlSpeed, 0.5, 8) : 2.5
     screensaverSecondsSetting = typeof entry.screensaverSeconds === "number"
       ? Math.max(0, Math.round(entry.screensaverSeconds)) : 0

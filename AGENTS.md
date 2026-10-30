@@ -210,7 +210,7 @@ iridescence (oil on water); bioluminescent fungi.
   starts fading at the same moment (`Screensaver.crawlIn`, a smoothstep Bezier).
   Do not reintroduce a delay or a separate dimming ramp: that showed up as a
   double fade. Matching the photo's *curve* was not enough, though: the photo
-  only reaches 16% brightness while the text goes to full, and opacity is linear
+  only reaches a dim level (`screensaverBrightness`, now 0.08) while the text goes to full, and opacity is linear
   light, so the text looked like it popped in. It now takes 6 s and its opacity
   is `reveal^2`, which keeps pace with the photo perceptually (see the table in
   the commit message). Judge fades by perceived brightness (about `x^(1/2.2)`),
@@ -273,7 +273,7 @@ status`; `omarchy-shell shimmer pulse`; `omarchy-shell shimmer screensaver`.
 
 Settings (inline on the plugin entry): `layerEnabled`, `layerIntensity` (0.35),
 `motes`, `fpsCap` (30), `screensaver`, `screensaverSeconds` (0 follows
-`idle.screensaver`), `screensaverBrightness` (0.16), `passageFont` (`jost`,
+`idle.screensaver`), `screensaverBrightness` (0.08), `passageFont` (`jost`,
 `cinzel`, or an installed family).
 
 IPC (`omarchy-shell shimmer ...`): `toggleLayer`, `pulse`, `screensaver`,

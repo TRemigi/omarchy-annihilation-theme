@@ -58,7 +58,7 @@ entry under `bar.layout`, or `plugins[]` if you run it without the glyph):
 | `fpsCap` | `30` | 5 to 60 |
 | `screensaver` | `true` | set `false` to keep Omarchy's idle behavior without it |
 | `screensaverSeconds` | `0` | `0` follows `idle.screensaver` |
-| `screensaverBrightness` | `0.16` | how much of the photo shows, 0.02 to 1 |
+| `screensaverBrightness` | `0.08` | how much of the photo shows, 0.02 to 1 |
 | `crawlSpeed` | `2.5` | type-sizes per second, 0.5 to 8 |
 | `passageFont` | `"jost"` | `"jost"`, `"cinzel"`, or the name of any installed font |
 
