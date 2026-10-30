@@ -178,6 +178,13 @@ iridescence (oil on water); bioluminescent fungi.
   `property size` becomes `vec2`.
 - `MultiEffect` as `layer.effect` makes the blurred glow layers; `blurMax` is
   the radius.
+- **Do not use `MultiEffect`'s mask for a soft fade.** With a gradient mask and
+  default thresholds it produced a hard straight edge where the gradient starts
+  (text looked "revealed from under a line"). The crawl's edge fade is
+  `shaders/edgefade.frag`, used as the strip's `layer.effect` with `inset` and
+  `ramp` uniforms. Anything involving layers, blur or masks is invisible to the
+  offscreen tests, so screenshots from the user are the only real check; ask for
+  one (`~/Pictures/screenshot-*.png`) after changing them.
 - Variable fonts: set the weight with `font.variableAxes: ({ "wght": 250 })`
   (Qt >= 6.7). `FontLoader.name` is the family to use.
 - The crawl is **one item per part, not one long strip**: a strip holding the

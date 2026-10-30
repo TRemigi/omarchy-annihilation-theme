@@ -147,35 +147,17 @@ Item {
     font.letterSpacing: crawl.letterSpacing
   }
 
-  // Alpha mask: transparent at both ends, a ramp inside each, opaque between.
-  Item {
-    id: fadeMask
-    anchors.fill: parent
-    visible: false
-    layer.enabled: root.fade
-
-    Rectangle {
-      anchors.fill: parent
-      gradient: Gradient {
-        orientation: Gradient.Horizontal
-        GradientStop { position: 0.0; color: "#00ffffff" }
-        GradientStop { position: root.fadeInset; color: "#00ffffff" }
-        GradientStop { position: root.fadeInset + root.fadeWidth; color: "#ffffffff" }
-        GradientStop { position: 1.0 - root.fadeInset - root.fadeWidth; color: "#ffffffff" }
-        GradientStop { position: 1.0 - root.fadeInset; color: "#00ffffff" }
-        GradientStop { position: 1.0; color: "#00ffffff" }
-      }
-    }
-  }
-
   Item {
     id: strip
     anchors.fill: parent
 
+    // The fade is a small shader of our own (shaders/edgefade.frag). A soft
+    // gradient through MultiEffect's mask came out as a hard edge.
     layer.enabled: root.fade
-    layer.effect: MultiEffect {
-      maskEnabled: true
-      maskSource: fadeMask
+    layer.effect: ShaderEffect {
+      property real inset: root.fadeInset
+      property real ramp: root.fadeWidth
+      fragmentShader: Qt.resolvedUrl("shaders/edgefade.frag.qsb")
     }
 
     Row {
