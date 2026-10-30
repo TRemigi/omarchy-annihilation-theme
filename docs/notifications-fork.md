@@ -273,7 +273,8 @@ lives on a `p2/...` branch until then. Budget: at most a handful of cards on scr
 per card, nothing that repaints when nothing is changing. The agent cannot see any of it live, so each slice has an
 offscreen test and a rendered filmstrip, and then goes to the user.
 
-1. **Motion** (built, branch `p2/motion`, awaiting the user's live check). Toasts unfold into the stack and fold
+1. **Motion** (built, branch `p2/motion`, awaiting the user's live check; the first version read as "the same" and
+   was slowed and softened, with a `motion_slowdown` setting to exaggerate it). Toasts unfold into the stack and fold
    away; expiry and right-click animate, click and IPC dismissals are instant. `components/SlotMotion.qml`; see the
    fork's AGENTS.md "P2".
 2. **Countdown and hover.** The countdown becomes part of the border (a segment of the gradient that shortens)
