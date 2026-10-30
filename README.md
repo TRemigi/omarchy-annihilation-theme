@@ -57,6 +57,7 @@ entry under `bar.layout`, or `plugins[]` if you run it without the glyph):
 | `layerIntensity` | `0.35` | 0 to 1 |
 | `layerSpeed` | `1` | how fast the Shimmer evolves, 0.1 to 4 times its natural pace (the popup's slider covers 0.25 to 3) |
 | `windowGlow` | `true` | the light on window edges; `false` turns just that off |
+| `windowGlowSpan` | `1` | in cursor mode, how much length of edge the pool covers, 0.5 to 2.5 times the default (also a slider in the popup) |
 | `windowGlowMode` | `"all"` | `"all"`: every window glows evenly. `"cursor"`: only the active window, faintly, with the span of its edge nearest the pointer wider and brighter (also a toggle in the bar popup) |
 | `layerAdditive` | `true` | add the light to the wallpaper; `false` blends it as an ordinary translucent layer if your compositor mishandles that |
 | `motes` | `true` | the spores |

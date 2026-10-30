@@ -20,7 +20,11 @@
 // faint everywhere on it except along the span of its edge nearest the pointer, where
 // it is wider and brighter. "Nearest" is relative: the pointer need not be near an edge,
 // the closest part of the edge always pools the light, and it pools more strongly the
-// closer the pointer is. With cursor.w = 0 the glow is uniform, as before.
+// closer the pointer is. The pool is a function of position ALONG the edge (a Gaussian in
+// the distance from the point nearest the pointer), not of the distance from the pointer:
+// the latter has a plateau inside a circle around the pointer and a crease where it ends,
+// which showed as a bright arc, and made the pool a dome bulging into the window.
+// With cursor.w = 0 the glow is uniform, as before.
 //
 // Windows come in as rectangles (x, y, width, height in logical pixels), topmost
 // first; a pixel inside several belongs to the first. Output is added light:
@@ -40,7 +44,9 @@ layout(std140, binding = 0) uniform buf {
     float rimWidth;      // how far the light reaches into a window, in pixels
     float rounding;      // the windows' corner radius, in pixels
     vec2 resolution;
-    vec4 cursor;         // pointer x, y in pixels; its distance to the nearest window edge; 1 = on
+    vec4 cursor;         // pointer x, y in pixels; its signed distance to the nearest window edge
+                         // (negative inside the window); 1 = on
+    float cursorSpan;    // how much length of edge the pool covers, as a multiple of the default
     vec4 usable;         // the part of the screen not reserved by bars: x, y, w, h
     vec4 win0;
     vec4 win1;
@@ -260,15 +266,25 @@ void main() {
     float g = 1.0;
     float gain = 1.0;
     float w = w0;
+    // The bright core at the centre of the pool: 1 at the point of the edge nearest the
+    // pointer, falling off along the edge, scaled by how close the pointer is.
+    float hot = 0.0;
     if (follow) {
         float dcur = length(px - ubuf.cursor.xy);
-        float ex = max(dcur - ubuf.cursor.z, 0.0) / (9.0 * w0);
-        float near = exp(-ex * ex);
+        float R = max(ubuf.cursorSpan, 0.1) * 8.0 * w0;
+        // Perpendicular separation between the pointer and this pixel, from their signed
+        // distances to the edge; what is left of the distance is along the edge. (Exact for a
+        // straight edge; at a corner it can dip below zero, hence the max.)
+        float perp = ubuf.cursor.z - sd;
+        float lat2 = max(dcur * dcur - perp * perp, 0.0);
         // The pointer being close to the edge strengthens the pooling.
         float pz = ubuf.cursor.z / (22.0 * w0);
-        g = near * (0.35 + 0.65 * exp(-pz * pz));
+        float peak = 0.35 + 0.65 * exp(-pz * pz);
+        g = exp(-lat2 / (R * R)) * peak;
+        // The bright core: the same, but narrower along the edge, and it hugs the edge.
+        hot = exp(-lat2 / (0.25 * R * R)) * peak;
         gain = 0.20 + 0.80 * g;
-        w = w0 * (0.75 + 1.10 * g);
+        w = w0 * (0.8 + 0.8 * g);
         // The first exit had to allow for the widest the band can be; now the real width is known.
         if (sd > 1.6 * w || sd < -3.6 * w) {
             fragColor = vec4(0.0);
@@ -311,7 +327,14 @@ void main() {
     // Glints sit on a fixed grid, so their size must not depend on the pixel.
     rgb += glints(px, w0, ubuf.time, ubuf.seed) * nearEdge * 1.5 * g;
 
-    vec4 acc = vec4(rgb * gain, 0.0) * (ubuf.intensity * 2.0);
+    // The core is light, not just more colour: the glow brightens there and a warm white is
+    // added along the edge, so the centre of the pool reads as the bright spot of a lamp
+    // behind the window. Rolled off below with the rest, so it never clips flat.
+    // Its depth profile is tighter than the band's, so the bright part sits on the edge and does
+    // not bulge into the window.
+    float cdepth = inside ? exp(-1.5 * (-sd) / w0) : 0.8 * exp(-3.0 * sd / w0);
+    vec3 core = vec3(1.0, 0.95, 0.88) * (cdepth + 0.5 * edge) * hot * 1.0;
+    vec4 acc = vec4((rgb * (gain + 1.0 * hot) + core) * (ubuf.intensity * 2.0), 0.0);
     // Roll bright peaks off smoothly instead of clipping them. A spot that is cut off
     // flat at the maximum has a visible edge where it drops below the clip, and reads
     // as a hard-edged disc; this leaves low values almost alone and approaches the

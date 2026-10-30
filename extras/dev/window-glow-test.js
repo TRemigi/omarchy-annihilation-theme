@@ -1,6 +1,7 @@
 // Developer tool, not part of the theme. Tests the logic of WindowGlow.qml (which windows glow, the
 // active window in cursor mode, distance to an edge, the pointer uniform for the shader) by extracting
-// its functions from the real file and running them in node against a mock desktop. Each check was
+// its functions from the real file and running them in node against a mock desktop. The
+// distance from the pointer to the active window's edge is signed: negative inside. Each check was
 // also confirmed to fail when the code is broken on purpose.
 //   usage: node extras/dev/window-glow-test.js [path/to/WindowGlow.qml]
 const fs = require("fs"); const src = fs.readFileSync(process.argv[2] || __dirname + "/../plugin/annihilation.shimmer/WindowGlow.qml", "utf8");
@@ -30,12 +31,12 @@ const noFocus = clients.map((o) => ({ ...o, focusHistoryID: o.focusHistoryID + 1
 eq("cursor mode: nothing at focus 0 on this screen means nothing", c.rects.length, 0);
 
 const r = { x: 100, y: 100, w: 400, h: 300 }; c = make([], mon0);
-eq("edge distance, inside near the left", c.edgeDistance(130, 250, r), 30); eq("edge distance, inside near the bottom", c.edgeDistance(300, 390, r), 10);
-eq("edge distance, the middle", c.edgeDistance(300, 250, r), 150); eq("edge distance, outside to the left", c.edgeDistance(60, 250, r), 40);
+eq("edge distance, inside near the left (negative)", c.edgeDistance(130, 250, r), -30); eq("edge distance, inside near the bottom", c.edgeDistance(300, 390, r), -10);
+eq("edge distance, the middle", c.edgeDistance(300, 250, r), -150); eq("edge distance, outside to the left (positive)", c.edgeDistance(60, 250, r), 40);
 eq("edge distance, outside past a corner", c.edgeDistance(500 + 40, 400 + 30, r), 50); eq("edge distance, on the edge", c.edgeDistance(100, 200, r), 0);
 
 c = make([], mon1, { cursorMode: true, rects: [{ x: 80, y: 100, w: 800, h: 600 }], smoothX: 2050, smoothY: 150 });
-eq("uniform: local coordinates, edge distance, on", c.cursorUniform(), [130, 150, 50, 1]);
+eq("uniform: local coordinates, signed edge distance, on", c.cursorUniform(), [130, 150, -50, 1]);
 c.service.pointer.known = false; eq("uniform: pointer unknown means off", c.cursorUniform(), [0, 0, 0, 0]); c.service.pointer.known = true;
 c.rects = []; eq("uniform: no active window means off", c.cursorUniform(), [0, 0, 0, 0]); c.rects = [{ x: 80, y: 100, w: 800, h: 600 }];
 c.cursorMode = false; eq("uniform: all mode means off", c.cursorUniform(), [0, 0, 0, 0]);

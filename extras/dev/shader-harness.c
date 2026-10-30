@@ -55,9 +55,12 @@ int main(int argc, char **argv) {
   // For windowglow.frag: RECTS="x,y,w,h;x,y,w,h" (topmost first, up to six, in pixels),
   // RIM (default 60), ROUNDING (default 4) and USABLE="x,y,w,h" (default the whole frame).
   // For windowglow.frag in cursor mode: CURSOR="x,y,d" (the pointer in pixels, and its
-  // distance to the nearest edge of the window). Unset means the cursor effect is off.
+  // signed distance to the nearest edge of the window: negative inside). Unset means the cursor
+  // effect is off.
+  // CURSOR_SPAN scales how much length of edge the pool covers (default 1).
   { float cx = 0, cy = 0, cd = 0, on = 0; if (getenv("CURSOR") && sscanf(getenv("CURSOR"), "%f,%f,%f", &cx, &cy, &cd) == 3) on = 1;
     glUniform4f(glGetUniformLocation(prog, "ubuf.cursor"), cx, cy, cd, on); }
+  glUniform1f(glGetUniformLocation(prog, "ubuf.cursorSpan"), getenv("CURSOR_SPAN") ? (float)atof(getenv("CURSOR_SPAN")) : 1.f);
   glUniform1f(glGetUniformLocation(prog, "ubuf.rimWidth"), getenv("RIM") ? (float)atof(getenv("RIM")) : 60.f);
   glUniform1f(glGetUniformLocation(prog, "ubuf.rounding"), getenv("ROUNDING") ? (float)atof(getenv("ROUNDING")) : 4.f);
   { float ux = 0, uy = 0, uw = (float)W, uh = (float)H;

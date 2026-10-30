@@ -7,6 +7,7 @@
 //   layerEnabled (bool, true), layerIntensity (0-1, 0.35), layerSpeed (0.1-4, 1),
 //   motes (bool, true), windowGlow (bool, true: light spilling over window edges),
 //   windowGlowMode ("all", or "cursor": the active window only, pooled near the pointer),
+//   windowGlowSpan (0.5-2.5, 1: how much length of edge the pool covers, in cursor mode),
 //   layerAdditive (bool, true),
 //   fpsCap (5-60, 30), screensaver (bool, true),
 //   screensaverSeconds (0 = follow idle.screensaver in shell.json),
@@ -48,6 +49,8 @@ Scope {
   // "all": every window glows evenly. "cursor": only the active window does, faintly, with the
   // span of its edge nearest the pointer wider and brighter.
   property string windowGlowMode: "all"
+  // How much length of edge the pool covers in cursor mode, as a multiple of the default.
+  property real windowGlowSpan: 1.0
   property real layerIntensity: 0.35
   // How fast the Shimmer evolves, as a multiple of its natural pace.
   property real layerSpeed: 1.0
@@ -138,6 +141,7 @@ Scope {
     layerAdditive = entry.layerAdditive !== false
     windowGlow = entry.windowGlow !== false
     windowGlowMode = entry.windowGlowMode === "cursor" ? "cursor" : "all"
+    windowGlowSpan = typeof entry.windowGlowSpan === "number" ? clamp(entry.windowGlowSpan, 0.5, 2.5) : 1.0
     motes = entry.motes !== false
     layerIntensity = typeof entry.layerIntensity === "number" ? clamp(entry.layerIntensity, 0, 1) : 0.35
     layerSpeed = typeof entry.layerSpeed === "number" ? clamp(entry.layerSpeed, 0.1, 4) : 1.0
@@ -324,6 +328,7 @@ Scope {
         layerAdditive: root.layerAdditive,
         windowGlow: root.windowGlow,
         windowGlowMode: root.windowGlowMode,
+        windowGlowSpan: root.windowGlowSpan,
         cursorSource: pointer.source,
         cursorKnown: pointer.known,
         cursor: [pointer.cursorX, pointer.cursorY],

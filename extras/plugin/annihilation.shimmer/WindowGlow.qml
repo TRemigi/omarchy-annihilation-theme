@@ -90,16 +90,18 @@ PanelWindow {
     }
   }
 
-  // How far a point is from the nearest edge of a rectangle, inside or out.
+  // How far a point is from the nearest edge of a rectangle: negative inside, positive
+  // outside. The sign matters to the shader, which uses it to work out how far along the
+  // edge each pixel is from the point nearest the pointer.
   function edgeDistance(cx, cy, r) {
     var dx = Math.max(r.x - cx, 0, cx - (r.x + r.w))
     var dy = Math.max(r.y - cy, 0, cy - (r.y + r.h))
     if (dx > 0 || dy > 0) return Math.sqrt(dx * dx + dy * dy)
-    return Math.min(cx - r.x, r.x + r.w - cx, cy - r.y, r.y + r.h - cy)
+    return -Math.min(cx - r.x, r.x + r.w - cx, cy - r.y, r.y + r.h - cy)
   }
 
-  // The pointer for the shader: x, y on this screen, its distance to the active window's
-  // nearest edge, and 1 when the cursor effect applies (0 gives the uniform glow).
+  // The pointer for the shader: x, y on this screen, its signed distance to the active
+  // window's nearest edge, and 1 when the cursor effect applies (0 gives the uniform glow).
   function cursorUniform() {
     var mon = hyprMonitor
     if (!cursorMode || !service.pointer.known || rects.length === 0 || !mon) return Qt.vector4d(0, 0, 0, 0)
@@ -192,6 +194,7 @@ PanelWindow {
     property size resolution: Qt.size(width, height)
     property vector4d usable: win.usableRect()
     property vector4d cursor: win.cursorUniform()
+    property real cursorSpan: win.service.windowGlowSpan
     opacity: win.fade
     property vector4d win0: win.rectAt(0)
     property vector4d win1: win.rectAt(1)

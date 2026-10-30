@@ -33,6 +33,7 @@ Panel {
   readonly property bool layerEnabled: setting("layerEnabled", true) !== false
   readonly property bool motes: setting("motes", true) !== false
   readonly property bool glowFollows: setting("windowGlowMode", "all") === "cursor"
+  readonly property real span: Number(setting("windowGlowSpan", 1.0))
 
   function change(key, value) {
     if (root.hostWidget && typeof root.hostWidget.updateSetting === "function")
@@ -137,7 +138,8 @@ Panel {
         Repeater {
           model: [
             { label: "Intensity", key: "layerIntensity", min: 0, max: 1, step: 0.05 },
-            { label: "Speed", key: "layerSpeed", min: 0.25, max: 3, step: 0.05 }
+            { label: "Speed", key: "layerSpeed", min: 0.25, max: 3, step: 0.05 },
+            { label: "Glow span", key: "windowGlowSpan", min: 0.5, max: 2.5, step: 0.05 }
           ]
 
           Row {
@@ -145,11 +147,13 @@ Panel {
             required property var modelData
             width: content.width
             spacing: Style.space(10)
+            // The span only does anything while the glow follows the cursor.
+            opacity: sliderRow.modelData.key === "windowGlowSpan" && !root.glowFollows ? 0.45 : 1
 
             Text {
               id: sliderLabel
               anchors.verticalCenter: parent.verticalCenter
-              width: Style.space(72)
+              width: Style.space(84)
               text: sliderRow.modelData.label
               color: Color.foreground
               font.family: Style.font.family
@@ -163,7 +167,8 @@ Panel {
               minimum: sliderRow.modelData.min
               maximum: sliderRow.modelData.max
               step: sliderRow.modelData.step
-              value: sliderRow.modelData.key === "layerSpeed" ? root.speed : root.intensity
+              value: sliderRow.modelData.key === "layerSpeed" ? root.speed
+                : sliderRow.modelData.key === "windowGlowSpan" ? root.span : root.intensity
               onReleased: function(v) { root.change(sliderRow.modelData.key, Math.round(v * 100) / 100) }
             }
           }

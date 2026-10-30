@@ -205,18 +205,36 @@ The brief: **subdued psychedelic horror mixed with the beauty of nature.**
   **Cursor mode** (`windowGlowMode: "cursor"`; the user asked for it, and for a
   performance estimate first). Only the active window (`focusHistoryID` 0, if it is on
   this screen) is passed to the shader; the glow is faint and narrow everywhere on it
-  (20% gain, 0.75 of the band width) except along the span of edge nearest the pointer
-  (full gain, 1.85 of the width). "Nearest" is *relative*: the shader gets the pointer
-  position and its distance `d` to the nearest edge (`cursor` = x, y, d, on), and a
-  pixel's pull is `exp(-(max(|px - pointer| - d, 0) / 9 band widths)^2)`, so the closest
-  part of the edge pools light even with the pointer mid-window; `d` also scales the
-  peak (0.35 to 1, over 22 band widths). Cursor off (`cursor.w` = 0) is byte-identical to
-  the old shader, checked at several moments. Measured cost (CPU rasteriser, 1880x1190,
-  ratios only): all mode with three windows 92 ms; cursor mode, one window, 47 to 66 ms;
-  the cursor term itself under 1%. Pitfall: the first early exit must allow for the
-  widest possible band, so it needs a second, tight one once the local width is known
-  (the first version ran at 74 ms because of that). Scan for hard edges with the pointer
-  in five places: worst colour step 0.12 to 0.14, same as with it off.
+  (20% gain, 0.8 of the band width) except along the span of edge nearest the pointer
+  (full gain, 1.6 of the width, and a bright core). The shader gets the pointer position
+  and its SIGNED distance to the nearest edge (`cursor` = x, y, d, on; negative inside).
+  "Nearest" is relative: the closest part of the edge pools light even with the pointer
+  mid-window, more strongly the closer the pointer is (`peak`, 0.35 to 1 over 22 band
+  widths). Cursor off (`cursor.w` = 0) is byte-identical to the old shader, checked at
+  several moments each time.
+  **The pool is a function of position along the edge, not of distance from the pointer.**
+  The first formulation used `exp(-(max(|px - pointer| - d, 0) / R)^2)`, which has a
+  plateau inside a circle around the pointer and a crease where it ends: it drew a bright
+  crescent when the pointer was mid-window, and bulged into the window as a half-disc dome
+  (the spotlight look). Now the along-edge distance is recovered from the two signed
+  distances, `lat2 = |px - pointer|^2 - (d_pointer - sd)^2` (exact for a straight edge; max
+  with 0 at corners), and the pool is `exp(-lat2 / R^2)`. The bright core is the same with
+  `0.25 R^2` and a tighter depth profile (`exp(-1.5 * depth / w0)`) so it sits on the edge,
+  plus a warm white added after the gain; everything is tone-mapped with `1 - exp(-x)`, so
+  nothing clips (0.00% of lit pixels above 0.97).
+  **Span** (`windowGlowSpan`, a slider in the popup): `R = span * 8 * w0`. The default was
+  chosen by measuring the pool's length (where the glow is above half way between baseline
+  and peak) with the core switched off, because a core makes any such measure read its own
+  narrow width: the old shader 521 px, R = 7.5 w0 368 px, R = 8 w0 395 px (24% shorter, the
+  "bit smaller" the user asked for), R = 9 w0 433 px. Range 0.5 to 2.5: below about 0.5 the
+  band's depth changes faster along the edge than the glow can follow, and the pool turns
+  into a boxy arrowhead. The core is 30% of the pool's length at every span, and its centre is
+  about 2.8x brighter than before this change and nearly white (whiteness 0.9).
+  Cost (CPU rasteriser, 1880x1190, ratios only): all mode with three windows 92 ms; cursor
+  mode, one window, 47 to 54 ms. Pitfall: the first early exit must allow for the widest
+  possible band, so it needs a second, tight one once the local width is known. Hard-edge
+  scan with the pointer in five places and the span at 0.5, 1 and 2.5: worst colour step
+  0.08 to 0.10, as with it off.
   **The pointer feed** (`CursorTracker.qml`) is the part with real cost and the part that
   could NOT be tested here (the sandbox forbids creating sockets). Hyprland has no pointer
   event and a click-through layer cannot receive hover, so it polls: first over Quickshell's
