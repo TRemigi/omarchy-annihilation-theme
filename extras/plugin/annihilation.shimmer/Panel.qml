@@ -35,6 +35,17 @@ Panel {
   readonly property bool glowFollows: setting("windowGlowMode", "all") === "cursor"
   readonly property real span: Number(setting("windowGlowSpan", 1.0))
   readonly property real depth: Number(setting("windowGlowDepth", 1.0))
+  readonly property real center: Number(setting("windowGlowCenter", 1.0))
+
+  function sliderValue(key) {
+    switch (key) {
+    case "layerSpeed": return speed
+    case "windowGlowSpan": return span
+    case "windowGlowDepth": return depth
+    case "windowGlowCenter": return center
+    default: return intensity
+    }
+  }
 
   function change(key, value) {
     if (root.hostWidget && typeof root.hostWidget.updateSetting === "function")
@@ -141,7 +152,8 @@ Panel {
             { label: "Intensity", key: "layerIntensity", min: 0, max: 1, step: 0.05 },
             { label: "Speed", key: "layerSpeed", min: 0.25, max: 3, step: 0.05 },
             { label: "Glow span", key: "windowGlowSpan", min: 0.5, max: 2.5, step: 0.05 },
-            { label: "Glow depth", key: "windowGlowDepth", min: 0.5, max: 2.5, step: 0.05 }
+            { label: "Glow depth", key: "windowGlowDepth", min: 0.05, max: 2.5, step: 0.05 },
+            { label: "Glow center", key: "windowGlowCenter", min: 0, max: 2.5, step: 0.05 }
           ]
 
           Row {
@@ -149,8 +161,9 @@ Panel {
             required property var modelData
             width: content.width
             spacing: Style.space(10)
-            // The span only does anything while the glow follows the cursor.
-            opacity: sliderRow.modelData.key === "windowGlowSpan" && !root.glowFollows ? 0.45 : 1
+            // The span and the centre only do anything while the glow follows the cursor.
+            opacity: (sliderRow.modelData.key === "windowGlowSpan" || sliderRow.modelData.key === "windowGlowCenter")
+              && !root.glowFollows ? 0.45 : 1
 
             Text {
               id: sliderLabel
@@ -169,9 +182,7 @@ Panel {
               minimum: sliderRow.modelData.min
               maximum: sliderRow.modelData.max
               step: sliderRow.modelData.step
-              value: sliderRow.modelData.key === "layerSpeed" ? root.speed
-                : sliderRow.modelData.key === "windowGlowSpan" ? root.span
-                : sliderRow.modelData.key === "windowGlowDepth" ? root.depth : root.intensity
+              value: root.sliderValue(sliderRow.modelData.key)
               onReleased: function(v) { root.change(sliderRow.modelData.key, Math.round(v * 100) / 100) }
             }
           }

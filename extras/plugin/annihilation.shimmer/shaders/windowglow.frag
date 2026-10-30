@@ -52,6 +52,7 @@ layout(std140, binding = 0) uniform buf {
                          // (negative inside the window); 1 = on
     float cursorSpan;    // how much length of edge the pool covers, as a multiple of the default
     float depth;         // how far into a window the light reaches, as a multiple of rimWidth
+    float centerGain;    // brightness of the pool's bright centre (core and point), as a multiple of the default
     vec4 nearest;        // the point of the window's edge nearest the pointer (x, y), and the edge's unit direction
     vec4 nearestPrev;    // the same for the edge that was nearest before, while its light fades out
     vec4 pools;          // spill 0..1 of the current pool; how much of the previous one is left, 0..1; the
@@ -232,7 +233,7 @@ float winSd(vec4 r, vec2 px) {
     // A smooth max agrees with it on the diagonal and away from it, and rounds the
     // crease off; the edge itself and its true corner radius are untouched.
     // It scales with the band's depth, so that a deeper band rounds off a wider crease.
-    float k = max(ubuf.rimWidth * max(ubuf.depth, 0.1), 1.0);
+    float k = max(ubuf.rimWidth * max(ubuf.depth, 0.02), 1.0);
     float smax = 0.5 * (q.x + q.y + sqrt((q.x - q.y) * (q.x - q.y) + k * k)) - 0.5 * k;
     return length(max(q, 0.0)) + min(smax, 0.0) - rad;
 }
@@ -304,14 +305,14 @@ void main() {
     vec2 px = uv * ubuf.resolution;
     float w0 = ubuf.rimWidth;
     // The band's depth; the span and the glints keep to w0, so depth alone changes how far in the light goes.
-    float wd = w0 * max(ubuf.depth, 0.1);
+    float wd = w0 * max(ubuf.depth, 0.02);
     bool follow = ubuf.cursor.w > 0.5;
     // The bright point grows with the depth and the span.
-    float spotScale = sqrt(max(ubuf.depth, 0.1) * max(ubuf.cursorSpan, 0.1));
+    float spotScale = sqrt(max(ubuf.depth, 0.02) * max(ubuf.cursorSpan, 0.1));
     // The point grows with depth and span but the band's early exits are measured in band widths,
     // so where the point is large against the band (a shallow band, a long pool) they are widened
     // to keep from cutting it off in a straight line. Exactly 1 at the defaults.
-    float exitScale = follow ? max(1.0, spotScale / max(ubuf.depth, 0.1)) : 1.0;
+    float exitScale = follow ? max(1.0, spotScale / max(ubuf.depth, 0.02)) : 1.0;
     // The widest the band can get, for the early exit below.
     float wmax = (follow ? wd * 1.85 : wd) * exitScale;
 
@@ -338,9 +339,9 @@ void main() {
         // The edge that was nearest, while its light drains away.
         if (ubuf.pools.y > 0.001) pl += pool(px, ubuf.nearestPrev, ubuf.pools.z, ubuf.pools.y, 1.0, w0, wd, R0, spotScale);
         g = min(pl.x, 1.0);
-        hot = pl.y;
-        hotter = pl.z;
-        spot = pl.w;
+        hot = pl.y * ubuf.centerGain;
+        hotter = pl.z * ubuf.centerGain;
+        spot = pl.w * ubuf.centerGain;
         gain = 0.20 + 0.80 * g;
         w = wd * (0.8 + 0.8 * g);
         // The first exit had to allow for the widest the band can be; now the real width is known.

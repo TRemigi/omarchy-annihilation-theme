@@ -305,6 +305,17 @@ The brief: **subdued psychedelic horror mixed with the beauty of nature.**
   max(1, spotScale / depth)` widens them (now 1/255). Defaults are byte-identical to the shader
   before depth existed, in all mode, cursor mode and mid-spill. Measure the point by differencing
   against a copy with `spot` zeroed, and judge it at the corners of depth x span.
+  Depth was first limited to 0.5-2.5, and the user found 0.5 still too deep, so the setting goes
+  down to 0.02 (the popup slider from 0.05; the shader floors it at 0.02). Measured inward reach at
+  the 10% level: 175 px at 2.5, 51 at 1, 25 at 0.5, 12 at 0.25, 5 at 0.1, 3 at 0.05 (2 px of halo
+  outside). The bright point shrinks with it (10% extent 14 px at 0.05, span 1).
+  **Centre brightness** (`windowGlowCenter`, slider "Glow center", 0-2.5, default 1, cursor mode
+  only): the `centerGain` uniform multiplies the pool's `hot`, `hotter` and `spot` terms right
+  after `pool()` returns, which scales both the white core and the point, but not the broad pool
+  (`g`). Exactly 1 at the default, so output is byte-identical. The centre sits in the tone-map's
+  shoulder, so the slider is not linear in what you see: peak luminance is 0.60 at 0, 0.91 at 0.25,
+  0.98 at 0.5, 1.0 above that, while the mean over 60 px of the pointer keeps rising (0.30, 0.44,
+  0.53, 0.65, 0.72, 0.80 at 0, 0.25, 0.5, 1, 1.5, 2.5). Most of the visible change is below 1.
   **The pointer feed** (`CursorTracker.qml`) is the part with real cost and the part that
   could NOT be tested here (the sandbox forbids creating sockets). Hyprland has no pointer
   event and a click-through layer cannot receive hover, so it polls: first over Quickshell's

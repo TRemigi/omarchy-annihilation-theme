@@ -320,6 +320,7 @@ PanelWindow {
     property vector4d pools: Qt.vector4d(win.spill, win.prevAmount, win.prevDist, 0)
     property real cursorSpan: win.service.windowGlowSpan
     property real depth: win.service.windowGlowDepth
+    property real centerGain: win.service.windowGlowCenter
     opacity: win.fade
     property vector4d win0: win.rectAt(0)
     property vector4d win1: win.rectAt(1)

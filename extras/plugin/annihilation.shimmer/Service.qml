@@ -8,7 +8,8 @@
 //   motes (bool, true), windowGlow (bool, true: light spilling over window edges),
 //   windowGlowMode ("all", or "cursor": the active window only, pooled near the pointer),
 //   windowGlowSpan (0.5-2.5, 1: how much length of edge the pool covers, in cursor mode),
-//   windowGlowDepth (0.5-2.5, 1: how far into a window the glow reaches),
+//   windowGlowDepth (0.02-2.5, 1: how far into a window the glow reaches),
+//   windowGlowCenter (0-2.5, 1: brightness of the cursor glow's bright centre),
 //   layerAdditive (bool, true),
 //   fpsCap (5-60, 30), screensaver (bool, true),
 //   screensaverSeconds (0 = follow idle.screensaver in shell.json),
@@ -54,6 +55,8 @@ Scope {
   property real windowGlowSpan: 1.0
   // How far into a window the glow reaches, as a multiple of the default.
   property real windowGlowDepth: 1.0
+  // How bright the centre of the cursor glow (its core and bright point) is, as a multiple of the default.
+  property real windowGlowCenter: 1.0
   property real layerIntensity: 0.35
   // How fast the Shimmer evolves, as a multiple of its natural pace.
   property real layerSpeed: 1.0
@@ -145,7 +148,8 @@ Scope {
     windowGlow = entry.windowGlow !== false
     windowGlowMode = entry.windowGlowMode === "cursor" ? "cursor" : "all"
     windowGlowSpan = typeof entry.windowGlowSpan === "number" ? clamp(entry.windowGlowSpan, 0.5, 2.5) : 1.0
-    windowGlowDepth = typeof entry.windowGlowDepth === "number" ? clamp(entry.windowGlowDepth, 0.5, 2.5) : 1.0
+    windowGlowDepth = typeof entry.windowGlowDepth === "number" ? clamp(entry.windowGlowDepth, 0.02, 2.5) : 1.0
+    windowGlowCenter = typeof entry.windowGlowCenter === "number" ? clamp(entry.windowGlowCenter, 0, 2.5) : 1.0
     motes = entry.motes !== false
     layerIntensity = typeof entry.layerIntensity === "number" ? clamp(entry.layerIntensity, 0, 1) : 0.35
     layerSpeed = typeof entry.layerSpeed === "number" ? clamp(entry.layerSpeed, 0.1, 4) : 1.0
@@ -334,6 +338,7 @@ Scope {
         windowGlowMode: root.windowGlowMode,
         windowGlowSpan: root.windowGlowSpan,
         windowGlowDepth: root.windowGlowDepth,
+        windowGlowCenter: root.windowGlowCenter,
         cursorSource: pointer.source,
         cursorKnown: pointer.known,
         cursor: [pointer.cursorX, pointer.cursorY],
