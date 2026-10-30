@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "annihilation.shimmer",
+  "name": "Annihilation Shimmer",
+  "version": "0.1.0",
+  "author": "Taylor Remigi",
+  "description": "A slow iridescent wallpaper layer for the Annihilation theme. Dormant on every other theme.",
+  "kinds": ["service"],
+  "keepLoaded": true,
+  "entryPoints": { "service": "Service.qml" }
+}
