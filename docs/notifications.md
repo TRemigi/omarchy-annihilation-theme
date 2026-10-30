@@ -231,6 +231,12 @@ Decisions:
 - `shimmer status` has `missedWatching` and `missed`. Tests:
   `extras/dev/missed-tracker-test.js` (37 checks, 13 deliberate breaks caught) and
   `extras/dev/panel-missed-test.js` (9 checks).
+- **Testing the silenced path: do not use a bare `notify-send`.** With DND on the
+  service drops any notification whose app name is `notify-send` or `omarchy-action`
+  (`NotificationLogic.isEphemeralApp`): no toast, and nothing written to history, so
+  nothing for the tracker to see. (Critical `notify-send` bypasses DND and shows.) Give
+  the test its own app name: `notify-send -a Signal "test" "body"`. The user hit this
+  on the first live try, because the test command given to them was a bare `notify-send`.
 - Known limits: nothing is counted while the shell is not running (inotify only sees
   new events); a restored-after-restart toast leaving later counts as expired; a
   notification replaced by its sender is judged as its own file; the popup shows at
@@ -300,7 +306,8 @@ The user has not yet answered these; the defaults above are my assumptions.
 Same rules as AGENTS.md: syntax and QML lint, shader harness, node logic tests in
 `extras/dev/` (add `notification-feed-test.js` for the seen-set, update and
 startup rules, and break each check on purpose to prove it fails), and the
-installer in a fake `HOME`. Live checks for the user: `notify-send "test" "body"`,
-`notify-send -u critical ...`, `notify-send -u low ...`, and
+installer in a fake `HOME`. Live checks for the user: `notify-send -a Signal "test" "body"`
+(the `-a` matters: a bare `notify-send` is ephemeral and is dropped under DND),
+`-u critical`, `-u low`, and
 `omarchy-shell shimmer status`. Remember the plugin dir is symlinked, so run
 `omarchy-shell shell rescanPlugins` after edits.
