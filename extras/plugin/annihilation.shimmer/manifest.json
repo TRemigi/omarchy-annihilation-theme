@@ -6,7 +6,6 @@
   "author": "Taylor Remigi",
   "description": "A slow iridescent wallpaper layer, screensaver and bar glyph for the Annihilation theme. Dormant on every other theme.",
   "kinds": ["service", "bar-widget"],
-  "keepLoaded": true,
   "entryPoints": { "service": "Service.qml", "barWidget": "BarWidget.qml" },
   "barWidget": {
     "displayName": "Shimmer",
