@@ -22,6 +22,7 @@ HOOK_SRC=$REPO/extras/hooks/theme-set.sh
 HOOK_DST=$CONFIG/hooks/theme-set.d/annihilation.sh
 STAGED_LUA=$STATE/theme/hyprland.lua
 MARK="-- annihilation-extras"
+MARKER=$HOME/.local/state/annihilation-theme/screensaver-off-by-us
 
 current_theme() { cat "$STATE/theme.name" 2>/dev/null || echo none; }
 
@@ -86,6 +87,12 @@ unlink_plugin() {
   fi
 }
 
+# Put Omarchy's text screensaver back if the hook is what turned it off.
+restore_screensaver() {
+  [[ -x $HOOK_SRC ]] && "$HOOK_SRC" --restore
+  [[ -f $MARKER ]] || echo "screensaver  stock restored (or never changed)"
+}
+
 # The hook only fires on `theme set`; run it now if annihilation is already
 # the active theme so the extras show up without a theme switch.
 apply_now() {
@@ -104,6 +111,7 @@ strip_staged() {
 status() {
   if links_to "$PLUGIN_DST" "$PLUGIN_SRC"; then echo "plugin    linked"; else echo "plugin    not installed"; fi
   if links_to "$HOOK_DST" "$HOOK_SRC"; then echo "hook      linked"; else echo "hook      not installed"; fi
+  if [[ -f $MARKER ]]; then echo "screensaver  stock text screensaver off (shimmer owns it)"; else echo "screensaver  stock"; fi
   if [[ -f $STAGED_LUA ]] && grep -qF -- "$MARK" "$STAGED_LUA"; then
     echo "hyprland  extras active in staged theme"
   else
@@ -113,7 +121,7 @@ status() {
 
 case ${1:-} in
   link) link_hook; link_plugin; apply_now ;;
-  unlink) strip_staged; unlink_plugin; unlink_hook ;;
+  unlink) strip_staged; unlink_plugin; restore_screensaver; unlink_hook ;;
   status) status ;;
   *) echo "Usage: ${0##*/} link|unlink|status" >&2; exit 1 ;;
 esac

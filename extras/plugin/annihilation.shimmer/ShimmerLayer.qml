@@ -23,7 +23,7 @@ PanelWindow {
 
   property real clock: 0
 
-  visible: service.running && !fullscreenHere
+  visible: service.running && !fullscreenHere && !service.screensaverActive
   anchors { top: true; bottom: true; left: true; right: true }
   color: "transparent"
   exclusionMode: ExclusionMode.Ignore
