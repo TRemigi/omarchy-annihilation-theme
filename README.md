@@ -8,7 +8,7 @@ at the edges, and every motion slow enough that you only notice it afterwards.
 
 ## Install
 
-    omarchy theme install https://github.com/<you>/omarchy-annihilation-theme
+    omarchy theme install https://github.com/TRemigi/omarchy-annihilation-theme
     omarchy theme set annihilation
 
 or copy this directory to `~/.config/omarchy/themes/annihilation` and run
