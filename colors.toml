@@ -29,6 +29,11 @@ magenta = "#91506C"
 purple = "#91506C"
 brown = "#4D3F32"
 
+# Shimmer border: teal -> bruised magenta -> amber -> moss, kept low-alpha so it
+# reads as light caught in oil rather than a rainbow.
+hyprland_active_border = "rgba(61a0a8ee) rgba(91506cee) rgba(db930dcc) rgba(7a7653ee) 50deg"
+hyprland_inactive_border = "rgba(3a312499)"
+
 bright_red = "#C1666B"
 bright_yellow = "#EBE0BB"
 bright_green = "#9A9669"
