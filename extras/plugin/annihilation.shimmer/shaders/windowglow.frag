@@ -52,6 +52,9 @@ layout(std140, binding = 0) uniform buf {
                          // (negative inside the window); 1 = on
     float cursorSpan;    // how much length of edge the pool covers, as a multiple of the default
     vec4 nearest;        // the point of the window's edge nearest the pointer (x, y), and the edge's unit direction
+    vec4 nearestPrev;    // the same for the edge that was nearest before, while its light fades out
+    vec4 pools;          // spill 0..1 of the current pool; how much of the previous one is left, 0..1; the
+                         // pointer's distance to that edge
     vec4 usable;         // the part of the screen not reserved by bars: x, y, w, h
     vec4 win0;
     vec4 win1;
@@ -251,6 +254,47 @@ float field(vec2 px) {
     return min(min(min(s0, s1), min(s2, s3)), min(s4, s5));
 }
 
+// One pool of light on an edge: the point nearest the pointer `nr` (x, y, and the edge's unit
+// direction), the pointer's distance to that edge, how much of it there is (`amount`, 0..1), and
+// how far it has spilled (`spill`, 0..1). Returns (pool, core, hot centre, bright point).
+//
+// Spilling is the light arriving: the pool grows outward along the edge from the nearest point
+// while it brightens, and flares a little on the way (`bloom`, 1 at both ends and 1.3 halfway),
+// the way a lamp turned on behind a window throws a front of light before it settles.
+vec4 pool(vec2 px, vec4 nr, float dist, float amount, float spill, float w0, float R0) {
+    vec2 dq = px - nr.xy;
+    float lat = dot(dq, nr.zw);
+    float lat2 = lat * lat;
+    // Only the nearest edge pools light. Distance along the edge alone says nothing about
+    // which edge, so the opposite edge, at the same position along its length, glowed just
+    // as brightly. Fade with distance across, from the line of the edge: flat out to
+    // about a band depth (the fourth power keeps the edge's own tail untouched) and
+    // gone before the window's far side.
+    float ac = dot(dq, vec2(-nr.w, nr.z)) / (7.0 * w0);
+    float edgeOnly = exp(-ac * ac * ac * ac);
+    // The pointer being close to the edge strengthens the pooling.
+    float pz = dist / (22.0 * w0);
+    // The light rises as it spreads. Without this the pool begins narrow along the edge but at full
+    // depth, a thin pillar of light, which is the beam shape this effect must not have.
+    float rise = smoothstep(0.0, 0.6, spill);
+    float peak = (0.35 + 0.65 * exp(-pz * pz)) * amount * rise;
+    float R = R0 * (0.25 + 0.75 * spill);
+    float bloom = 1.0 + 1.2 * spill * (1.0 - spill);
+    float g = exp(-lat2 / (R * R)) * peak * edgeOnly;
+    // The bright core: the same, but narrower along the edge, and it hugs the edge.
+    float hot = exp(-lat2 / (0.25 * R * R)) * peak * edgeOnly * bloom;
+    float hotter = exp(-lat2 / (0.05 * R * R)) * peak * edgeOnly * bloom;
+    // A point, not a patch: about 25 px across whatever the span, centred on the spot of the
+    // edge nearest the pointer, and the first thing to appear. Its profile has long soft
+    // shoulders (a power law cut off by a wide Gaussian) rather than a Gaussian's quick drop:
+    // the glow behind it is nearly saturated, so a Gaussian read as a flat white disc with a
+    // rim where it fell away.
+    float rs = 0.44 * w0;
+    float uu = dot(dq, dq) / (rs * rs);
+    float spot = pow(1.0 / (1.0 + uu), 1.3) * exp(-uu / 6.76) * peak * smoothstep(0.0, 0.35, spill) * bloom;
+    return vec4(g, hot, hotter, spot);
+}
+
 void main() {
     vec2 uv = qt_TexCoord0;
     vec2 px = uv * ubuf.resolution;
@@ -277,33 +321,14 @@ void main() {
     float hotter = 0.0;       // a tighter hot spot inside the core, at the very centre
     float spot = 0.0;         // and on top of it a small bright point, right on the edge
     if (follow) {
-        float R = max(ubuf.cursorSpan, 0.1) * 8.0 * w0;
-        // Distance along the edge from the point nearest the pointer, and straight-line
-        // distance from that point.
-        vec2 dq = px - ubuf.nearest.xy;
-        float lat = dot(dq, ubuf.nearest.zw);
-        float lat2 = lat * lat;
-        // Only the nearest edge pools light. Distance along the edge alone says nothing about
-        // which edge, so the opposite edge, at the same position along its length, glowed just
-        // as brightly. Fade with distance across, from the line of the nearest edge: flat out to
-        // about a band depth (the fourth power keeps the nearest edge's own tail untouched) and
-        // gone before the window's far side.
-        float ac = dot(dq, vec2(-ubuf.nearest.w, ubuf.nearest.z)) / (7.0 * w0);
-        float edgeOnly = exp(-ac * ac * ac * ac);
-        // The pointer being close to the edge strengthens the pooling.
-        float pz = ubuf.cursor.z / (22.0 * w0);
-        float peak = 0.35 + 0.65 * exp(-pz * pz);
-        g = exp(-lat2 / (R * R)) * peak * edgeOnly;
-        // The bright core: the same, but narrower along the edge, and it hugs the edge.
-        hot = exp(-lat2 / (0.25 * R * R)) * peak * edgeOnly;
-        hotter = exp(-lat2 / (0.05 * R * R)) * peak * edgeOnly;
-        // A point, not a patch: about 25 px across whatever the span, centred on the spot of the
-        // edge nearest the pointer. Its profile has long soft shoulders (a power law cut off by a
-        // wide Gaussian) rather than a Gaussian's quick drop: the glow behind it is nearly saturated,
-        // so a Gaussian read as a flat white disc with a rim where it fell away.
-        float rs = 0.44 * w0;
-        float uu = dot(dq, dq) / (rs * rs);
-        spot = pow(1.0 / (1.0 + uu), 1.3) * exp(-uu / 6.76) * peak;
+        float R0 = max(ubuf.cursorSpan, 0.1) * 8.0 * w0;
+        vec4 pl = pool(px, ubuf.nearest, ubuf.cursor.z, 1.0, ubuf.pools.x, w0, R0);
+        // The edge that was nearest, while its light drains away.
+        if (ubuf.pools.y > 0.001) pl += pool(px, ubuf.nearestPrev, ubuf.pools.z, ubuf.pools.y, 1.0, w0, R0);
+        g = min(pl.x, 1.0);
+        hot = pl.y;
+        hotter = pl.z;
+        spot = pl.w;
         gain = 0.20 + 0.80 * g;
         w = w0 * (0.8 + 0.8 * g);
         // The first exit had to allow for the widest the band can be; now the real width is known.

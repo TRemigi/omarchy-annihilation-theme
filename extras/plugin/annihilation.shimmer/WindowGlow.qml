@@ -54,8 +54,16 @@ PanelWindow {
   Behavior on smoothX { enabled: win.service.pointer.samples > 2; NumberAnimation { duration: 110; easing.type: Easing.OutQuad } }
   Behavior on smoothY { enabled: win.service.pointer.samples > 2; NumberAnimation { duration: 110; easing.type: Easing.OutQuad } }
 
-  onCursorModeChanged: refresh.restart()
-  onActiveKeyChanged: if (activeKey !== "") fadeIn.restart()
+  onCursorModeChanged: { refresh.restart(); trackPointer() }
+  onActiveKeyChanged: { if (activeKey !== "") fadeIn.restart(); trackPointer() }
+  onSmoothXChanged: trackPointer()
+  onSmoothYChanged: trackPointer()
+  onRectsChanged: trackPointer()
+
+  Connections {
+    target: win.service.pointer
+    function onKnownChanged() { win.trackPointer() }
+  }
 
   NumberAnimation { id: fadeIn; target: win; property: "fade"; from: 0; to: 1; duration: 350; easing.type: Easing.InOutSine }
 
@@ -122,20 +130,105 @@ PanelWindow {
     return dx >= dy ? Qt.vector4d(qx, qy, 0, 1) : Qt.vector4d(qx, qy, 1, 0)
   }
 
-  function nearestUniform() {
-    var mon = hyprMonitor
-    if (!cursorMode || !service.pointer.known || rects.length === 0 || !mon) return Qt.vector4d(0, 0, 0, 1)
-    return nearestEdge(smoothX - mon.x, smoothY - mon.y, rects[0])
+  // ---- The pool's animation.
+  //
+  // Which edge holds the pool is a discontinuous choice: when the pointer crosses the line
+  // where another edge becomes the nearest, the pool would otherwise vanish from one and
+  // appear at full strength on the other. So the pool is state here, not a function of the
+  // pointer. The new edge's pool spills in (320 ms: it grows outward along the edge from the
+  // point nearest the pointer while its light rises, and flares on the way; shaders/
+  // windowglow.frag draws that from `spill`), and the old one drains away over 220 ms from
+  // where it was.
+  property string edgeSide: ""                              // L, R, T or B of the active window
+  property string poolKey: ""                               // the window that pool belongs to
+  property vector4d nearestV: Qt.vector4d(0, 0, 0, 1)       // its nearest point and direction
+  property real curDist: 0                                  // the pointer's signed distance to it
+  property vector4d prevV: Qt.vector4d(0, 0, 0, 1)          // the edge that held it before
+  property real prevDist: 0
+  property real spill: 1
+  property real prevAmount: 0
+
+  NumberAnimation { id: spillAnim; target: win; property: "spill"; from: 0; to: 1; duration: 320; easing.type: Easing.OutCubic }
+  NumberAnimation { id: drainAnim; target: win; property: "prevAmount"; from: 1; to: 0; duration: 220; easing.type: Easing.InOutSine }
+
+  // Which side of a rectangle a point on its edge is on.
+  function sideOf(q, r) {
+    if (q.z === 0 && q.w === 1) return q.x <= r.x + r.w / 2 ? "L" : "R"
+    return q.y <= r.y + r.h / 2 ? "T" : "B"
   }
 
-  // The pointer for the shader: x, y on this screen, its signed distance to the active
-  // window's nearest edge, and 1 when the cursor effect applies (0 gives the uniform glow).
-  function cursorUniform() {
+  // How far a point is from the line of one side of a rectangle (positive inside).
+  function sideDistance(cx, cy, r, side) {
+    if (side === "L") return cx - r.x
+    if (side === "R") return r.x + r.w - cx
+    if (side === "T") return cy - r.y
+    return r.y + r.h - cy
+  }
+
+  // The point on one side of a rectangle nearest a point, and the side's direction there.
+  function sidePoint(cx, cy, r, side) {
+    var x = Math.min(Math.max(cx, r.x), r.x + r.w)
+    var y = Math.min(Math.max(cy, r.y), r.y + r.h)
+    if (side === "L") return Qt.vector4d(r.x, y, 0, 1)
+    if (side === "R") return Qt.vector4d(r.x + r.w, y, 0, 1)
+    if (side === "T") return Qt.vector4d(x, r.y, 1, 0)
+    return Qt.vector4d(x, r.y + r.h, 1, 0)
+  }
+
+  // Called whenever the pointer, the window or the mode changes.
+  function trackPointer() {
     var mon = hyprMonitor
-    if (!cursorMode || !service.pointer.known || rects.length === 0 || !mon) return Qt.vector4d(0, 0, 0, 0)
+    if (!cursorMode || !service.pointer.known || rects.length === 0 || !mon) {
+      if (edgeSide !== "") {
+        edgeSide = ""
+        poolKey = ""
+        nearestV = Qt.vector4d(0, 0, 0, 1)
+        drainAnim.stop()
+        spillAnim.stop()
+        prevAmount = 0
+        spill = 1
+      }
+      return
+    }
+    var r = rects[0]
     var cx = smoothX - mon.x
     var cy = smoothY - mon.y
-    return Qt.vector4d(cx, cy, edgeDistance(cx, cy, rects[0]), 1)
+    var q = nearestEdge(cx, cy, r)
+    var side = sideOf(q, r)
+    var inside = cx >= r.x && cx <= r.x + r.w && cy >= r.y && cy <= r.y + r.h
+    var fresh = edgeSide === "" || poolKey !== activeKey
+    // A pointer resting near the line between two edges would flip the pool back and forth;
+    // the held edge stays until another is clearly nearer.
+    if (!fresh && inside && side !== edgeSide
+        && sideDistance(cx, cy, r, edgeSide) - sideDistance(cx, cy, r, side) < 24) {
+      side = edgeSide
+      q = sidePoint(cx, cy, r, side)
+    }
+    if (fresh) {
+      drainAnim.stop()
+      prevAmount = 0
+      edgeSide = side
+      poolKey = activeKey
+      spillAnim.restart()
+    } else if (side !== edgeSide) {
+      prevV = nearestV
+      prevDist = curDist
+      prevAmount = 1
+      drainAnim.restart()
+      edgeSide = side
+      spillAnim.restart()
+    }
+    nearestV = q
+    curDist = inside ? -sideDistance(cx, cy, r, side) : edgeDistance(cx, cy, r)
+  }
+
+  // The pointer for the shader: x, y on this screen, its signed distance to the edge that holds
+  // the pool, and 1 when the cursor effect applies (0 gives the uniform glow).
+  function cursorUniform() {
+    var mon = hyprMonitor
+    if (!cursorMode || !service.pointer.known || rects.length === 0 || !mon || edgeSide === "")
+      return Qt.vector4d(0, 0, 0, 0)
+    return Qt.vector4d(smoothX - mon.x, smoothY - mon.y, curDist, 1)
   }
 
   function rectAt(i) {
@@ -222,7 +315,9 @@ PanelWindow {
     property size resolution: Qt.size(width, height)
     property vector4d usable: win.usableRect()
     property vector4d cursor: win.cursorUniform()
-    property vector4d nearest: win.nearestUniform()
+    property vector4d nearest: win.nearestV
+    property vector4d nearestPrev: win.prevV
+    property vector4d pools: Qt.vector4d(win.spill, win.prevAmount, win.prevDist, 0)
     property real cursorSpan: win.service.windowGlowSpan
     opacity: win.fade
     property vector4d win0: win.rectAt(0)

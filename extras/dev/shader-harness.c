@@ -64,6 +64,12 @@ int main(int argc, char **argv) {
   // NEAREST="qx,qy,tx,ty": the point of the window's edge nearest the pointer and the edge's unit direction.
   { float qx = 0, qy = 0, tx = 0, ty = 1; if (getenv("NEAREST")) sscanf(getenv("NEAREST"), "%f,%f,%f,%f", &qx, &qy, &tx, &ty);
     glUniform4f(glGetUniformLocation(prog, "ubuf.nearest"), qx, qy, tx, ty); }
+  // NEAREST_PREV="qx,qy,tx,ty" and POOLS="spill,prevAmount,prevDist": the animation. Defaults: fully
+  // spilled, no previous pool.
+  { float qx = 0, qy = 0, tx = 0, ty = 1; if (getenv("NEAREST_PREV")) sscanf(getenv("NEAREST_PREV"), "%f,%f,%f,%f", &qx, &qy, &tx, &ty);
+    glUniform4f(glGetUniformLocation(prog, "ubuf.nearestPrev"), qx, qy, tx, ty);
+    float sp = 1, pa = 0, pd = 0; if (getenv("POOLS")) sscanf(getenv("POOLS"), "%f,%f,%f", &sp, &pa, &pd);
+    glUniform4f(glGetUniformLocation(prog, "ubuf.pools"), sp, pa, pd, 0); }
   glUniform1f(glGetUniformLocation(prog, "ubuf.cursorSpan"), getenv("CURSOR_SPAN") ? (float)atof(getenv("CURSOR_SPAN")) : 1.f);
   glUniform1f(glGetUniformLocation(prog, "ubuf.rimWidth"), getenv("RIM") ? (float)atof(getenv("RIM")) : 60.f);
   glUniform1f(glGetUniformLocation(prog, "ubuf.rounding"), getenv("ROUNDING") ? (float)atof(getenv("ROUNDING")) : 4.f);

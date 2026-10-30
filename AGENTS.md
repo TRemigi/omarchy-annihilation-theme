@@ -252,6 +252,33 @@ The brief: **subdued psychedelic horror mixed with the beauty of nature.**
   which only showed the near edge: after any change to the pool, measure ALL FOUR edges.
   Known limit: with the pointer on a window's middle line the lit edge flips between the two
   nearest sides instantly (the nearest point jumps); not smoothed.
+  **The pool animates in.** The user: it "just snaps into view immediately when the cursor gets
+  close enough. It should spill in like light. quickly, but animated realistically." What
+  snapped was the choice of which edge holds the pool: when the pointer crosses the line where
+  another edge becomes nearest, the pool vanished from one edge and appeared at full strength on
+  the other. So the pool is *state* in `WindowGlow.qml` (`trackPointer`, called whenever the
+  pointer, window or mode changes), not a function of the pointer. On a change of edge: the new
+  pool's `spill` runs 0 to 1 over 320 ms (OutCubic), and the old pool is kept (`prevV`,
+  `prevDist`) while `prevAmount` drains 1 to 0 over 220 ms (InOutSine). The shader draws two
+  pools (`pool()` in `windowglow.frag`; `nearestPrev`, `pools` = spill, prevAmount, prevDist).
+  Spilling is: reach `R * (0.25 + 0.75 spill)` so the light grows outward along the edge from the
+  nearest point; brightness `rise = smoothstep(0, 0.6, spill)`; the bright point appears first
+  (`smoothstep(0, 0.35, spill)`); and a flare `bloom = 1 + 1.2 s (1 - s)` (1.3 at the middle, 1
+  at both ends) on the core and the point, like a lamp throwing a front of light before it
+  settles. Lesson: without `rise`, the first frames were a thin tall pillar (narrow along the
+  edge, full depth), the beam shape again. The finished state (spill 1, nothing draining) is
+  byte-identical to the shader before the animation, checked every time, because every term
+  is exactly 1 at spill 1 (this is why `bloom` is a polynomial, not a sine, whose value at pi
+  is not exactly zero in float). A new window (`activeKey` changes) starts a fresh pool with
+  nothing draining, and also keeps the layer's existing 350 ms fade. Hysteresis: with the
+  pointer inside, the held edge stays until another is nearer by 24 px, so resting on the middle
+  line does not flip it. Known limits: returning to an edge that is mid-drain re-spills it from
+  zero, and the other edge starts draining at full, so repeated crossing shows a pop; the
+  state is one current and one previous pool, not four per-edge levels. Cost: one pool 48 ms,
+  two 52 ms (CPU rasteriser). The state machine is tested in `extras/dev/window-glow-test.js`
+  (39 checks, six deliberate breaks each caught); the animation was judged from a filmstrip
+  rendered by the harness with `POOLS` and `NEAREST_PREV`, and cannot be seen without a live
+  Hyprland. The durations are the two `duration:` values next to `spillAnim` and `drainAnim`.
   **Span** (`windowGlowSpan`, a slider in the popup): `R = span * 8 * w0`. The default was
   chosen by measuring the pool's length (where the glow is above half way between baseline
   and peak) with the core switched off, because a core makes any such measure read its own
