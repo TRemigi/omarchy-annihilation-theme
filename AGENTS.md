@@ -216,21 +216,34 @@ The brief: **subdued psychedelic horror mixed with the beauty of nature.**
   The first formulation used `exp(-(max(|px - pointer| - d, 0) / R)^2)`, which has a
   plateau inside a circle around the pointer and a crease where it ends: it drew a bright
   crescent when the pointer was mid-window, and bulged into the window as a half-disc dome
-  (the spotlight look). Now the along-edge distance is recovered from the two signed
-  distances, `lat2 = |px - pointer|^2 - (d_pointer - sd)^2` (exact for a straight edge; max
-  with 0 at corners), and the pool is `exp(-lat2 / R^2)`. The bright core is the same with
-  `0.25 R^2` and a tighter depth profile (`exp(-1.5 * depth / w0)`) so it sits on the edge,
-  plus a warm white added after the gain, and a tighter `hotter` spot (`0.05 R^2`) inside the
-  core for the very centre (peak 0.60 to 0.82 after the user asked for more); everything is tone-mapped with `1 - exp(-x)`, so
-  nothing clips (0.00% of lit pixels above 0.97).
+  (the spotlight look). Now the shader gets, from `WindowGlow.nearestEdge`, the exact point of
+  the window's edge nearest the pointer and the edge's unit direction (`nearest` = x, y, tx, ty),
+  and measures `lat = dot(px - nearest.xy, nearest.zw)`. The pool is `exp(-lat^2 / R^2)`, the core
+  the same with `0.25 R^2`, a tighter `hotter` with `0.05 R^2`, and the small bright **point**
+  is `exp(-|px - nearest.xy|^2 / (0.55 w0)^2)`, about 28 px across at half height whatever the
+  span, with a warm white added after the gain. Everything is tone-mapped with `1 - exp(-x)`.
+  **Do not derive geometry from `field()`.** It is a *shaped* distance, not a true one: the
+  smooth max that rounds off the diagonal creases inside a window (see the first round of
+  window-glow feedback) shifts it by about half a band width, 15 px, inward everywhere along
+  a straight edge, so `sd` is 0 about 15 px *outside* the true edge, and has slope 2 for the
+  first few pixels outside. An earlier version recovered the along-edge distance as
+  `|px - pointer|^2 - (d_pointer - sd)^2`, which assumes true perpendicular distances; it
+  was wrong by about 30 px along the edge, which went unnoticed in the soft pool, and made the
+  small point (radius 17 px) land at 1.6% of its strength at the nearest edge point and peak at
+  the screen's border instead. The cure is to hand the shader exact geometry from the rectangle.
+  A debug trick that found it: output intermediate values as the pixel colour, and print them
+  at known pixels. `cursor.z` (signed distance, negative inside) is now used only for the
+  proximity boost `peak` (0.35 to 1 over 22 band widths).
   **Span** (`windowGlowSpan`, a slider in the popup): `R = span * 8 * w0`. The default was
   chosen by measuring the pool's length (where the glow is above half way between baseline
   and peak) with the core switched off, because a core makes any such measure read its own
   narrow width: the old shader 521 px, R = 7.5 w0 368 px, R = 8 w0 395 px (24% shorter, the
   "bit smaller" the user asked for), R = 9 w0 433 px. Range 0.5 to 2.5: below about 0.5 the
   band's depth changes faster along the edge than the glow can follow, and the pool turns
-  into a boxy arrowhead. The core is 30% of the pool's length at every span, and its centre is
-  about 2.8x brighter than before this change and nearly white (whiteness 0.9).
+  into a boxy arrowhead. Measured again after the geometry fix: 200 / 386 / 697 px at spans
+  0.5 / 1 / 2.5, against 521 px for the old shader (the default is 26% shorter). The centre is
+  nearly white (whiteness 0.9) and the brightest pixel of the frame sits within 25 px of the
+  pointer's nearest edge point with the pointer mid-window, near an edge, and outside.
   Cost (CPU rasteriser, 1880x1190, ratios only): all mode with three windows 92 ms; cursor
   mode, one window, 47 to 54 ms. Pitfall: the first early exit must allow for the widest
   possible band, so it needs a second, tight one once the local width is known. Hard-edge

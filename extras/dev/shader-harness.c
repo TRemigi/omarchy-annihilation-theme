@@ -57,9 +57,13 @@ int main(int argc, char **argv) {
   // For windowglow.frag in cursor mode: CURSOR="x,y,d" (the pointer in pixels, and its
   // signed distance to the nearest edge of the window: negative inside). Unset means the cursor
   // effect is off.
-  // CURSOR_SPAN scales how much length of edge the pool covers (default 1).
+  // CURSOR_SPAN scales how much length of edge the pool covers (default 1). NEAREST="qx,qy,tx,ty" is the
+  // point of the window's edge nearest the pointer and the edge's unit direction (see WindowGlow.nearestEdge).
   { float cx = 0, cy = 0, cd = 0, on = 0; if (getenv("CURSOR") && sscanf(getenv("CURSOR"), "%f,%f,%f", &cx, &cy, &cd) == 3) on = 1;
     glUniform4f(glGetUniformLocation(prog, "ubuf.cursor"), cx, cy, cd, on); }
+  // NEAREST="qx,qy,tx,ty": the point of the window's edge nearest the pointer and the edge's unit direction.
+  { float qx = 0, qy = 0, tx = 0, ty = 1; if (getenv("NEAREST")) sscanf(getenv("NEAREST"), "%f,%f,%f,%f", &qx, &qy, &tx, &ty);
+    glUniform4f(glGetUniformLocation(prog, "ubuf.nearest"), qx, qy, tx, ty); }
   glUniform1f(glGetUniformLocation(prog, "ubuf.cursorSpan"), getenv("CURSOR_SPAN") ? (float)atof(getenv("CURSOR_SPAN")) : 1.f);
   glUniform1f(glGetUniformLocation(prog, "ubuf.rimWidth"), getenv("RIM") ? (float)atof(getenv("RIM")) : 60.f);
   glUniform1f(glGetUniformLocation(prog, "ubuf.rounding"), getenv("ROUNDING") ? (float)atof(getenv("ROUNDING")) : 4.f);

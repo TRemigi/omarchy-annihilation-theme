@@ -100,6 +100,34 @@ PanelWindow {
     return -Math.min(cx - r.x, r.x + r.w - cx, cy - r.y, r.y + r.h - cy)
   }
 
+  // The point of a rectangle's edge nearest a point, and the edge's unit direction there, as
+  // x, y, tx, ty. Inside, the nearest of the four sides; outside, the nearest point of the
+  // rectangle, and past a corner the side the pointer is more nearly beside.
+  function nearestEdge(cx, cy, r) {
+    var l = cx - r.x
+    var rt = r.x + r.w - cx
+    var t = cy - r.y
+    var b = r.y + r.h - cy
+    if (l >= 0 && rt >= 0 && t >= 0 && b >= 0) {
+      var m = Math.min(l, rt, t, b)
+      if (m === l) return Qt.vector4d(r.x, cy, 0, 1)
+      if (m === rt) return Qt.vector4d(r.x + r.w, cy, 0, 1)
+      if (m === t) return Qt.vector4d(cx, r.y, 1, 0)
+      return Qt.vector4d(cx, r.y + r.h, 1, 0)
+    }
+    var qx = Math.min(Math.max(cx, r.x), r.x + r.w)
+    var qy = Math.min(Math.max(cy, r.y), r.y + r.h)
+    var dx = Math.abs(cx - qx)
+    var dy = Math.abs(cy - qy)
+    return dx >= dy ? Qt.vector4d(qx, qy, 0, 1) : Qt.vector4d(qx, qy, 1, 0)
+  }
+
+  function nearestUniform() {
+    var mon = hyprMonitor
+    if (!cursorMode || !service.pointer.known || rects.length === 0 || !mon) return Qt.vector4d(0, 0, 0, 1)
+    return nearestEdge(smoothX - mon.x, smoothY - mon.y, rects[0])
+  }
+
   // The pointer for the shader: x, y on this screen, its signed distance to the active
   // window's nearest edge, and 1 when the cursor effect applies (0 gives the uniform glow).
   function cursorUniform() {
@@ -194,6 +222,7 @@ PanelWindow {
     property size resolution: Qt.size(width, height)
     property vector4d usable: win.usableRect()
     property vector4d cursor: win.cursorUniform()
+    property vector4d nearest: win.nearestUniform()
     property real cursorSpan: win.service.windowGlowSpan
     opacity: win.fade
     property vector4d win0: win.rectAt(0)

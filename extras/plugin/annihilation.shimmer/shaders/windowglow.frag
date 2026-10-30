@@ -24,6 +24,10 @@
 // the distance from the point nearest the pointer), not of the distance from the pointer:
 // the latter has a plateau inside a circle around the pointer and a crease where it ends,
 // which showed as a bright arc, and made the pool a dome bulging into the window.
+// The nearest point and the edge's direction come from the caller, who knows the window's
+// rectangle. They are not derived from field(): that is a shaped distance, not a true one
+// (its smooth max shifts it about half a band width inward), and the along-edge distance
+// worked out from it put the centre of the pool in the wrong place.
 // With cursor.w = 0 the glow is uniform, as before.
 //
 // Windows come in as rectangles (x, y, width, height in logical pixels), topmost
@@ -47,6 +51,7 @@ layout(std140, binding = 0) uniform buf {
     vec4 cursor;         // pointer x, y in pixels; its signed distance to the nearest window edge
                          // (negative inside the window); 1 = on
     float cursorSpan;    // how much length of edge the pool covers, as a multiple of the default
+    vec4 nearest;        // the point of the window's edge nearest the pointer (x, y), and the edge's unit direction
     vec4 usable;         // the part of the screen not reserved by bars: x, y, w, h
     vec4 win0;
     vec4 win1;
@@ -270,14 +275,14 @@ void main() {
     // pointer, falling off along the edge, scaled by how close the pointer is.
     float hot = 0.0;
     float hotter = 0.0;       // a tighter hot spot inside the core, at the very centre
+    float spot = 0.0;         // and on top of it a small bright point, right on the edge
     if (follow) {
-        float dcur = length(px - ubuf.cursor.xy);
         float R = max(ubuf.cursorSpan, 0.1) * 8.0 * w0;
-        // Perpendicular separation between the pointer and this pixel, from their signed
-        // distances to the edge; what is left of the distance is along the edge. (Exact for a
-        // straight edge; at a corner it can dip below zero, hence the max.)
-        float perp = ubuf.cursor.z - sd;
-        float lat2 = max(dcur * dcur - perp * perp, 0.0);
+        // Distance along the edge from the point nearest the pointer, and straight-line
+        // distance from that point.
+        vec2 dq = px - ubuf.nearest.xy;
+        float lat = dot(dq, ubuf.nearest.zw);
+        float lat2 = lat * lat;
         // The pointer being close to the edge strengthens the pooling.
         float pz = ubuf.cursor.z / (22.0 * w0);
         float peak = 0.35 + 0.65 * exp(-pz * pz);
@@ -285,6 +290,10 @@ void main() {
         // The bright core: the same, but narrower along the edge, and it hugs the edge.
         hot = exp(-lat2 / (0.25 * R * R)) * peak;
         hotter = exp(-lat2 / (0.05 * R * R)) * peak;
+        // A point, not a patch: a few tens of pixels across whatever the span, soft-edged, centred
+        // on the spot of the edge nearest the pointer.
+        float rs = 0.55 * w0;
+        spot = exp(-dot(dq, dq) / (rs * rs)) * peak;
         gain = 0.20 + 0.80 * g;
         w = w0 * (0.8 + 0.8 * g);
         // The first exit had to allow for the widest the band can be; now the real width is known.
@@ -335,8 +344,8 @@ void main() {
     // Its depth profile is tighter than the band's, so the bright part sits on the edge and does
     // not bulge into the window.
     float cdepth = inside ? exp(-1.5 * (-sd) / w0) : 0.8 * exp(-3.0 * sd / w0);
-    vec3 core = vec3(1.0, 0.95, 0.88) * (cdepth + 0.5 * edge) * (hot * 1.5 + hotter * 1.6);
-    vec4 acc = vec4((rgb * (gain + 1.0 * hot + 0.8 * hotter) + core) * (ubuf.intensity * 2.0), 0.0);
+    vec3 core = vec3(1.0, 0.95, 0.88) * (cdepth + 0.5 * edge) * (hot * 1.5 + hotter * 1.6) + vec3(1.0, 0.97, 0.92) * spot * 2.6;
+    vec4 acc = vec4((rgb * (gain + 1.0 * hot + 0.8 * hotter + 1.2 * spot) + core) * (ubuf.intensity * 2.0), 0.0);
     // Roll bright peaks off smoothly instead of clipping them. A spot that is cut off
     // flat at the maximum has a visible edge where it drops below the clip, and reads
     // as a hard-edged disc; this leaves low values almost alone and approaches the

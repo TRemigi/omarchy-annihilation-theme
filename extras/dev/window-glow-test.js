@@ -11,7 +11,7 @@ function make(clients, mon, over = {}) {
   const ctx = Object.assign({ rects: [], hyprMonitor: mon, styleBorder: 2, cursorMode: false, activeKey: "", smoothX: 0, smoothY: 0,
     service: { pointer: { known: true } }, Qt: { vector4d: (a, b, c, d) => [a, b, c, d] } }, over);
   const Hyprland = { toplevels: { values: clients.map((o) => ({ lastIpcObject: o })) } };
-  new Function("ctx", "Hyprland", "with (ctx) { Object.assign(ctx, {" + [grab("collect"), grab("edgeDistance"), grab("cursorUniform")].join(",") + "}); }")(ctx, Hyprland); return ctx;
+  new Function("ctx", "Hyprland", "with (ctx) { Object.assign(ctx, {" + [grab("collect"), grab("edgeDistance"), grab("cursorUniform"), grab("nearestEdge"), grab("nearestUniform")].join(",") + "}); }")(ctx, Hyprland); return ctx;
 }
 let pass = 0, fail = 0; const eq = (n, g, w) => { const ok = JSON.stringify(g) === JSON.stringify(w); ok ? pass++ : (fail++, console.log("FAIL", n, "got", JSON.stringify(g), "want", JSON.stringify(w))); };
 const mon0 = { id: 0, x: 0, y: 0, activeWorkspace: { id: 1 } }, mon1 = { id: 1, x: 1920, y: 0, activeWorkspace: { id: 5 } };
@@ -40,4 +40,18 @@ eq("uniform: local coordinates, signed edge distance, on", c.cursorUniform(), [1
 c.service.pointer.known = false; eq("uniform: pointer unknown means off", c.cursorUniform(), [0, 0, 0, 0]); c.service.pointer.known = true;
 c.rects = []; eq("uniform: no active window means off", c.cursorUniform(), [0, 0, 0, 0]); c.rects = [{ x: 80, y: 100, w: 800, h: 600 }];
 c.cursorMode = false; eq("uniform: all mode means off", c.cursorUniform(), [0, 0, 0, 0]);
+// the point of the edge nearest the pointer, and the edge's direction (x, y, tx, ty)
+c = make([], mon0);
+eq("nearest edge: left side, pointer inside", c.nearestEdge(130, 250, r), [100, 250, 0, 1]);
+eq("nearest edge: right side", c.nearestEdge(470, 250, r), [500, 250, 0, 1]);
+eq("nearest edge: top", c.nearestEdge(300, 120, r), [300, 100, 1, 0]);
+eq("nearest edge: bottom", c.nearestEdge(300, 390, r), [300, 400, 1, 0]);
+eq("nearest edge: outside, beside the left side", c.nearestEdge(60, 250, r), [100, 250, 0, 1]);
+eq("nearest edge: outside, above the top", c.nearestEdge(300, 70, r), [300, 100, 1, 0]);
+eq("nearest edge: past a corner, mostly to the side", c.nearestEdge(40, 80, r), [100, 100, 0, 1]);
+eq("nearest edge: past a corner, mostly above", c.nearestEdge(80, 40, r), [100, 100, 1, 0]);
+eq("nearest edge: on the edge", c.nearestEdge(100, 200, r), [100, 200, 0, 1]);
+c = make([], mon1, { cursorMode: true, rects: [{ x: 80, y: 100, w: 800, h: 600 }], smoothX: 2050, smoothY: 150 });
+eq("nearest uniform: local coordinates", c.nearestUniform(), [80, 150, 0, 1]);
+c.service.pointer.known = false; eq("nearest uniform: off gives a harmless value", c.nearestUniform(), [0, 0, 0, 1]);
 console.log(fail === 0 ? `ALL ${pass} CHECKS PASS` : `${fail} FAILED, ${pass} passed`); process.exit(fail ? 1 : 0);
