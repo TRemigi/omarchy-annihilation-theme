@@ -9,12 +9,13 @@ update and fall back from it.
 
 | Phase | What | State |
 |-------|------|-------|
-| P0 | Fork repo exists and is a functional-parity clone of upstream, installable | not started |
-| P1 | Update tooling, runbooks and manual fallback (fork repo); installer, README and drift hooks (this repo) | not started |
+| P0 | Fork repo exists and is a functional-parity clone of upstream, installable | **built locally** at `~/dev/omarchy-annihilation-notifications` (not pushed); **awaiting the live checklist** |
+| P1 | Update tooling, runbooks and manual fallback (fork repo); installer, README and drift hooks (this repo) | **partly done in P0**: `check-upstream`, `import-upstream` and their tests, and the update, fallback, release and troubleshooting runbooks. **Left:** `contract-check`, `status`, a `fallback` tool, CI; and this repo's installer, hooks and README |
 | P2 | The actual experience: motion, countdown border, per-app accents (theme-gated) | not started |
 | P3 | Integration with the shimmer plugin, automatic fallback, CI | not started |
 
-Do P0 and P1 before any visual work. The point of P0 is to prove the update and
+This file is mirrored in the fork repo as `docs/plan.md` (the fork's own copy). The fork's phases are
+tracked there, this repo's tasks here; when you change one, mirror the other. Do P0 and P1 before any visual work. The point of P0 is to prove the update and
 fallback machinery on a fork that changes nothing; features come after.
 
 ## What was verified (Omarchy 4.0.4-1, 2026-10-30, by reading `/usr/share/omarchy`)
@@ -110,8 +111,10 @@ manifest.json            id annihilation.notifications, omarchy.clonedFrom, vers
 Service.qml              forked from upstream (the daemon)
 NotificationLogic.js     forked from upstream
 components/              forked from upstream (NotificationCard.qml) + new components
-UPSTREAM                 baseline: omarchy version, per-file sha256 of the vendored files
-                         AND of the watched dependency files (below), supported versions
+UPSTREAM                 generated, edited only on the upstream branch: omarchy version and the
+                         sha256 of every vendored file AND of every watched dependency (below)
+reference/omarchy/       the watched files themselves (or excerpts of them), also only on upstream,
+                         so a change can be read as a diff
 CONTRACT.md              the surface this fork must preserve (items 3 and 4 above), with
                          where each piece is checked
 LICENSE, NOTICE
@@ -120,8 +123,10 @@ README.md                what it is, install, update, fallback, uninstall, warni
                          plugins run unsandboxed
 docs/runbooks/           update-from-upstream.md, fallback.md, release.md,
                          live-checklist.md, troubleshooting.md
-tools/                   import-upstream, check-upstream, contract-check, status, fallback
-test/                    node tests for NotificationLogic and for the tools
+tools/                   lib.sh, import-upstream, check-upstream (P0); contract-check, status,
+                         fallback (P1)
+test/                    logic-test.js (NotificationLogic), tools-test.sh (the tools)
+docs/releases.md         which Omarchy versions each release was verified against
 ```
 
 Branches: **`upstream`** holds only pristine copies of the vendored files, one commit
@@ -151,12 +156,17 @@ the diff between `upstream` and `main` is always exactly "what we changed".
 6. Bump `version` in the manifest, tag a release.
 
 **Watched files** (hashed in `UPSTREAM`; a hash is a tripwire for "changed", not proof
-of "broken"): the four vendored files; `Commons/Style.qml`, `Color.qml`, `Border.qml`
-and the `Ui/` components the fork imports; `services/PluginFirstPartyServiceApi.qml`;
-`plugins/bar/indicators/Dnd.qml`; the `bin/omarchy-notification-*` scripts and
-`omarchy-toggle-notification-silencing`; `default/hypr/bindings/utilities.lua`; the
-parts of `shell.qml` that define `firstPartyServiceFor` and the service allow-list;
-and any file in `migrations/` that mentions notifications. Hashes are used, not
+of "broken"; the exact list is `WATCHED` in the fork's `tools/lib.sh`): every file of
+Omarchy's notifications plugin (vendored); `Commons/` (`Style`, `Color`, `Border`,
+`BorderGeometry.js`, `Util`, `qmldir`) and `Ui/BorderSurface.qml` and `Ui/qmldir`;
+`services/PluginFirstPartyServiceApi.qml`; `plugins/bar/indicators/Dnd.qml`; the
+`bin/omarchy-notification-*` scripts and `omarchy-toggle-notification-silencing`; and
+*excerpts* (only the matching lines, so unrelated edits do not trip it) of
+`default/hypr/bindings/utilities.lua` (lines about notifications), `shell.qml`
+(`omarchy.notifications` and `firstPartyServiceFor`), and `PluginRegistry.qml` (the
+clone machinery: `clonedFrom`, `resolveEnabledId`, `cloneSourceRestores`,
+`restoreCloneSource`, `disabledPlugins`); and the list of files in `migrations/` that
+mention notifications. Hashes are used, not
 version numbers, so a user on a different Omarchy than the maintainer is judged on
 what is actually on their disk.
 
@@ -220,7 +230,17 @@ says why.
   time to find.
 - The shimmer plugin and this theme are **not** changed to require the fork.
 
-## P0 in detail (the first session on this)
+## P0 in detail
+
+**Done (2026-10-30, by the agent):** steps 1 to 5 below, in `~/dev/omarchy-annihilation-notifications`
+(a sibling directory, nothing pushed; the GitHub owner is still to be chosen). `upstream` holds the
+pristine 4.0.4-1 files with tag `upstream/4.0.4-1`; `main` is that plus the manifest (the only change to
+a vendored file); `git diff upstream main -- Service.qml NotificationLogic.js components` is empty.
+Checked: `omarchy plugin validate`, `tools/check-upstream` exit 0, `test/tools-test.sh` (47 checks,
+9 deliberate breaks caught), `test/logic-test.js` (35 checks). **Step 6, the live run, is the user's**
+and is `docs/runbooks/live-checklist.md` in the fork repo. P0 is not finished until it passes.
+
+The original steps:
 
 1. Ask the user for the GitHub owner and whether the repo is public; create the local
    repo as a sibling directory first (`~/dev/omarchy-annihilation-notifications`),
@@ -274,7 +294,7 @@ the agent cannot see it, so each step goes to the user by screenshot or recordin
   that this theme already depends on, with or without the fork.
 - **A user on a different Omarchy version than the fork's baseline** gets a fork whose
   vendored files do not match what they have. The hash check and the hold marker handle
-  it; the supported-versions list in `UPSTREAM` says which are known good.
+  it; `docs/releases.md` and the `upstream/*` tags say which versions are known good.
 - **Maintenance cost** is the whole price of this item: every Omarchy release is a
   merge. If that stops being worth it, the exit is `omarchy plugin remove` and archiving
   the repo; nothing in this theme depends on it.

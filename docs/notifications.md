@@ -13,7 +13,7 @@ gotchas; this file is only about notifications.
 | 1 | Arrival glow (light spreads from the toast corner) | **built; user: "looks great"** |
 | 2 | Sound (synthesized, opt-in) | **built; user confirmed working** (no feedback yet on how the tones sound) |
 | 4 | Missed notifications on the bar prism | **built; user confirmed working**, expired and silenced paths |
-| 6 | Themed fork of the notification daemon | **planned: see `docs/notifications-fork.md`** (separate repo, not started) |
+| 6 | Themed fork of the notification daemon | **P0 built** in a separate repo at `~/dev/omarchy-annihilation-notifications` (not pushed); **awaiting the user's live checklist**; see `docs/notifications-fork.md` |
 
 Items 0, 1, 2 and 4 are done and confirmed live by the user; what is left is item 6 and
 the optional items under "Not chosen". Numbers match the numbered list in the conversation that produced this plan.
