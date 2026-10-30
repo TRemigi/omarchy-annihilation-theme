@@ -29,7 +29,7 @@ repo, so the live parts ship separately. Clone the repo somewhere permanent
 
 | Part | What it does |
 | --- | --- |
-| Hyprland | A border gradient that turns once a minute, a faint teal shadow on the focused window, blur on shell surfaces, 6% dimming of inactive windows, slower open/close and workspace motion. |
+| Hyprland | A border gradient that slowly turns, a faint teal shadow on the focused window, blur on shell surfaces, 6% dimming of inactive windows, slower open/close and workspace motion. |
 | Shimmer layer | A click-through layer between wallpaper and windows: a slow band of thin-film colour, rising spores, faint caustics along the bottom. Pauses under fullscreen windows. |
 | Screensaver | After `idle.screensaver` seconds the wallpaper slowly warps, its colour channels drift apart, and a lattice of glowing cells grows over it. A passage kindles as living light, one part about every ten seconds, picking up where it left off. Replaces Omarchy's text screensaver while this theme is active. |
 | Bar glyph | A prism whose edge shifts teal, magenta, amber. Click for "Day N inside Area X" (uptime), the day's log entry and the controls; right click toggles the layer; middle click starts the screensaver. |
