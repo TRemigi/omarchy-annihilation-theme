@@ -1,6 +1,6 @@
 // One click-through window per screen, between the wallpaper and the windows,
-// painting the Shimmer shader. Hidden (and its timer stopped) while a
-// fullscreen window covers this screen, so a game or video costs nothing.
+// painting the Shimmer shader. Hidden while a fullscreen window covers this
+// screen, so a game or video costs nothing. The shader's clock is the service's.
 
 import QtQuick
 import Quickshell
@@ -20,8 +20,6 @@ PanelWindow {
   readonly property bool fullscreenHere: !!(hyprMonitor && hyprMonitor.activeWorkspace
     && hyprMonitor.activeWorkspace.hasFullscreen)
 
-  property real clock: 0
-
   visible: service.running && !fullscreenHere && !service.screensaverActive
   anchors { top: true; bottom: true; left: true; right: true }
   color: "transparent"
@@ -32,14 +30,6 @@ PanelWindow {
   WlrLayershell.layer: WlrLayer.Bottom
   WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
-  Timer {
-    interval: Math.round(1000 / Math.max(5, Math.min(60, win.service.fpsCap)))
-    running: win.visible
-    repeat: true
-    triggeredOnStart: true
-    onTriggered: win.clock = (Date.now() - win.service.startedAt) / 1000
-  }
-
   ShaderEffect {
     anchors.fill: parent
 
@@ -48,7 +38,7 @@ PanelWindow {
     layer.textureSize: Qt.size(Math.max(1, Math.round(width * win.renderScale)),
                                Math.max(1, Math.round(height * win.renderScale)))
 
-    property real time: win.clock
+    property real time: win.service.shimmerClock
     property real intensity: win.service.effectiveIntensity
     property real motes: win.service.motes ? 1.0 : 0.0
     property size resolution: Qt.size(width, height)

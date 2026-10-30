@@ -54,6 +54,7 @@ entry under `bar.layout`, or `plugins[]` if you run it without the glyph):
 | --- | --- | --- |
 | `layerEnabled` | `true` | the wallpaper layer |
 | `layerIntensity` | `0.35` | 0 to 1 |
+| `layerSpeed` | `1` | how fast the Shimmer evolves, 0.1 to 4 times its natural pace (the popup's slider covers 0.25 to 3) |
 | `layerAdditive` | `true` | add the light to the wallpaper; `false` blends it as an ordinary translucent layer if your compositor mishandles that |
 | `motes` | `true` | the spores |
 | `fpsCap` | `30` | 5 to 60 |

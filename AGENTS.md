@@ -85,6 +85,11 @@ The brief: **subdued psychedelic horror mixed with the beauty of nature.**
   and the tint now about 0.20, from evolving the patches, hue sweep and warp at
   twice the speed. A finer "heat haze" ripple inside the tint changed the rate
   by almost nothing, so it was left out.
+- **The shader's clock is accumulated, not read from the wall clock**
+  (`Service.shimmerClock`, advanced by a service timer by elapsed time times
+  `layerSpeed`, with a stall clamped to 0.25 s). Multiplying wall time by a speed
+  would make every pattern lurch when the slider moves. All screens share it. If
+  you add another time-based control, keep it integrated the same way.
 - **Additive blending.** In the default mode the light part of the shader outputs
   colour larger than its alpha, which a premultiplied "over" blend turns into added light.
   That is outside what the Wayland spec promises, so the `layerAdditive` setting
@@ -330,7 +335,7 @@ status`; `omarchy-shell shimmer pulse`; `omarchy-shell shimmer screensaver`.
 
 ## Plugin reference
 
-Settings (inline on the plugin entry): `layerEnabled`, `layerIntensity` (0.35),
+Settings (inline on the plugin entry): `layerEnabled`, `layerIntensity` (0.35), `layerSpeed` (1),
 `motes`, `fpsCap` (30), `screensaver`, `screensaverSeconds` (0 follows
 `idle.screensaver`), `screensaverBrightness` (0.08), `passageFont` (`jost`,
 `cinzel`, or an installed family).

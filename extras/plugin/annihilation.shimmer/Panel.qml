@@ -29,6 +29,7 @@ Panel {
   readonly property int day: Math.floor(uptimeSeconds / 86400) + 1
   readonly property string entry: lines.length > 0 ? lines[dayOfYear % lines.length] : ""
   readonly property real intensity: Number(setting("layerIntensity", 0.35))
+  readonly property real speed: Number(setting("layerSpeed", 1.0))
   readonly property bool layerEnabled: setting("layerEnabled", true) !== false
   readonly property bool motes: setting("motes", true) !== false
 
@@ -131,27 +132,39 @@ Panel {
 
         PanelSectionHeader { text: "THE SHIMMER" }
 
-        Row {
-          width: parent.width
-          spacing: Style.space(10)
+        // Two sliders with their labels in a common column, so they line up.
+        Repeater {
+          model: [
+            { label: "Intensity", key: "layerIntensity", min: 0, max: 1, step: 0.05 },
+            { label: "Speed", key: "layerSpeed", min: 0.25, max: 3, step: 0.05 }
+          ]
 
-          Text {
-            anchors.verticalCenter: parent.verticalCenter
-            text: "Intensity"
-            color: Color.foreground
-            font.family: Style.font.family
-            font.pixelSize: Style.font.body
-          }
+          Row {
+            id: sliderRow
+            required property var modelData
+            width: content.width
+            spacing: Style.space(10)
 
-          PanelSlider {
-            anchors.verticalCenter: parent.verticalCenter
-            width: parent.width - x
-            bar: root.bar
-            minimum: 0
-            maximum: 1
-            step: 0.05
-            value: root.intensity
-            onReleased: function(v) { root.change("layerIntensity", Math.round(v * 100) / 100) }
+            Text {
+              id: sliderLabel
+              anchors.verticalCenter: parent.verticalCenter
+              width: Style.space(72)
+              text: sliderRow.modelData.label
+              color: Color.foreground
+              font.family: Style.font.family
+              font.pixelSize: Style.font.body
+            }
+
+            PanelSlider {
+              anchors.verticalCenter: parent.verticalCenter
+              width: parent.width - sliderLabel.width - parent.spacing
+              bar: root.bar
+              minimum: sliderRow.modelData.min
+              maximum: sliderRow.modelData.max
+              step: sliderRow.modelData.step
+              value: sliderRow.modelData.key === "layerSpeed" ? root.speed : root.intensity
+              onReleased: function(v) { root.change(sliderRow.modelData.key, Math.round(v * 100) / 100) }
+            }
           }
         }
 

@@ -4,7 +4,8 @@
 // switches is safe.
 //
 // Settings are inline fields on this plugin's entry in shell.json `plugins[]`:
-//   layerEnabled (bool, true), layerIntensity (0-1, 0.35), motes (bool, true),
+//   layerEnabled (bool, true), layerIntensity (0-1, 0.35), layerSpeed (0.1-4, 1),
+//   motes (bool, true),
 //   layerAdditive (bool, true),
 //   fpsCap (5-60, 30), screensaver (bool, true),
 //   screensaverSeconds (0 = follow idle.screensaver in shell.json),
@@ -42,6 +43,8 @@ Scope {
   // compositor is free to mishandle; this is the way back if it does.
   property bool layerAdditive: true
   property real layerIntensity: 0.35
+  // How fast the Shimmer evolves, as a multiple of its natural pace.
+  property real layerSpeed: 1.0
   property bool motes: true
   property int fpsCap: 30
   property bool screensaverEnabled: true
@@ -96,9 +99,12 @@ Scope {
   readonly property var passageParts: customParts.length > 0 ? customParts : shippedParts
   property int passageIndex: 0
 
-  // Shared clock origin, randomised so each session starts mid-drift rather
-  // than with the band in the same place every login.
-  readonly property real startedAt: Date.now() - Math.random() * 3600000
+  // The shader's clock, in seconds, shared by every screen. It is accumulated
+  // rather than read from the wall clock, so changing layerSpeed speeds the
+  // Shimmer up or slows it down from where it is instead of making it jump. It
+  // starts at a random point, so each session begins mid-drift.
+  property real shimmerClock: Math.random() * 3600
+  property real lastTickMs: 0
 
   function clamp(value, low, high) {
     return Math.min(high, Math.max(low, value))
@@ -126,6 +132,7 @@ Scope {
     layerAdditive = entry.layerAdditive !== false
     motes = entry.motes !== false
     layerIntensity = typeof entry.layerIntensity === "number" ? clamp(entry.layerIntensity, 0, 1) : 0.35
+    layerSpeed = typeof entry.layerSpeed === "number" ? clamp(entry.layerSpeed, 0.1, 4) : 1.0
     fpsCap = typeof entry.fpsCap === "number" ? Math.round(clamp(entry.fpsCap, 5, 60)) : 30
     screensaverEnabled = entry.screensaver !== false
     passageFont = typeof entry.passageFont === "string" && entry.passageFont.length > 0 ? entry.passageFont : "jost"
@@ -252,6 +259,20 @@ Scope {
     respectInhibitors: true
   }
 
+  // Advances the clock at the frame rate cap. A long gap (the machine slept, the
+  // shell stalled) counts as at most a quarter of a second.
+  Timer {
+    interval: Math.round(1000 / Math.max(5, Math.min(60, root.fpsCap)))
+    running: root.running
+    repeat: true
+    onRunningChanged: if (running) root.lastTickMs = Date.now()
+    onTriggered: {
+      var now = Date.now()
+      root.shimmerClock += Math.min(0.25, (now - root.lastTickMs) / 1000) * root.layerSpeed
+      root.lastTickMs = now
+    }
+  }
+
   SequentialAnimation {
     id: pulseAnimation
     NumberAnimation { target: root; property: "pulseBoost"; to: 0.4; duration: 2000; easing.type: Easing.InOutSine }
@@ -284,6 +305,7 @@ Scope {
         layerEnabled: root.layerEnabled,
         layerAdditive: root.layerAdditive,
         layerIntensity: root.layerIntensity,
+        layerSpeed: root.layerSpeed,
         motes: root.motes,
         fpsCap: root.fpsCap,
         screensaverEnabled: root.screensaverEnabled,
