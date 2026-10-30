@@ -11,7 +11,7 @@ update and fall back from it.
 |-------|------|-------|
 | P0 | Fork repo exists and is a functional-parity clone of upstream, installable | **done, live-verified 2026-10-30** (`~/dev/omarchy-annihilation-notifications`, pushed) |
 | P1 | Update tooling, runbooks and manual fallback (fork repo); installer, README and drift hooks (this repo) | **This repo's side done** (`extras/notifications-fork`, `extras/install notifications ...`, the post-update and post-boot guard hooks, README; 141 checks, 22 breaks caught; not yet seen on a real update). **Fork repo's side partly done in P0**: `check-upstream`, `import-upstream` and their tests, and the runbooks. **Left there:** `contract-check`, `status`, a `fallback` tool, CI |
-| P2 | The actual experience: motion, countdown border, per-app accents (theme-gated) | not started |
+| P2 | The actual experience: motion, countdown border, per-app accents (theme-gated) | **slice 1 (motion) built** on fork branch `p2/motion`, awaiting the user's live check; slices 2 to 4 not started |
 | P3 | Integration with the shimmer plugin, automatic fallback, CI | not started |
 
 This file is mirrored in the fork repo as `docs/plan.md` (the fork's own copy). The fork's phases are
@@ -266,16 +266,20 @@ The original steps:
    disable-and-restore cycle**, before anything else is built. If the clone does not
    behave as in the verified facts, stop and revise this plan.
 
-## Phase 2 sketch (not yet designed in detail)
+## Phase 2: designed in slices
 
-Motion and look, all gated on the theme, with the stock card as the other branch:
-cards bloom in like windows do (scale and opacity, the `tendril` curve), the stack
-slides when a card leaves, the exit dissolves into a few spores, the countdown is the
-border (a segment of the gradient that shortens) instead of a bar, a card brightens on
-hover, and an accent per app or urgency from the Shimmer palette. Budget: at most a
-handful of cards on screen, no per-frame offscreen layer per card, nothing that
-repaints when nothing is changing. Verification has the same limit as everything here:
-the agent cannot see it, so each step goes to the user by screenshot or recording.
+Each slice is gated on the theme (stock behaviour otherwise), is judged live by the user before the next, and
+lives on a `p2/...` branch until then. Budget: at most a handful of cards on screen, no per-frame offscreen layer
+per card, nothing that repaints when nothing is changing. The agent cannot see any of it live, so each slice has an
+offscreen test and a rendered filmstrip, and then goes to the user.
+
+1. **Motion** (built, branch `p2/motion`, awaiting the user's live check). Toasts unfold into the stack and fold
+   away; expiry and right-click animate, click and IPC dismissals are instant. `components/SlotMotion.qml`; see the
+   fork's AGENTS.md "P2".
+2. **Countdown and hover.** The countdown becomes part of the border (a segment of the gradient that shortens)
+   instead of invisible; a card brightens on hover.
+3. **Spores.** The exit dissolves into a few spores.
+4. **Accents and a switch.** An accent per app or urgency from the Shimmer palette; a setting to turn the motion off.
 
 ## Phase 3 sketch
 
