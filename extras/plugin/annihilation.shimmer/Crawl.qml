@@ -1,6 +1,7 @@
-// One continuous line of text scrolling right to left. Parts of a passage enter
-// at the right edge, one after another with a gap between them, and leave at
-// the left, fading in over the first stretch and out over the last.
+// One continuous line of text scrolling right to left. Parts of a passage
+// appear near the right of the screen, one after another with a gap between
+// them, and disappear near the left. Both ends fade inside the screen (see
+// fadeInset), so text never looks as if it comes from, or goes to, off-screen.
 //
 // Each part is its own item rather than one long strip: a strip holding a whole
 // passage would be far wider than a GPU texture can be once the glow is blurred.
@@ -21,7 +22,10 @@ Item {
   property int startIndex: 0
   property real speed: 100       // pixels per second
   property real gap: 200         // pixels between parts
-  property real fadeWidth: 0.22  // fraction of the width faded at each end
+  // Fade zones, as fractions of the width. Fully transparent for the outer
+  // fadeInset at each end, then a ramp fadeWidth wide up to full strength.
+  property real fadeInset: 0.08
+  property real fadeWidth: 0.20
 
   property string fontFamily: ""
   property var fontAxes: ({})
@@ -47,6 +51,11 @@ Item {
   property real ribbonX: 0
   property int nextIndex: 0
 
+  // False until the first frame with a real width. A layer-shell window is
+  // often still zero-wide the instant it becomes visible, so the start position
+  // cannot be worked out then.
+  property bool primed: false
+
   readonly property int count: partModel.count
 
   readonly property var glowLayers: [
@@ -65,7 +74,7 @@ Item {
 
   function restart() {
     partModel.clear()
-    ribbonX = width
+    primed = false
     nextIndex = wrap(startIndex)
   }
 
@@ -76,6 +85,15 @@ Item {
 
   function advance(dt) {
     if (parts.length === 0) return
+
+    // The first words begin where they are already starting to fade in, so
+    // they are never spent unseen.
+    if (!primed) {
+      if (width <= 0) return
+      ribbonX = width * (1.0 - fadeInset)
+      primed = true
+    }
+
     ribbonX -= speed * dt
 
     var first = partRepeater.itemAt(0)
@@ -129,7 +147,7 @@ Item {
     font.letterSpacing: crawl.letterSpacing
   }
 
-  // Alpha mask: transparent at both ends, opaque between.
+  // Alpha mask: transparent at both ends, a ramp inside each, opaque between.
   Item {
     id: fadeMask
     anchors.fill: parent
@@ -141,8 +159,10 @@ Item {
       gradient: Gradient {
         orientation: Gradient.Horizontal
         GradientStop { position: 0.0; color: "#00ffffff" }
-        GradientStop { position: root.fadeWidth; color: "#ffffffff" }
-        GradientStop { position: 1.0 - root.fadeWidth; color: "#ffffffff" }
+        GradientStop { position: root.fadeInset; color: "#00ffffff" }
+        GradientStop { position: root.fadeInset + root.fadeWidth; color: "#ffffffff" }
+        GradientStop { position: 1.0 - root.fadeInset - root.fadeWidth; color: "#ffffffff" }
+        GradientStop { position: 1.0 - root.fadeInset; color: "#00ffffff" }
         GradientStop { position: 1.0; color: "#00ffffff" }
       }
     }

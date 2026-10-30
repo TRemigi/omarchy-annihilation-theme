@@ -184,6 +184,13 @@ iridescence (oil on water); bioluminescent fungi.
   whole passage would be tens of thousands of pixels wide, beyond GPU texture
   limits (often 8192) once blurred. The widest part (65 type-sizes) is about
   5,100 px on an ultrawide, which fits. Keep parts short if you change them.
+- **A layer-shell window is often zero-wide the instant it becomes visible.**
+  `Crawl` therefore sets its start position on the first `advance()` with a real
+  width (`primed`), not in `restart()`. Reading `width` too early started the
+  text at the left edge, so the first words crawled away unseen. The crawl also
+  only starts moving once `Screensaver.crawling` is set, so the first words are
+  fading in as they begin to move. A zero-width regression test (a Crawl with
+  `width: 0`, widened a few steps later) reproduces the old failure.
 - Recycling in `Crawl.advance` must add the removed part's width plus the gap
   back onto `ribbonX`, or everything visibly jumps. The simulation test below
   catches that.
@@ -249,9 +256,11 @@ IPC (`omarchy-shell shimmer ...`): `toggleLayer`, `pulse`, `screensaver`,
 
 Also a setting: `crawlSpeed` (0.5 to 8).
 
-The passage is a continuous right-to-left crawl (`Crawl.qml`): parts enter at
-the right edge, fade in over the first 22% of the width and out over the last
-22%, with a gap of seven type-sizes between parts. `crawlSpeed` is in
+The passage is a continuous right-to-left crawl (`Crawl.qml`): parts fade in
+near the right and out near the left, with the fades *inside* the screen (fully
+transparent for the outer 8% at each end, then a 20% ramp: `fadeInset`,
+`fadeWidth`), so text never seems to arrive from or leave to off-screen. Parts
+are separated by seven type-sizes. `crawlSpeed` is in
 type-sizes per second (default 2.5, so a part takes about 50 s to cross). The
 resume index is written back to `Service.passageIndex` when the screensaver
 closes, so the next run starts at the first part that was on screen. The glow

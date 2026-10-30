@@ -23,6 +23,7 @@ PanelWindow {
 
   property real startedAt: 0
   property real elapsed: 0
+  property bool crawling: false
 
   function dismiss() {
     service.screensaverForced = false
@@ -41,10 +42,12 @@ PanelWindow {
     if (visible) {
       startedAt = Date.now()
       elapsed = 0
+      crawling = false
       crawl.opacity = 0
       crawlIn.restart()
     } else {
       crawlIn.stop()
+      crawling = false
       // Next time, carry on from the first part that was still on screen.
       service.passageIndex = crawl.resumeIndex()
     }
@@ -100,7 +103,7 @@ PanelWindow {
 
     parts: win.service.passageParts
     startIndex: win.service.passageIndex
-    running: win.visible
+    running: win.crawling
     speed: win.service.crawlSpeed * win.passageSize
     gap: win.passageSize * 7
 
@@ -116,11 +119,13 @@ PanelWindow {
     coreColor: Qt.lighter(Color.accent, 1.8)
   }
 
-  // Let the wallpaper settle before the first words drift in.
+  // Let the wallpaper settle, then start the crawl and bring it up together,
+  // so the first words are in view as they begin to move.
   SequentialAnimation {
     id: crawlIn
     PauseAnimation { duration: 2000 }
-    NumberAnimation { target: crawl; property: "opacity"; from: 0; to: 1; duration: 3000; easing.type: Easing.InOutSine }
+    ScriptAction { script: win.crawling = true }
+    NumberAnimation { target: crawl; property: "opacity"; from: 0; to: 1; duration: 2000; easing.type: Easing.InOutSine }
   }
 
   Item {
