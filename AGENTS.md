@@ -241,6 +241,17 @@ The brief: **subdued psychedelic horror mixed with the beauty of nature.**
   A debug trick that found it: output intermediate values as the pixel colour, and print them
   at known pixels. `cursor.z` (signed distance, negative inside) is now used only for the
   proximity boost `peak` (0.35 to 1 over 22 band widths).
+  **Only the nearest edge may pool light.** Distance along the edge says nothing about *which*
+  edge, so the first along-the-edge version lit the opposite edge at the same position along
+  its length almost as brightly (0.92 against 0.07 on a full-screen window; the user's screenshot
+  showed a white pool on the top edge with the pointer near the bottom). The pool, core and hot
+  centre are multiplied by `edgeOnly = exp(-(across / 7 w0)^4)`, `across` being the distance from
+  the nearest edge's line: flat through the band's depth (nearest edge's own glow changes by at
+  most 0.02), gone by 1.5x that. Opposite edge now 0.05 to 0.16 (the faint baseline) on windows
+  1152, 600 and 300 px tall. The hard-edge scan did not catch this and neither did my crops,
+  which only showed the near edge: after any change to the pool, measure ALL FOUR edges.
+  Known limit: with the pointer on a window's middle line the lit edge flips between the two
+  nearest sides instantly (the nearest point jumps); not smoothed.
   **Span** (`windowGlowSpan`, a slider in the popup): `R = span * 8 * w0`. The default was
   chosen by measuring the pool's length (where the glow is above half way between baseline
   and peak) with the core switched off, because a core makes any such measure read its own

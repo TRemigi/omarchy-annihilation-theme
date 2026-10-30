@@ -283,13 +283,20 @@ void main() {
         vec2 dq = px - ubuf.nearest.xy;
         float lat = dot(dq, ubuf.nearest.zw);
         float lat2 = lat * lat;
+        // Only the nearest edge pools light. Distance along the edge alone says nothing about
+        // which edge, so the opposite edge, at the same position along its length, glowed just
+        // as brightly. Fade with distance across, from the line of the nearest edge: flat out to
+        // about a band depth (the fourth power keeps the nearest edge's own tail untouched) and
+        // gone before the window's far side.
+        float ac = dot(dq, vec2(-ubuf.nearest.w, ubuf.nearest.z)) / (7.0 * w0);
+        float edgeOnly = exp(-ac * ac * ac * ac);
         // The pointer being close to the edge strengthens the pooling.
         float pz = ubuf.cursor.z / (22.0 * w0);
         float peak = 0.35 + 0.65 * exp(-pz * pz);
-        g = exp(-lat2 / (R * R)) * peak;
+        g = exp(-lat2 / (R * R)) * peak * edgeOnly;
         // The bright core: the same, but narrower along the edge, and it hugs the edge.
-        hot = exp(-lat2 / (0.25 * R * R)) * peak;
-        hotter = exp(-lat2 / (0.05 * R * R)) * peak;
+        hot = exp(-lat2 / (0.25 * R * R)) * peak * edgeOnly;
+        hotter = exp(-lat2 / (0.05 * R * R)) * peak * edgeOnly;
         // A point, not a patch: about 25 px across whatever the span, centred on the spot of the
         // edge nearest the pointer. Its profile has long soft shoulders (a power law cut off by a
         // wide Gaussian) rather than a Gaussian's quick drop: the glow behind it is nearly saturated,
