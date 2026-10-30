@@ -47,17 +47,70 @@ PanelWindow {
   property string activeKey: ""
   property real fade: 1
 
-  // The pointer, smoothed. The first few readings jump, so the glow does not sweep in
-  // from the corner of the screen when tracking starts.
+  // The pointer, smoothed: the polled position is the target, and the glow follows it on a
+  // critically damped spring, stepped once per display frame. The readings arrive at 60 Hz or
+  // less and the screen may refresh faster, so the glow has to be drawn between them. A spring
+  // keeps its speed from one frame to the next. (An ease-out animation restarted at each reading,
+  // which this used to be, speeds up at every restart and slows down again: on a steady sweep its
+  // speed swung by about 100% of the mean, so the glow surged along the edge.) `followRate` is the
+  // spring's natural frequency in radians a second; the glow trails a steady pointer by about
+  // 2 / followRate, 60 ms.
+  readonly property real followRate: 32
+  property real targetX: service.pointer.cursorX
+  property real targetY: service.pointer.cursorY
+  // These start at the pointer, not at zero, so the glow does not sweep in from the corner.
   property real smoothX: service.pointer.cursorX
   property real smoothY: service.pointer.cursorY
-  Behavior on smoothX { enabled: win.service.pointer.samples > 2; NumberAnimation { duration: 110; easing.type: Easing.OutQuad } }
-  Behavior on smoothY { enabled: win.service.pointer.samples > 2; NumberAnimation { duration: 110; easing.type: Easing.OutQuad } }
+  property real velX: 0
+  property real velY: 0
 
+  // One step of a critically damped spring pulling x (moving at v) toward `target`, over dt
+  // seconds: the exact solution, so it is stable at any frame time. Returns [x, v].
+  function springStep(x, v, target, w, dt) {
+    var d = x - target
+    var e = Math.exp(-w * dt)
+    var k = v + w * d
+    return [target + (d + k * dt) * e, (v - k * w * dt) * e]
+  }
+
+  // Called by the frame clock while the glow is still catching up with the pointer.
+  function stepPointer(dt) {
+    dt = Math.min(Math.max(dt, 0), 0.05)
+    var sx = springStep(smoothX, velX, targetX, followRate, dt)
+    var sy = springStep(smoothY, velY, targetY, followRate, dt)
+    smoothX = sx[0]; velX = sx[1]
+    smoothY = sy[0]; velY = sy[1]
+    if (Math.abs(smoothX - targetX) < 0.05 && Math.abs(smoothY - targetY) < 0.05
+        && Math.abs(velX) < 1 && Math.abs(velY) < 1) {
+      smoothX = targetX; smoothY = targetY
+      velX = 0; velY = 0
+      pointerFollow.running = false
+    }
+    trackPointer()
+  }
+
+  // A new reading. The first few jump, and so does anything while there is no glow to show:
+  // there is nothing to smooth, and the frame clock stays off.
+  function retarget() {
+    if (service.pointer.samples <= 2 || !cursorMode || rects.length === 0) {
+      smoothX = targetX; smoothY = targetY
+      velX = 0; velY = 0
+      pointerFollow.running = false
+      trackPointer()
+    } else {
+      pointerFollow.running = true
+    }
+  }
+
+  FrameAnimation {
+    id: pointerFollow
+    onTriggered: win.stepPointer(frameTime)
+  }
+
+  onTargetXChanged: retarget()
+  onTargetYChanged: retarget()
   onCursorModeChanged: { refresh.restart(); trackPointer() }
   onActiveKeyChanged: { if (activeKey !== "") fadeIn.restart(); trackPointer() }
-  onSmoothXChanged: trackPointer()
-  onSmoothYChanged: trackPointer()
   onRectsChanged: trackPointer()
 
   Connections {

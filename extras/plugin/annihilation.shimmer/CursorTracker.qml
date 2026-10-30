@@ -8,7 +8,7 @@
 //              6 polls a second. Used automatically if the socket gives no usable answer.
 //   "none"     neither worked. The glow then falls back to its uniform look.
 //
-// It polls only while `active`, about 30 times a second while the pointer moves and a few
+// It polls only while `active`, about 60 times a second while the pointer moves and a few
 // times a second once it has rested. `source` says which route is live, and is in the
 // plugin's `shimmer status` output, which is how to tell what happened on a given machine.
 
@@ -33,7 +33,8 @@ Scope {
   property string buffer: ""
 
   readonly property bool polling: active && source !== "none"
-  readonly property int pollInterval: source === "hyprctl" ? 160 : (still > 45 ? 150 : 33)
+  // A poll waits for its own reply, so a slow answer only lowers the rate; it never queues.
+  readonly property int pollInterval: source === "hyprctl" ? 160 : (still > 90 ? 150 : 16)
 
   // The first two numbers in the reply. Hyprland answers `cursorpos` with "x, y", and
   // with the j flag with JSON; either way the numbers come first and in x, y order.

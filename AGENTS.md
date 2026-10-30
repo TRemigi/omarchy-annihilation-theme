@@ -341,7 +341,7 @@ The brief: **subdued psychedelic horror mixed with the beauty of nature.**
   second, about 4% of a core), and after six more to "none" (the glow goes uniform).
   `omarchy-shell shimmer status` reports `cursorSource` ("socket", "hyprctl" or "none"),
   `cursorKnown` and `cursor`: **check that first** if cursor mode does nothing. It polls
-  only while the glow is visible and in cursor mode, at 30 Hz while the pointer moves and
+  only while the glow is visible and in cursor mode, at 60 Hz (16 ms) while the pointer moves and
   about 7 Hz once it has rested. Unverified assumptions, in order of doubt: that
   `SplitParser { splitMarker: "" }` delivers an unterminated reply (the fallback covers
   it failing); that the `connected` property goes false when Hyprland closes the
@@ -354,6 +354,26 @@ The brief: **subdued psychedelic horror mixed with the beauty of nature.**
   which run the real functions from the QML files in node; every check was confirmed to
   fail when its code is broken on purpose. `extras/dev/edge-scan.py` is the hard-edge scan
   that found the colour edges (run it on any change to the glow).
+  **Following the pointer** (user: "it doesn't seem to move smoothly along the edge of the window").
+  Three stages could have caused it; the culprit was the smoothing. `smoothX/Y` used to be a
+  `Behavior` with a 110 ms OutQuad `NumberAnimation`, restarted by every reading. An ease-out starts
+  at full speed and slows down, so each restart was a surge: simulated on a steady 1200 px/s sweep
+  (`extras/dev/pointer-smoothing-sim.js`), the drawn speed had a spread of 100% of its mean at a
+  60 Hz display and 52% at 144 Hz, with a third of the frames below half speed. It is now a critically
+  damped spring (`springStep`, the exact solution, so any frame time is stable), stepped by a
+  `FrameAnimation` (`stepPointer`) that runs only while the glow is catching up and is off in all
+  mode, with no window to light, and for the first three readings (which jump, as before). Its speed
+  is continuous from frame to frame: spread 3 to 11%, worst frame-to-frame change 5 to 21%, at
+  `followRate` 32 (rad/s; lag behind a steady pointer about 2 / 32 s, 60 ms, against 80 to 120 ms
+  before; 25 is smoother and 15 ms slower). The polling went from 33 ms to 16 ms (60 Hz) while the
+  pointer moves: that halves the readings' own spacing, worth about 3 percentage points of spread
+  and 8 ms of lag. The hyprctl fallback stays at 160 ms, where nothing can make it smooth, and
+  **if the user is on that route the glow will still step**: `cursorSource` in `shimmer status`
+  tells. The 60 Hz cost of the socket route is unmeasured (the sandbox cannot make sockets); the
+  rate is the `16` in `CursorTracker.pollInterval`. Not changed: the shader clock, which ticks at
+  `fpsCap` (30) and so redraws at most that often when the pointer is still; while the glow follows
+  the pointer the frame clock redraws it every display frame. The state machine is tested in
+  `window-glow-test.js` (13 checks on the spring, 5 deliberate breaks each caught).
   Other lessons: (a) a "which way does the edge face" term made diagonal
   picture-frame seams at corners, because the nearest edge switches along the
   diagonal; it was removed. (b) A glow cut off at a fixed depth while still bright

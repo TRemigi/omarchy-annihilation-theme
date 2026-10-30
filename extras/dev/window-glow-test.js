@@ -10,11 +10,12 @@ const mk = (o) => Object.assign({ mapped: true, hidden: false, at: [0, 0], size:
 function make(clients, mon, over = {}) {
   const calls = { spill: 0, drain: 0, drainStop: 0, spillStop: 0 };
   const ctx = Object.assign({ rects: [], hyprMonitor: mon, styleBorder: 2, cursorMode: false, activeKey: "", smoothX: 0, smoothY: 0, calls,
+    targetX: 0, targetY: 0, velX: 0, velY: 0, followRate: 32, pointerFollow: { running: false },
     edgeSide: "", poolKey: "", nearestV: [0, 0, 0, 1], curDist: 0, prevV: [0, 0, 0, 1], prevDist: 0, spill: 1, prevAmount: 0,
     spillAnim: { restart() { calls.spill++; }, stop() { calls.spillStop++; } }, drainAnim: { restart() { calls.drain++; }, stop() { calls.drainStop++; } },
-    service: { pointer: { known: true } }, Qt: { vector4d: (a, b, c, d) => Object.assign([a, b, c, d], { x: a, y: b, z: c, w: d }) } }, over);
+    service: { pointer: { known: true, samples: 10 } }, Qt: { vector4d: (a, b, c, d) => Object.assign([a, b, c, d], { x: a, y: b, z: c, w: d }) } }, over);
   const Hyprland = { toplevels: { values: clients.map((o) => ({ lastIpcObject: o })) } };
-  new Function("ctx", "Hyprland", "with (ctx) { Object.assign(ctx, {" + [grab("collect"), grab("edgeDistance"), grab("cursorUniform"), grab("nearestEdge"), grab("sideOf"), grab("sideDistance"), grab("sidePoint"), grab("trackPointer")].join(",") + "}); }")(ctx, Hyprland); return ctx;
+  new Function("ctx", "Hyprland", "with (ctx) { Object.assign(ctx, {" + [grab("collect"), grab("edgeDistance"), grab("cursorUniform"), grab("nearestEdge"), grab("sideOf"), grab("sideDistance"), grab("sidePoint"), grab("trackPointer"), grab("springStep"), grab("stepPointer"), grab("retarget")].join(",") + "}); }")(ctx, Hyprland); return ctx;
 }
 let pass = 0, fail = 0; const eq = (n, g, w) => { const ok = JSON.stringify(g) === JSON.stringify(w); ok ? pass++ : (fail++, console.log("FAIL", n, "got", JSON.stringify(g), "want", JSON.stringify(w))); };
 const mon0 = { id: 0, x: 0, y: 0, activeWorkspace: { id: 1 } }, mon1 = { id: 1, x: 1920, y: 0, activeWorkspace: { id: 5 } };
@@ -76,4 +77,37 @@ eq("uniform: local coordinates, the pool's distance, on", c.cursorUniform(), [13
 c.edgeSide = ""; eq("uniform: no pool means off", c.cursorUniform(), [0, 0, 0, 0]);
 const RR = { x: 80, y: 100, w: 800, h: 600 }, v = (x, y, z, w) => ({ x, y, z, w });
 eq("side of a rectangle", [c.sideOf(v(80, 300, 0, 1), RR), c.sideOf(v(880, 300, 0, 1), RR), c.sideOf(v(300, 100, 1, 0), RR), c.sideOf(v(300, 700, 1, 0), RR)], ["L", "R", "T", "B"]);
+
+// ---- following the pointer: a critically damped spring stepped once per frame
+const near = (n, g, w, tol) => { const ok = Math.abs(g - w) <= tol; ok ? pass++ : (fail++, console.log("FAIL", n, "got", g, "want", w, "+-", tol)); };
+c = make([], mon0);
+// the exact solution does not depend on how the time is cut up
+let a1 = c.springStep(0, 0, 100, 32, 0.016); a1 = c.springStep(a1[0], a1[1], 100, 32, 0.016);
+const a2 = c.springStep(0, 0, 100, 32, 0.032);
+near("spring: two 16 ms steps equal one 32 ms step (x)", a1[0], a2[0], 1e-9); near("spring: ... and (v)", a1[1], a2[1], 1e-9);
+// critically damped: from rest it approaches the target and never passes it
+let st = [0, 0], over = 0; for (let i = 0; i < 400; i++) { st = c.springStep(st[0], st[1], 100, 32, 1 / 144); over = Math.max(over, st[0] - 100); }
+eq("spring: no overshoot, and it arrives", [over <= 1e-9, Math.abs(st[0] - 100) < 1e-6], [true, true]);
+// a steady sweep: constant speed is reproduced, trailing by about 2 / w
+let sx = 0, sv = 0; const dtF = 1 / 144, sp = 1200; const speeds = [];
+for (let i = 0; i < 288; i++) { const tg = sp * i * dtF; const p0 = sx; [sx, sv] = c.springStep(sx, sv, tg, 32, dtF); if (i > 72) speeds.push((sx - p0) / dtF); }
+near("spring: steady sweep keeps the pointer's speed", speeds.reduce((s, q) => s + q) / speeds.length, sp, 5);
+near("spring: and keeps it evenly", Math.max(...speeds) - Math.min(...speeds), 0, 5);
+near("spring: lag behind a steady pointer is 2 / w less half a frame (the target holds across a step)", sp * 287 * dtF - sx, sp * 2 / 32 - sp * dtF / 2, 1);
+// a long frame is clamped, and the frame clock stops once it has settled
+c = make([], mon0, { cursorMode: true, rects: [R], activeKey: "A", targetX: 500, targetY: 50 }); c.pointerFollow.running = true;
+c.stepPointer(10); const first = c.smoothX; eq("stepPointer: a 10 s frame counts as 50 ms", first > 0 && first < 500, true);
+for (let i = 0; i < 600; i++) c.stepPointer(1 / 60);
+eq("stepPointer: settles exactly on the target and stops the frame clock", [c.smoothX, c.smoothY, c.velX, c.velY, c.pointerFollow.running], [500, 50, 0, 0, false]);
+// readings: the first few jump, later ones start the frame clock
+c = make([], mon0, { cursorMode: true, rects: [R], activeKey: "A", targetX: 300, targetY: 200 }); c.service.pointer.samples = 2; c.retarget();
+eq("retarget: an early reading jumps, with no frame clock", [c.smoothX, c.smoothY, c.pointerFollow.running], [300, 200, false]);
+c.service.pointer.samples = 3; c.targetX = 340; c.retarget();
+eq("retarget: a later one starts the frame clock and leaves the glow where it was", [c.smoothX, c.pointerFollow.running], [300, true]);
+c = make([], mon0, { cursorMode: false, rects: [R], targetX: 300, targetY: 200 }); c.retarget();
+eq("retarget: not in cursor mode there is nothing to smooth", [c.smoothX, c.pointerFollow.running], [300, false]);
+c = make([], mon0, { cursorMode: true, rects: [], targetX: 300, targetY: 200 }); c.retarget();
+eq("retarget: no window to light means no frame clock either", [c.smoothX, c.pointerFollow.running], [300, false]);
+c = make([], mon0, { cursorMode: true, rects: [R], activeKey: "A", targetX: 500, targetY: 50 }); c.stepPointer(1 / 144);
+eq("stepPointer: keeps the pool in step with the glow's position", [c.edgeSide, c.nearestV[1]], ["T", 0]);
 console.log(fail === 0 ? `ALL ${pass} CHECKS PASS` : `${fail} FAILED, ${pass} passed`); process.exit(fail ? 1 : 0);
