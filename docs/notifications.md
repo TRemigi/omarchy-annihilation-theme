@@ -17,8 +17,7 @@ gotchas; this file is only about notifications.
 
 Items 0, 1, 2 and 4 are done and confirmed live by the user; what is left is item 6 and
 the optional items under "Not chosen". Numbers match the numbered list in the conversation that produced this plan.
-3 and 5 were offered and not chosen; they are in "Not chosen" below. Do 0 first,
-then 1, 2, 4 in any order.
+3 and 5 were offered and not chosen; they are in "Not chosen" below.
 
 ## Constraints (verified by reading `/usr/share/omarchy/shell`, 2026-10-30)
 
