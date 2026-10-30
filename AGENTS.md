@@ -404,6 +404,11 @@ The brief: **subdued psychedelic horror mixed with the beauty of nature.**
 - Cheap by design: layer shader renders at half resolution at 30 fps and
   pauses under fullscreen windows. The glow layers are static textures.
 
+**Notifications** are planned work, tracked across sessions in
+`docs/notifications.md` (status table, constraints, per-item design, open
+questions). Read it before touching anything notification-related, and update its
+Status section as you go.
+
 Inspiration and context: the film and novel; Swamp Dark base16
 (`tinted-theming.github.io/tinted-gallery/#base16-swamp-dark`); thin-film
 iridescence (oil on water); bioluminescent fungi.
