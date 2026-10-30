@@ -410,6 +410,9 @@ The brief: **subdued psychedelic horror mixed with the beauty of nature.**
 `docs/notifications.md` (status table, constraints, per-item design, open
 questions). Read it before touching anything notification-related, and update its
 Status section as you go.
+The optional themed notification daemon (a separate repo, installed as a registered
+clone of the built-in so that disabling it restores stock) is planned in
+`docs/notifications-fork.md`; read that before starting it.
 
 Inspiration and context: the film and novel; Swamp Dark base16
 (`tinted-theming.github.io/tinted-gallery/#base16-swamp-dark`); thin-film

@@ -13,7 +13,7 @@ gotchas; this file is only about notifications.
 | 1 | Arrival glow (light spreads from the toast corner) | **built; user: "looks great"** |
 | 2 | Sound (synthesized, opt-in) | **built; user confirmed working** (no feedback yet on how the tones sound) |
 | 4 | Missed notifications on the bar prism | **built; user confirmed working**, expired and silenced paths |
-| 6 | Themed fork of the notification daemon | **follow-up, not planned yet** |
+| 6 | Themed fork of the notification daemon | **planned: see `docs/notifications-fork.md`** (separate repo, not started) |
 
 Items 0, 1, 2 and 4 are done and confirmed live by the user; what is left is item 6 and
 the optional items under "Not chosen". Numbers match the numbered list in the conversation that produced this plan.
@@ -264,6 +264,12 @@ Design:
   `journal.txt`.
 
 ## Item 6: themed fork of the daemon (follow-up)
+
+**Now planned in `docs/notifications-fork.md`.** The key finding: Omarchy has a built-in
+"clone" mechanism, so the fork is a standalone repo registered as a clone of
+`omarchy.notifications`, installed with `omarchy plugin add`, and disabling it restores
+the stock daemon. The text below is the earlier sketch, kept for reference; where it
+disagrees with the plan file, the plan file wins.
 
 The only route to real per-card motion: cards that bloom in like windows, a border
 that traces the countdown, an exit that dissolves into spores, per-app glyphs.
