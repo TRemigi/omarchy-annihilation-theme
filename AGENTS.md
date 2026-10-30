@@ -220,8 +220,15 @@ The brief: **subdued psychedelic horror mixed with the beauty of nature.**
   the window's edge nearest the pointer and the edge's unit direction (`nearest` = x, y, tx, ty),
   and measures `lat = dot(px - nearest.xy, nearest.zw)`. The pool is `exp(-lat^2 / R^2)`, the core
   the same with `0.25 R^2`, a tighter `hotter` with `0.05 R^2`, and the small bright **point**
-  is `exp(-|px - nearest.xy|^2 / (0.55 w0)^2)`, about 28 px across at half height whatever the
-  span, with a warm white added after the gain. Everything is tone-mapped with `1 - exp(-x)`.
+  is `(1 / (1 + u))^1.3 * exp(-u / 6.76)` with `u = |px - nearest.xy|^2 / (0.44 w0)^2`, about
+  25 px across at half height whatever the span, with a warm white added after the gain. It has
+  long soft shoulders (a power law cut off by a wide Gaussian) on purpose: the glow behind it is
+  already nearly saturated at the centre (0.94 without the point), so a plain Gaussian read as a
+  flat white disc with a rim where it dropped away (0.95 to 0.65 over 16 px). Judge such an edge
+  by the width of the point's own fall-off (90% to 10% of the added light, found by differencing
+  against a copy with the point off): 18 px inward and 21 px along the edge with the Gaussian,
+  28 and 28 with this, at the same centre brightness and an 11% smaller half-height radius.
+  Do not judge it by the steepest slope of the picture: that is dominated by the rim line. Everything is tone-mapped with `1 - exp(-x)`.
   **Do not derive geometry from `field()`.** It is a *shaped* distance, not a true one: the
   smooth max that rounds off the diagonal creases inside a window (see the first round of
   window-glow feedback) shifts it by about half a band width, 15 px, inward everywhere along

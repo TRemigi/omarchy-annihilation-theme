@@ -290,10 +290,13 @@ void main() {
         // The bright core: the same, but narrower along the edge, and it hugs the edge.
         hot = exp(-lat2 / (0.25 * R * R)) * peak;
         hotter = exp(-lat2 / (0.05 * R * R)) * peak;
-        // A point, not a patch: a few tens of pixels across whatever the span, soft-edged, centred
-        // on the spot of the edge nearest the pointer.
-        float rs = 0.55 * w0;
-        spot = exp(-dot(dq, dq) / (rs * rs)) * peak;
+        // A point, not a patch: about 25 px across whatever the span, centred on the spot of the
+        // edge nearest the pointer. Its profile has long soft shoulders (a power law cut off by a
+        // wide Gaussian) rather than a Gaussian's quick drop: the glow behind it is nearly saturated,
+        // so a Gaussian read as a flat white disc with a rim where it fell away.
+        float rs = 0.44 * w0;
+        float uu = dot(dq, dq) / (rs * rs);
+        spot = pow(1.0 / (1.0 + uu), 1.3) * exp(-uu / 6.76) * peak;
         gain = 0.20 + 0.80 * g;
         w = w0 * (0.8 + 0.8 * g);
         // The first exit had to allow for the widest the band can be; now the real width is known.
