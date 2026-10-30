@@ -233,11 +233,11 @@ says why.
 ## P0 in detail
 
 **Done (2026-10-30, by the agent):** steps 1 to 5 below, in `~/dev/omarchy-annihilation-notifications`
-(a sibling directory, nothing pushed; the GitHub owner is still to be chosen). `upstream` holds the
+(a sibling directory; the GitHub owner is **TRemigi**, `origin` is set locally, and nothing is pushed yet: the agent's sandbox cannot create the repo or push, so the user does it, per the fork's `AGENTS.md` "First push"). `upstream` holds the
 pristine 4.0.4-1 files with tag `upstream/4.0.4-1`; `main` is that plus the manifest (the only change to
 a vendored file); `git diff upstream main -- Service.qml NotificationLogic.js components` is empty.
 Checked: `omarchy plugin validate`, `tools/check-upstream` exit 0, `test/tools-test.sh` (47 checks,
-9 deliberate breaks caught), `test/logic-test.js` (35 checks). **Step 6, the live run, is the user's**
+9 deliberate breaks caught), `test/logic-test.js` (35 checks). **Step 6, the live run, is the user's, and now tests the real install path**: `omarchy plugin add <url> --enable --yes` from the pushed repo, not a hand-made copy
 and is `docs/runbooks/live-checklist.md` in the fork repo. P0 is not finished until it passes.
 
 The original steps:
@@ -301,7 +301,7 @@ the agent cannot see it, so each step goes to the user by screenshot or recordin
 
 ## Open questions for the user
 
-- GitHub owner for the repo, and public or private?
+- Public or private? (Owner is TRemigi.) Public is recommended and needed for `omarchy plugin add <https url>`, which runs without credential prompts; private only works with the SSH URL.
 - Theme gating: behave as stock off this theme (recommended), or only ever active
   when the theme is (needs the hook swap, rejected above)?
 - Track only packaged Omarchy releases (recommended), or also the `dev`/`edge` channels
