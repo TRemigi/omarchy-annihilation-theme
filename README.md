@@ -33,7 +33,11 @@ repo, so the live parts ship separately. Clone the repo somewhere permanent
 | Shimmer layer | A click-through layer between wallpaper and windows, modelled on how the film shows it: the air seems to bend light. A translucent film of spectral colour (teal, blue, violet, magenta, pink, orange) drifts over the whole scene, its colour flowing and swirling into other colour and shifting the hue of whatever is behind it while keeping its detail, with the occasional faint curtain of light and warm glows drifting in from the edges. Its strength and colour vary from place to place and from moment to moment, nothing is scripted, and every session is different. Pauses under fullscreen windows. |
 | Window glow | Light spilling over the edges of your windows, as if it came from behind them. Two fans of prism light enter from beyond the screen edges and wander slowly around them; a window edge lights up where a fan's light reaches it, in a soft blended band a few dozen pixels deep that dissolves smoothly inward and follows the window's real corner radius, with a faint halo just outside and a few soft bright glints drifting along the edges. In cursor mode only the active window glows, faintly, and the part of its edge nearest your pointer pools the light, spilling in outward from the pointer when it takes over from another edge. It lives in a click-through layer above the windows, hides under fullscreen windows, and follows windows as they open, close, move and change workspace (an interactive resize catches up when you let go). |
 | Screensaver | After `idle.screensaver` seconds the wallpaper slowly warps, its colour channels drift apart, and a lattice of glowing cells grows over it. A passage crawls right to left as living light in one continuous line, fading in near the right of the screen and out near the left, picking up where it left off. Replaces Omarchy's text screensaver while this theme is active. |
+| Notifications | When a toast arrives, a soft ring of light leaves its corner of the screen and fades over a few seconds (teal and blue normally, amber and pink for critical, moss for low); it draws above your windows and under the toast. Optionally, a quiet synthesized tone (off by default, silent for screenshot and recording toasts). Notifications that went by unnoticed (silenced by Do Not Disturb, or left on screen until they expired) leave one to three small motes on the bar prism and a list in its popup until you open it. All of it reads the notification service's own files, so it works with Omarchy's stock daemon. |
 | Bar glyph | A prism whose edge shifts teal, magenta, amber. Click for "Day N inside Area X" (uptime), the day's log entry and the controls; right click toggles the layer; middle click starts the screensaver. |
+
+`extras/install link` also installs the theme-set hook and two hooks for the optional notification
+fork (below), which do nothing unless that is installed.
 
 Everything is tied to the theme: switch to another theme and the extras go
 dormant, and Omarchy's own screensaver is restored if this theme turned it off.
@@ -62,6 +66,10 @@ entry under `bar.layout`, or `plugins[]` if you run it without the glyph):
 | `windowGlowCenter` | `1` | in cursor mode, the brightness of the glow's bright centre (its core and point), 0 to 2.5 times the default (the "Glow brightness" slider in the popup) |
 | `windowGlowMode` | `"all"` | `"all"`: every window glows evenly. `"cursor"`: only the active window, faintly, with the span of its edge nearest the pointer wider and brighter (also a toggle in the bar popup) |
 | `layerAdditive` | `true` | add the light to the wallpaper; `false` blends it as an ordinary translucent layer if your compositor mishandles that |
+| `notifyGlow` | `true` | the ring of light when a notification arrives |
+| `notifyGlowStrength` | `1` | 0.1 to 2 (the "Arrival glow" slider in the popup) |
+| `notifySound` | `false` | a soft tone when a notification arrives; not for Omarchy's own screenshot and recording toasts unless critical, at most one a second, never under the screensaver |
+| `notifySoundVolume` | `0.5` | 0.05 to 1 |
 | `motes` | `true` | the spores |
 | `fpsCap` | `30` | 5 to 60 |
 | `screensaver` | `true` | set `false` to keep Omarchy's idle behavior without it |
@@ -77,6 +85,47 @@ entry under `bar.layout`, or `plugins[]` if you run it without the glyph):
     omarchy-shell shimmer screensaver    # start it now; any key or click ends it
     omarchy-shell shimmer dismiss
     omarchy-shell shimmer status
+    omarchy-shell shimmer notify 1       # pretend a notification arrived (0 low, 1 normal, 2 critical)
+    omarchy-shell shimmer sound arrive   # hear a tone: arrive, low or urgent
+    omarchy-shell shimmer seen           # mark missed notifications seen (the popup does this itself)
+
+### Notification fork (optional)
+
+The notification features above need nothing but this theme. Separately, there is a themed
+notification *daemon*: [omarchy-annihilation-notifications](https://github.com/TRemigi/omarchy-annihilation-notifications),
+a fork of Omarchy's own notifications plugin, installed as a registered clone of it, so that the bar's
+Do Not Disturb button, the key bindings and `omarchy-notification-send` keep working and **disabling it
+brings the stock daemon back**. At present it is functionally identical to stock (the visual work
+comes later), so there is no reason to install it yet unless you want to follow along.
+
+> Plugins run as unsandboxed code inside `omarchy-shell`, and this one *is* your notification daemon.
+> While it is enabled it replaces the stock daemon on every theme, and if an Omarchy update breaks it
+> you would have no notifications. That is what the guard below is for.
+
+    extras/install notifications add        # install it with `omarchy plugin add`; enables it only if it is in step
+    extras/install notifications status     # installed? enabled? in step with your Omarchy? who owns the D-Bus name?
+    extras/install notifications update     # pull the latest; come back from an automatic fallback
+    extras/install notifications fallback   # use the stock daemon now (the fork stays installed)
+    extras/install notifications enable     # switch it back on (refuses while it is out of step; --force overrides)
+    extras/install notifications remove     # uninstall it; stock returns
+    extras/install notifications auto off   # only tell me; do not fall back by yourself (default: on)
+
+After `add` or `enable`, run `omarchy restart shell`.
+
+**The guard.** The fork vendors a copy of Omarchy's plugin, so an Omarchy update can leave it behind. The
+fork's own `tools/check-upstream` says whether your installed Omarchy still matches what the fork was last
+merged against. `extras/install link` installs two hooks, one after `omarchy-update` and one at login (which
+also covers plain `pacman` updates), that run that check, and if the fork is enabled and Omarchy has changed
+a file it depends on, switch to the stock daemon and tell you (a notification once stock is back, and on the
+terminal). Not being able to run the check is not treated as a reason to switch. After a fallback,
+`extras/install notifications update` brings the fork back once it has caught up. The log is
+`~/.local/state/annihilation-theme/notifications-fork.log`, and the reason for a hold is in
+`~/.local/state/annihilation-theme/notifications-fork-held`.
+
+If you are ever left with no notifications and the commands do not work, the manual fix is in the fork's
+[fallback runbook](https://github.com/TRemigi/omarchy-annihilation-notifications/blob/main/docs/runbooks/fallback.md):
+`omarchy plugin disable annihilation.notifications`, or edit `~/.config/omarchy/shell.json` by hand. Do not
+just delete the plugin folder.
 
 ### The screensaver passage
 

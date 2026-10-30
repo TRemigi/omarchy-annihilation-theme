@@ -1,0 +1,365 @@
+#!/bin/bash
+
+# Install, update, fall back from and guard the optional themed notification daemon: the
+# omarchy-annihilation-notifications repo, a registered clone of Omarchy's own notifications plugin
+# (plan: docs/notifications-fork.md). `extras/install notifications <command>` runs this.
+#
+#   status [--short]   whether it is installed and enabled, and in step with the installed Omarchy
+#   add [--restart]    install it with `omarchy plugin add`, and switch it on if it is in step
+#   update             pull the latest fork; come back from an automatic fallback if it is now in step
+#   enable [--force]   switch it on (refuses while it is out of step with Omarchy, unless --force)
+#   fallback           use the stock daemon now (the fork stays installed)
+#   remove             uninstall it; the stock daemon returns
+#   auto [on|off]      whether the hooks fall back by themselves when Omarchy changes under the
+#                      fork (default on)
+#   guard <hook>       what the post-update and post-boot hooks run; always exits 0
+#
+# Why it exists: while the fork is enabled, Omarchy's own notifications plugin is switched off. If an
+# Omarchy update changes something the fork depends on, the fork may fail to load, and then there is
+# no notification daemon at all. The fork's own tools/check-upstream says whether the installed Omarchy
+# still matches what the fork was merged against; `guard` runs it after every `omarchy-update` and at
+# every login, and switches to the stock daemon if it does not.
+#
+# It reads shell.json to learn what is enabled (works before the shell is up) and changes things only
+# through `omarchy plugin ...`, never by editing shell.json itself.
+
+set -u
+
+REPO=$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")
+FORK_ID=annihilation.notifications
+STOCK_ID=omarchy.notifications
+FORK_URL=${FORK_URL:-https://github.com/TRemigi/omarchy-annihilation-notifications.git}
+
+CONFIG=$HOME/.config/omarchy
+FORK_DIR=$CONFIG/plugins/$FORK_ID
+SHELL_JSON=$CONFIG/shell.json
+CONF=$CONFIG/annihilation-notifications.conf
+STATE_DIR=$HOME/.local/state/annihilation-theme
+HELD=$STATE_DIR/notifications-fork-held
+LOG=$STATE_DIR/notifications-fork.log
+
+say() { echo "notifications fork: $*"; }
+die() { echo "notifications fork: $*" >&2; exit 1; }
+
+log() {
+  mkdir -p "$STATE_DIR"
+  printf '%s %s\n' "$(date -Is)" "$*" >>"$LOG"
+  if (( $(wc -l <"$LOG") > 300 )); then tail -n 200 "$LOG" >"$LOG.tmp" && mv "$LOG.tmp" "$LOG"; fi
+}
+
+links_to() { [[ -L $1 && $(readlink -f "$1") == "$(readlink -f "$2")" ]]; }
+
+shell_running() { [[ $(timeout 2 omarchy-shell shell ping 2>/dev/null) == ok ]]; }
+
+# wait_for_shell SECONDS: true as soon as the shell answers, false if it never does.
+wait_for_shell() {
+  local n=${1:-0}
+  while ! shell_running; do
+    (( n-- > 0 )) || return 1
+    sleep 1
+  done
+}
+
+omarchy_version() {
+  local v
+  v=$(pacman -Q omarchy 2>/dev/null | awk '{print $2}')
+  echo "${v:-unknown}"
+}
+
+# ---------------------------------------------------------------- what is installed and enabled
+
+fork_installed() { [[ -f $FORK_DIR/manifest.json ]]; }
+
+fork_version() { jq -r '.version // "?"' "$FORK_DIR/manifest.json" 2>/dev/null || echo "?"; }
+
+# The plugin ids shell.json lists, whether each entry is a string or an object with an id. A
+# third-party plugin is enabled exactly when it is listed here.
+config_ids() { jq -r '(.plugins // [])[] | if type == "object" then .id else . end' "$SHELL_JSON" 2>/dev/null; }
+
+fork_enabled() { config_ids | grep -qxF "$FORK_ID"; }
+
+# Omarchy's own plugin is switched off while the fork is enabled; this is that switch.
+stock_disabled() {
+  jq -e --arg id "$STOCK_ID" '(.disabledPlugins // []) | index($id) != null' "$SHELL_JSON" >/dev/null 2>&1
+}
+
+# ---------------------------------------------------------------- is the fork in step with Omarchy
+
+# The fork's tools/check-upstream compares the installed Omarchy with what the fork was last merged
+# against: 0 nothing relevant changed, 3 only the version changed (both fine), 1 a file the fork
+# copies changed, 2 a file it depends on changed, anything else could not be checked.
+CHECK_RC=64
+run_check() {
+  local tool=$FORK_DIR/tools/check-upstream
+  if [[ -x $tool ]]; then "$tool" --quiet >/dev/null 2>&1; CHECK_RC=$?; else CHECK_RC=64; fi
+}
+
+in_step() { [[ $1 == 0 || $1 == 3 ]]; }
+
+check_phrase() {
+  case $1 in
+    0) echo "in step with Omarchy" ;;
+    3) echo "in step with Omarchy (only the version differs)" ;;
+    1) echo "a file the fork copies has changed in Omarchy: it needs a merge" ;;
+    2) echo "a file the fork depends on has changed in Omarchy: it needs a review" ;;
+    *) echo "it could not be checked against Omarchy" ;;
+  esac
+}
+
+# ---------------------------------------------------------------- the "held" marker
+
+# Present while the fork is installed but deliberately off. kind=auto: a hook or `add` switched it off
+# because it was out of step (`update` brings it back once it is in step). kind=manual: the user chose
+# the stock daemon (only `enable` brings it back).
+held() { [[ -f $HELD ]]; }
+held_field() { sed -n "s/^$1=//p" "$HELD" 2>/dev/null | head -n1; }
+clear_held() { rm -f "$HELD"; }
+
+write_held() { # kind reason
+  mkdir -p "$STATE_DIR"
+  { echo "kind=$1"; echo "since=$(date -Is)"; echo "omarchy=$(omarchy_version)"; echo "reason=$2"; } >"$HELD"
+}
+
+auto_enabled() { ! grep -qxE 'auto_fallback=(off|false|no|0)' "$CONF" 2>/dev/null; }
+
+# ---------------------------------------------------------------- switching
+
+# Switch to the stock daemon: disable the fork through Omarchy, which switches the built-in back on.
+# Returns 0 when shell.json shows the fork off and the built-in no longer disabled; 1 when the call
+# failed or the fork is still listed; 2 when the fork is off but the built-in is STILL disabled,
+# which means no daemon at all (the break-glass edit in the fork's docs/runbooks/fallback.md).
+fall_back() { # kind reason
+  omarchy plugin disable "$FORK_ID" >/dev/null 2>&1 || return 1
+  local i
+  for i in 1 2 3 4 5 6; do
+    if ! fork_enabled && ! stock_disabled; then break; fi
+    sleep 0.5
+  done
+  fork_enabled && { log "fall_back: the fork is still enabled after disabling it"; return 1; }
+  stock_disabled && { log "fall_back: omarchy.notifications is still in disabledPlugins: no daemon"; return 2; }
+  write_held "$1" "$2"
+  log "fell back to stock ($1): $2"
+}
+
+enable_fork() {
+  omarchy plugin enable "$FORK_ID" >/dev/null 2>&1 || return 1
+  local i
+  for i in 1 2 3 4 5 6; do fork_enabled && break; sleep 0.5; done
+  fork_enabled || return 1
+  clear_held
+  log "enabled the fork"
+}
+
+# On the terminal, and as a notification once a daemon is up to show it.
+tell() { # headline body
+  echo "notifications fork: $1: $2" >&2
+  if command -v omarchy-notification-send >/dev/null && omarchy-notification-wait 15 2>/dev/null; then
+    omarchy-notification-send --app-name Annihilation "$1" "$2" >/dev/null 2>&1 || true
+  fi
+}
+
+# ---------------------------------------------------------------- commands
+
+cmd_guard() {
+  local hook=${1:-post-boot} wait=5
+  [[ $hook == post-boot ]] && wait=${GUARD_BOOT_WAIT:-45}
+
+  fork_installed || return 0
+  # Only a fork that is switched on needs protecting. This reads shell.json, so it works before the
+  # shell is up; `wait_for_shell` below is only for acting.
+  fork_enabled || return 0
+
+  run_check
+  if in_step "$CHECK_RC"; then log "$hook: in step (check exit $CHECK_RC)"; return 0; fi
+  if [[ $CHECK_RC != 1 && $CHECK_RC != 2 ]]; then
+    # Not knowing is not a reason to switch off something that may be fine.
+    log "$hook: could not check the fork (exit $CHECK_RC); left alone"
+    return 0
+  fi
+
+  local reason
+  reason="Omarchy $(omarchy_version): $(check_phrase "$CHECK_RC")"
+  if ! auto_enabled; then
+    log "$hook: out of step, automatic fallback is off: $reason"
+    tell "Themed notifications may be out of step" "$reason. Automatic fallback is off; to switch to stock run: $REPO/extras/install notifications fallback"
+    return 0
+  fi
+  if ! wait_for_shell "$wait"; then
+    log "$hook: out of step but the shell is not reachable, so no fallback: $reason"
+    echo "notifications fork: out of step with Omarchy but the shell is not reachable; run: $REPO/extras/install notifications fallback" >&2
+    return 0
+  fi
+
+  fall_back auto "$reason"
+  case $? in
+    0) tell "Using the stock notification daemon" "$reason. To get the themed one back, run: $REPO/extras/install notifications update" ;;
+    2) echo "notifications fork: WARNING: the fork is off but stock is still disabled, so nothing is running notifications. See docs/runbooks/fallback.md in the fork repo (break-glass)." >&2 ;;
+    *) echo "notifications fork: could not switch to stock; run: omarchy plugin disable $FORK_ID" >&2 ;;
+  esac
+  return 0
+}
+
+cmd_status() {
+  local short=0
+  [[ ${1:-} == --short ]] && short=1
+
+  if ! fork_installed; then
+    if (( short )); then echo "notifications fork  not installed (optional)"; else
+      echo "notifications fork  not installed (optional)"
+      echo "                    install: $REPO/extras/install notifications add"
+    fi
+    return 0
+  fi
+
+  run_check
+  local state
+  if fork_enabled; then state=enabled
+  elif held; then state="disabled ($(held_field kind) fallback)"
+  else state=disabled; fi
+
+  if (( short )); then
+    echo "notifications fork  $(fork_version), $state; $(check_phrase "$CHECK_RC")"
+    return 0
+  fi
+
+  echo "notifications fork  installed $(fork_version), $state"
+  echo "                    check: $(check_phrase "$CHECK_RC") (Omarchy $(omarchy_version))"
+  if held; then
+    echo "                    held since $(held_field since): $(held_field reason)"
+    if [[ $(held_field kind) == auto ]]; then
+      echo "                    to come back: $REPO/extras/install notifications update"
+    else
+      echo "                    to come back: $REPO/extras/install notifications enable"
+    fi
+  fi
+  if stock_disabled && ! fork_enabled; then
+    echo "                    WARNING: the stock plugin is disabled and the fork is not enabled: no daemon (see the fork's runbooks/fallback.md)"
+  fi
+  local owner bus
+  if bus=$(busctl --user status org.freedesktop.Notifications 2>/dev/null); then
+    owner=$(sed -n 's/^Comm=//p' <<<"$bus" | head -n1)
+    echo "                    daemon: ${owner:-an unknown process} owns org.freedesktop.Notifications"
+  else
+    echo "                    daemon: nothing owns org.freedesktop.Notifications, or the session bus could not be queried"
+  fi
+  local hooks="" h
+  for h in post-update post-boot; do
+    if links_to "$CONFIG/hooks/$h.d/annihilation.sh" "$REPO/extras/hooks/$h.sh"; then hooks+="$h linked, "; else hooks+="$h NOT linked, "; fi
+  done
+  echo "                    auto fallback: $(auto_enabled && echo on || echo off); hooks: ${hooks%, } (extras/install link)"
+}
+
+cmd_add() {
+  local restart=0
+  [[ ${1:-} == --restart ]] && restart=1
+  command -v omarchy >/dev/null || die "omarchy is not on PATH"
+  shell_running || die "the shell is not running; log in to the desktop and try again"
+
+  if fork_installed; then
+    if fork_enabled; then say "already installed ($(fork_version)) and enabled; to pull a newer one: $REPO/extras/install notifications update"
+    else say "already installed ($(fork_version)) but not enabled; to switch it on: $REPO/extras/install notifications enable"; fi
+    return 0
+  fi
+
+  say "installing from $FORK_URL (plugins run unsandboxed inside the shell; this one is your notification daemon)"
+  omarchy plugin add "$FORK_URL" --yes || die "omarchy plugin add failed"
+
+  run_check
+  if ! in_step "$CHECK_RC"; then
+    write_held auto "installed but not enabled: $(check_phrase "$CHECK_RC")"
+    say "installed, but NOT enabled: $(check_phrase "$CHECK_RC"). Nothing is lost: the stock daemon is still running."
+    say "once the fork has caught up with Omarchy: $REPO/extras/install notifications update"
+    return 0
+  fi
+
+  enable_fork || die "installed, but could not enable it; try: omarchy plugin enable $FORK_ID"
+  say "installed and enabled ($(fork_version)); $(check_phrase "$CHECK_RC")"
+  if (( restart )); then omarchy restart shell; else say "now run: omarchy restart shell"; fi
+}
+
+cmd_update() {
+  fork_installed || die "not installed; run: $REPO/extras/install notifications add"
+  command -v omarchy >/dev/null || die "omarchy is not on PATH"
+  shell_running || die "the shell is not running; log in to the desktop and try again"
+
+  omarchy plugin update "$FORK_ID" --yes || die "omarchy plugin update failed. If it says it cannot fast-forward, the fork repo's history was rewritten after you installed it (it was, once): run '$REPO/extras/install notifications remove' and then '... add'"
+  run_check
+
+  if fork_enabled; then
+    if in_step "$CHECK_RC"; then say "enabled, $(fork_version), $(check_phrase "$CHECK_RC")"
+    else say "WARNING: enabled but $(check_phrase "$CHECK_RC"). The hooks will switch to stock at the next login or update; or do it now: $REPO/extras/install notifications fallback"; fi
+    return 0
+  fi
+
+  if held && [[ $(held_field kind) == auto ]]; then
+    if in_step "$CHECK_RC"; then
+      enable_fork || die "it is in step again but could not be enabled; try: omarchy plugin enable $FORK_ID"
+      say "back on the themed daemon ($(fork_version)); $(check_phrase "$CHECK_RC"). Now run: omarchy restart shell"
+    else
+      say "still on the stock daemon: $(check_phrase "$CHECK_RC"). Nothing to do until the fork repo has been merged with this Omarchy."
+    fi
+    return 0
+  fi
+  say "updated to $(fork_version); still disabled. To switch it on: $REPO/extras/install notifications enable"
+}
+
+cmd_enable() {
+  local force=0
+  [[ ${1:-} == --force ]] && force=1
+  fork_installed || die "not installed; run: $REPO/extras/install notifications add"
+  shell_running || die "the shell is not running; log in to the desktop and try again"
+  fork_enabled && { say "already enabled"; return 0; }
+
+  run_check
+  if ! in_step "$CHECK_RC" && (( ! force )); then
+    die "not enabling: $(check_phrase "$CHECK_RC"). Run '$REPO/extras/install notifications update' first, or pass --force."
+  fi
+  enable_fork || die "could not enable it; try: omarchy plugin enable $FORK_ID"
+  say "enabled ($(fork_version)). Now run: omarchy restart shell"
+}
+
+cmd_fallback() {
+  fork_installed || die "not installed"
+  if ! fork_enabled; then say "already on the stock daemon"; return 0; fi
+  shell_running || die "the shell is not running; the break-glass edit is in the fork's docs/runbooks/fallback.md"
+
+  fall_back manual "chosen with extras/install notifications fallback"
+  case $? in
+    0) say "now on the stock daemon (the fork stays installed). If toasts do not appear, run: omarchy restart shell" ;;
+    2) die "WARNING: the fork is off but the stock plugin is still disabled, so nothing is running notifications. Break-glass: docs/runbooks/fallback.md in the fork repo" ;;
+    *) die "could not switch to stock; try: omarchy plugin disable $FORK_ID" ;;
+  esac
+}
+
+cmd_remove() {
+  fork_installed || die "not installed"
+  shell_running || die "the shell is not running; log in to the desktop and try again"
+  omarchy plugin remove "$FORK_ID" --yes || die "omarchy plugin remove failed"
+  clear_held
+  local i
+  for i in 1 2 3 4 5 6; do stock_disabled || break; sleep 0.5; done
+  if stock_disabled; then
+    die "WARNING: removed, but the stock plugin is still disabled in shell.json: nothing is running notifications. Remove omarchy.notifications from disabledPlugins and run: omarchy restart shell"
+  fi
+  say "removed; the stock daemon is back. If toasts do not appear, run: omarchy restart shell"
+}
+
+cmd_auto() {
+  case ${1:-} in
+    on|off) mkdir -p "$(dirname "$CONF")"; printf 'auto_fallback=%s\n' "$1" >"$CONF"; say "automatic fallback $1" ;;
+    "") say "automatic fallback is $(auto_enabled && echo on || echo off)" ;;
+    *) die "usage: auto [on|off]" ;;
+  esac
+}
+
+case ${1:-} in
+  status) shift; cmd_status "$@" ;;
+  add) shift; cmd_add "$@" ;;
+  update) cmd_update ;;
+  enable) shift; cmd_enable "$@" ;;
+  fallback) cmd_fallback ;;
+  remove) cmd_remove ;;
+  auto) shift; cmd_auto "$@" ;;
+  guard) shift; cmd_guard "$@"; exit 0 ;;
+  *) echo "Usage: ${0##*/} status|add|update|enable|fallback|remove|auto|guard" >&2; exit 1 ;;
+esac

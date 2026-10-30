@@ -10,7 +10,7 @@ update and fall back from it.
 | Phase | What | State |
 |-------|------|-------|
 | P0 | Fork repo exists and is a functional-parity clone of upstream, installable | **done, live-verified 2026-10-30** (`~/dev/omarchy-annihilation-notifications`, pushed) |
-| P1 | Update tooling, runbooks and manual fallback (fork repo); installer, README and drift hooks (this repo) | **partly done in P0**: `check-upstream`, `import-upstream` and their tests, and the update, fallback, release and troubleshooting runbooks. **Left:** `contract-check`, `status`, a `fallback` tool, CI; and this repo's installer, hooks and README |
+| P1 | Update tooling, runbooks and manual fallback (fork repo); installer, README and drift hooks (this repo) | **This repo's side done** (`extras/notifications-fork`, `extras/install notifications ...`, the post-update and post-boot guard hooks, README; 141 checks, 22 breaks caught; not yet seen on a real update). **Fork repo's side partly done in P0**: `check-upstream`, `import-upstream` and their tests, and the runbooks. **Left there:** `contract-check`, `status`, a `fallback` tool, CI |
 | P2 | The actual experience: motion, countdown border, per-app accents (theme-gated) | not started |
 | P3 | Integration with the shimmer plugin, automatic fallback, CI | not started |
 
@@ -211,7 +211,12 @@ says why.
   (`busctl --user status org.freedesktop.Notifications`; `busctl` and `gdbus` are
   present), do the same fallback. This is the guard for the one-way failure in fact 7.
 
-## This repo's side (P1)
+## This repo's side (P1): built
+
+Built as described below, with these differences: the controller is `extras/notifications-fork`
+(`extras/install notifications <command>` runs it) and has `enable` and `auto on|off` as well; the fork's own
+`status`/`fallback` tools in the fork repo are separate and still to do. See the README section "Notification fork
+(optional)" and AGENTS.md for how the guard works. The original design:
 
 - `extras/install notifications <add|update|status|fallback|remove>`: thin wrappers
   over `omarchy plugin add/update/disable/remove` that add what the plain commands do

@@ -7,6 +7,10 @@
 #   extras/install link      install the extras
 #   extras/install unlink    remove them
 #   extras/install status    show what is installed
+#
+#   extras/install notifications <command>   the optional themed notification daemon (a separate
+#                            repo): status, add, update, enable, fallback, remove, auto. Run it
+#                            with no command for the list; see extras/notifications-fork.
 
 set -euo pipefail
 
@@ -20,6 +24,8 @@ PLUGIN_DST=$CONFIG/plugins/$PLUGIN_ID
 
 HOOK_SRC=$REPO/extras/hooks/theme-set.sh
 HOOK_DST=$CONFIG/hooks/theme-set.d/annihilation.sh
+# Hooks that guard the optional notification fork; inert unless it is installed and enabled.
+GUARD_HOOKS=(post-update post-boot)
 STAGED_LUA=$STATE/theme/hyprland.lua
 MARK="-- annihilation-extras"
 MARKER=$HOME/.local/state/annihilation-theme/screensaver-off-by-us
@@ -33,24 +39,37 @@ reload_hyprland() { hyprctl reload >/dev/null 2>&1 || true; }
 
 shell_running() { [[ $(timeout 2 omarchy-shell shell ping 2>/dev/null) == ok ]]; }
 
+# link_hook [SRC DST]: the theme-set hook by default.
 link_hook() {
-  mkdir -p "$(dirname "$HOOK_DST")"
-  if [[ -e $HOOK_DST || -L $HOOK_DST ]] && ! links_to "$HOOK_DST" "$HOOK_SRC"; then
-    echo "refusing to replace $HOOK_DST (not ours); move it aside and rerun" >&2
+  local src=${1:-$HOOK_SRC} dst=${2:-$HOOK_DST}
+  mkdir -p "$(dirname "$dst")"
+  if [[ -e $dst || -L $dst ]] && ! links_to "$dst" "$src"; then
+    echo "refusing to replace $dst (not ours); move it aside and rerun" >&2
     return 1
   fi
-  chmod +x "$HOOK_SRC"
-  ln -nsf "$HOOK_SRC" "$HOOK_DST"
-  echo "hook      linked $HOOK_DST"
+  chmod +x "$src"
+  ln -nsf "$src" "$dst"
+  echo "hook      linked $dst"
 }
 
 unlink_hook() {
-  if links_to "$HOOK_DST" "$HOOK_SRC"; then
-    rm "$HOOK_DST"
-    echo "hook      removed"
-  elif [[ -e $HOOK_DST || -L $HOOK_DST ]]; then
-    echo "hook      left $HOOK_DST alone (not ours)"
+  local src=${1:-$HOOK_SRC} dst=${2:-$HOOK_DST}
+  if links_to "$dst" "$src"; then
+    rm "$dst"
+    echo "hook      removed $dst"
+  elif [[ -e $dst || -L $dst ]]; then
+    echo "hook      left $dst alone (not ours)"
   fi
+}
+
+link_guard_hooks() {
+  local h
+  for h in "${GUARD_HOOKS[@]}"; do link_hook "$REPO/extras/hooks/$h.sh" "$CONFIG/hooks/$h.d/annihilation.sh" || true; done
+}
+
+unlink_guard_hooks() {
+  local h
+  for h in "${GUARD_HOOKS[@]}"; do unlink_hook "$REPO/extras/hooks/$h.sh" "$CONFIG/hooks/$h.d/annihilation.sh"; done
 }
 
 # Plugin discovery follows the symlink, but the shell's file watcher does not,
@@ -114,17 +133,24 @@ strip_staged() {
 status() {
   if links_to "$PLUGIN_DST" "$PLUGIN_SRC"; then echo "plugin    linked"; else echo "plugin    not installed"; fi
   if links_to "$HOOK_DST" "$HOOK_SRC"; then echo "hook      linked"; else echo "hook      not installed"; fi
+  local h
+  for h in "${GUARD_HOOKS[@]}"; do
+    if links_to "$CONFIG/hooks/$h.d/annihilation.sh" "$REPO/extras/hooks/$h.sh"; then echo "hook      $h linked (notification fork guard)"
+    else echo "hook      $h not installed (notification fork guard)"; fi
+  done
   if [[ -f $MARKER ]]; then echo "screensaver  stock text screensaver off (shimmer owns it)"; else echo "screensaver  stock"; fi
   if [[ -f $STAGED_LUA ]] && grep -qF -- "$MARK" "$STAGED_LUA"; then
     echo "hyprland  extras active in staged theme"
   else
     echo "hyprland  extras not loaded (theme: $(current_theme))"
   fi
+  "$REPO/extras/notifications-fork" status --short
 }
 
 case ${1:-} in
-  link) link_hook; link_plugin; apply_now ;;
-  unlink) strip_staged; unlink_plugin; restore_screensaver; unlink_hook ;;
+  link) link_hook; link_guard_hooks; link_plugin; apply_now ;;
+  unlink) strip_staged; unlink_plugin; restore_screensaver; unlink_hook; unlink_guard_hooks ;;
   status) status ;;
-  *) echo "Usage: ${0##*/} link|unlink|status" >&2; exit 1 ;;
+  notifications) shift; exec "$REPO/extras/notifications-fork" "$@" ;;
+  *) echo "Usage: ${0##*/} link|unlink|status|notifications <command>" >&2; exit 1 ;;
 esac

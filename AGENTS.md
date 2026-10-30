@@ -25,6 +25,9 @@ backgrounds/           film stills (1-, 3-); 2- was deliberately dropped
 extras/install         link | unlink | status (idempotent bash)
 extras/hypr/annihilation.lua        border/shadow/blur/dim/animation tweaks
 extras/hooks/theme-set.sh           loads the Lua; toggles the stock screensaver
+extras/hooks/post-update.sh, post-boot.sh   run the notification fork's guard (inert unless it is installed and enabled)
+extras/notifications-fork           the fork's controller: status | add | update | enable | fallback | remove | auto | guard
+                                    (`extras/install notifications <cmd>` runs it)
 extras/plugin/annihilation.shimmer/ the Quickshell plugin (see below)
 ```
 
@@ -414,8 +417,29 @@ The optional themed notification daemon (a separate repo, installed as a registe
 clone of the built-in so that disabling it restores stock) is planned in
 `docs/notifications-fork.md`; read that before starting it. P0 is done and live-verified: a public repo,
 `github.com/TRemigi/omarchy-annihilation-notifications` (checked out at `~/dev/omarchy-annihilation-notifications`,
-with its own `AGENTS.md`, `CONTRACT.md` and runbooks). This repo's side of it (the `extras/install notifications` wrapper, the
-post-update and post-boot hooks, a README section) is not built; the plan lists it under P1.
+with its own `AGENTS.md`, `CONTRACT.md` and runbooks). This repo's side of it is built (P1): `extras/notifications-fork`,
+the `extras/install notifications <command>` wrapper, the `post-update` and `post-boot` guard hooks that `extras/install
+link` installs, and a README section.
+
+How the guard works, so it is not re-derived. The fork vendors Omarchy's plugin, so an Omarchy update can leave it
+broken, and while it is enabled the stock plugin is off: a fork that fails to load means *no notification daemon*. The
+fork repo's `tools/check-upstream --quiet` (run from the installed plugin dir) exits 0 or 3 when the installed Omarchy
+still matches what the fork was merged against; 1 or 2 when not; anything else means it could not tell. `guard` runs
+after `omarchy-update` and at login (the login hook also covers plain `pacman` updates). If the fork is enabled (read
+from `shell.json`: it is enabled exactly when its id is in `plugins[]`, as a string or an `{id}` object) and the check
+exits 1 or 2, it runs `omarchy plugin disable annihilation.notifications`, waits until shell.json shows the fork off
+**and** `omarchy.notifications` out of `disabledPlugins[]` (the second is the one that matters), writes
+`~/.local/state/annihilation-theme/notifications-fork-held` (`kind=auto`), and notifies once stock is back. It
+never edits shell.json itself, never acts when the check could not run, and always exits 0. `update` brings back an
+*auto* hold once the check passes; a *manual* hold (`fallback`) stays until `enable`. `auto off` (a line in
+`~/.config/omarchy/annihilation-notifications.conf`) makes it tell instead of acting. It is tested with fake
+`omarchy`, `omarchy-shell` and `busctl` that emulate the registry's shell.json edits
+(`bash extras/dev/notifications-fork-test.sh`, 141 checks, 22 deliberate breaks caught); **not yet seen on a real
+update or boot**, because that needs a real Omarchy update.
+
+One thing found by running `status` on the real machine: the user installed the fork before its history was
+rewritten (to remove an email), so their checkout is on the old commits and `omarchy plugin update` would fail with
+"cannot fast-forward". `update` says to `remove` then `add`.
 
 Inspiration and context: the film and novel; Swamp Dark base16
 (`tinted-theming.github.io/tinted-gallery/#base16-swamp-dark`); thin-film
@@ -597,7 +621,8 @@ What the agent environment could not do: run Hyprland, Quickshell, or a GPU
 render. The user is the only one who can confirm anything live. What works:
 
 - Syntax and validation:
-  `bash -n extras/install extras/hooks/theme-set.sh`,
+  `bash -n extras/install extras/notifications-fork extras/hooks/*.sh`,
+  `bash extras/dev/notifications-fork-test.sh` (the fork controller, the guard and the installer's hooks),
   `luac -p extras/hypr/annihilation.lua`,
   `python3 -c 'import tomllib; ...'` for the TOML files,
   `omarchy plugin validate extras/plugin/annihilation.shimmer`.
