@@ -111,8 +111,9 @@ PanelWindow {
     Repeater {
       model: [
         { kind: "shadow", blur: 40, tint: "#131109", alpha: 0.7 },
-        { kind: "halo", blur: 64, tint: Color.accent, alpha: 0.5 },
-        { kind: "halo", blur: 24, tint: Qt.lighter(Color.accent, 1.35), alpha: 0.8 },
+        { kind: "halo", blur: 64, tint: Color.accent, alpha: 0.9 },
+        { kind: "halo", blur: 32, tint: Qt.lighter(Color.accent, 1.25), alpha: 0.9 },
+        { kind: "halo", blur: 14, tint: Qt.lighter(Color.accent, 1.5), alpha: 1.0 },
         { kind: "core", blur: 0, tint: Qt.lighter(Color.accent, 1.8), alpha: 0.95 }
       ]
 
