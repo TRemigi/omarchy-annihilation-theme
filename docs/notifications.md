@@ -9,8 +9,8 @@ gotchas; this file is only about notifications.
 
 | # | Item | State |
 |---|------|-------|
-| 0 | Notification feed (plugin learns when a toast arrives) | **built, not seen live** |
-| 1 | Arrival glow (light spreads from the toast corner) | **built, not seen live** |
+| 0 | Notification feed (plugin learns when a toast arrives) | **built; works live** (user confirmed with item 1) |
+| 1 | Arrival glow (light spreads from the toast corner) | **built; user: "looks great"** |
 | 2 | Sound (synthesized, opt-in) | not started |
 | 4 | Missed notifications on the bar prism | not started |
 | 6 | Themed fork of the notification daemon | **follow-up, not planned yet** |
@@ -120,7 +120,10 @@ What the design is, and what it took to get there (so it is not re-derived):
 - Known: the layer is above the bar, so the glow can lighten the bar's right end;
   the origin assumes a 380 px card at `Style.gapsOut` from the corner and the bar's
   reserved area, so it is a few pixels off for a tall card; `renderScale` is 0.5.
-- **Look at it live first.** `omarchy-shell shimmer notify 1` (then 2, 0). If it is
+- Live: the user ran it and said it looks great. They needed `omarchy restart shell`
+  (not only `hyprctl reload` and `rescanPlugins`) to pick up the new file; see the
+  AGENTS.md gotcha. Every item that adds a file needs the same instruction.
+- (Superseded) **Look at it live first.** `omarchy-shell shimmer notify 1` (then 2, 0). If it is
   too strong or too weak the slider is the quick test; defaults live in the shader
   (`0.30` ring, `0.15` halo) and `amplitudeFor`.
 

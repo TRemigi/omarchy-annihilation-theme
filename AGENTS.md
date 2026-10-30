@@ -490,6 +490,11 @@ iridescence (oil on water); bioluminescent fungi.
 - The plugin dir is **symlinked**. The shell's watcher (`inotifywait -r`) does
   not follow symlinks, so after editing run `omarchy-shell shell rescanPlugins`.
   Discovery (`for sub in "$dir"/*/`) does follow them.
+- **A new QML file or a new layer needs `omarchy restart shell`**, not just
+  `rescanPlugins` and `hyprctl reload`. The user hit this when `ArrivalGlow.qml`
+  (a new file, instantiated from `Service.qml`) was added: the rescan did not pick
+  it up. Edits to existing files may hot-reload; the cause is unverified. When you
+  add a file, new layer or new IPC function, tell the user to restart the shell.
 - `omarchy plugin validate` rejects a symlinked plugin folder; validate the real
   path (`omarchy plugin validate extras/plugin/annihilation.shimmer`).
   `plugin add/update` are the only callers; symlinks are otherwise supported.
