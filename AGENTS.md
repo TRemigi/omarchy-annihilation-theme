@@ -123,14 +123,28 @@ The brief: **subdued psychedelic horror mixed with the beauty of nature.**
   band is clipped to the monitor's `reserved` strips so the halo never paints over
   a bar. Limits: six windows per screen, and the glow lags during a resize or
   drag until it ends. Not seen against a live Hyprland by the agent.
-  Lessons: (a) a "which way does the edge face" term made diagonal picture-frame
-  seams at corners, because the nearest edge switches along the diagonal; it was
-  removed, since the fan field already varies in space. (b) A glow cut off at a
-  fixed depth while still bright shows as a dark inner rectangle, so fade it to
-  zero. (c) Inside a rounded rectangle, offset contours crease along the diagonals
-  once the depth exceeds the corner radius, so the glow uses a larger radius
-  (0.45 of the band width) than the windows. (d) `half` is a reserved word in
-  GLSL. Test with `RECTS="x,y,w,h;..." RIM=44 ROUNDING=20 harness ...` (see
+  First live feedback (screenshots from the user): the glow "projected way too far
+  into the windows", its colours were "too distinct/separated", and it was "not
+  respecting the window corner radius". Causes and fixes: (1) the reach was a
+  fraction of screen height tuned on a 540 px preview (about 90 px at 1190 px high,
+  and the glow ran to 2.6 times that); it is now `clamp(0.026 * height, 16, 44)`
+  with a steeper falloff, so it hugs the edge like a window shadow; judge reach in
+  pixels at the user's real resolution, not in a scaled preview. (2) The fans'
+  spectrum was as wide as on the wallpaper, and a second hue sweep ran across the
+  band's depth, so colour changed quickly along and across every edge. The glow now
+  uses a narrow slice of the spectrum (0.20 of the angle, not 0.45) and almost no
+  depth sweep (0.06), so neighbouring colours blend. (3) I had given the glow its
+  own 40 px corner radius to hide creases, so it drew rounded windows round square
+  ones (the user's real radius is 4 px, set in `extras/hypr/annihilation.lua`).
+  `WindowGlow.qml` now reads `decoration:rounding` and `general:border_size` with
+  `hyprctl getoption ... -j | jq` (failure keeps 4 and 2), inflates each rectangle
+  by the border (the border is drawn outside `at`/`size`), and the shader keeps the
+  true radius at the edge while a smooth max rounds off the inside diagonal creases.
+  Other lessons: (a) a "which way does the edge face" term made diagonal
+  picture-frame seams at corners, because the nearest edge switches along the
+  diagonal; it was removed. (b) A glow cut off at a fixed depth while still bright
+  shows as a dark inner rectangle, so fade it to zero. (c) `half` is a reserved
+  word in GLSL. Test with `RECTS="x,y,w,h;..." RIM=18 ROUNDING=4 harness ...` (see
   `extras/dev/shader-harness.c`) over a synthetic desktop.
 - **The shader's clock is accumulated, not read from the wall clock**
   (`Service.shimmerClock`, advanced by a service timer by elapsed time times

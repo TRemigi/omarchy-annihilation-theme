@@ -12,6 +12,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
+import Quickshell.Io
 import Quickshell.Wayland
 
 PanelWindow {
@@ -24,8 +25,14 @@ PanelWindow {
   readonly property bool fullscreenHere: !!(hyprMonitor && hyprMonitor.activeWorkspace
     && hyprMonitor.activeWorkspace.hasFullscreen)
 
-  // How far the light reaches into a window, in logical pixels.
-  readonly property real rim: Math.max(36, Math.min(100, height * 0.075))
+  // How far the light reaches into a window, in logical pixels: a band that hugs the
+  // edge the way a window shadow does, not a flood across the window.
+  readonly property real rim: Math.max(16, Math.min(44, height * 0.026))
+
+  // The windows' own corner radius and border width, read from Hyprland so that the
+  // glow follows the real shape (and keeps doing so if the user changes them).
+  property real styleRounding: 4
+  property real styleBorder: 2
 
   // Topmost first, at most six, in this screen's logical pixels.
   property var rects: []
@@ -44,7 +51,9 @@ PanelWindow {
       var o = all[i].lastIpcObject
       if (!o || !o.mapped || o.hidden || !o.at || !o.size) continue
       if (!o.workspace || o.workspace.id !== wsId || o.monitor !== mon.id) continue
-      found.push({ x: o.at[0] - mon.x, y: o.at[1] - mon.y, w: o.size[0], h: o.size[1], z: o.focusHistoryID })
+      // The border is drawn outside the window's own rectangle; start at its outer edge.
+      var b = styleBorder
+      found.push({ x: o.at[0] - mon.x - b, y: o.at[1] - mon.y - b, w: o.size[0] + 2 * b, h: o.size[1] + 2 * b, z: o.focusHistoryID })
     }
     found.sort(function(a, b) { return a.z - b.z })
     rects = found.slice(0, 6)
@@ -71,7 +80,22 @@ PanelWindow {
   WlrLayershell.layer: WlrLayer.Top
   WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
-  onVisibleChanged: if (visible) refresh.restart()
+  onVisibleChanged: if (visible) { styleQuery.running = true; refresh.restart() }
+
+  Process {
+    id: styleQuery
+    command: ["bash", "-c", "echo $(hyprctl getoption decoration:rounding -j | jq -r .int) $(hyprctl getoption general:border_size -j | jq -r .int)"]
+    stdout: StdioCollector {
+      onStreamFinished: {
+        var p = String(text).trim().split(/\s+/).map(Number)
+        if (p.length >= 2 && isFinite(p[0]) && isFinite(p[1])) {
+          win.styleRounding = p[0]
+          win.styleBorder = p[1]
+          settle.restart()
+        }
+      }
+    }
+  }
 
   // Coalesce a burst of events into one refresh, then read the result once it lands.
   Timer {
@@ -97,6 +121,7 @@ PanelWindow {
   Connections {
     target: Hyprland
     function onRawEvent(event) {
+      if (event.name === "configreloaded") styleQuery.running = true
       if (win.relevantEvents.indexOf(event.name) >= 0) refresh.restart()
     }
   }
@@ -114,7 +139,7 @@ PanelWindow {
     property real seed: win.service.shimmerSeed
     property real additive: win.service.layerAdditive ? 1.0 : 0.0
     property real rimWidth: win.rim
-    property real rounding: win.rim * 0.45
+    property real rounding: win.styleRounding
     property size resolution: Qt.size(width, height)
     property vector4d usable: win.usableRect()
     property vector4d win0: win.rectAt(0)

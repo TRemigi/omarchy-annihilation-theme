@@ -13,8 +13,7 @@
 // the angle, fine rays bent by slow noise, and a life of its own. They are not
 // drawn on the wallpaper. They are the source behind the windows, and a window
 // edge only lights up where a fan's light reaches it. Across
-// the width of the band the hue sweeps through the spectrum, the way a bright edge
-// is split by a prism. A faint ambient glow keeps every edge from going completely
+// the width of the band the hue shifts only a little, the way a bright edge is split by a prism. A faint ambient glow keeps every edge from going completely
 // dark.
 //
 // Windows come in as rectangles (x, y, width, height in logical pixels), topmost
@@ -136,7 +135,9 @@ vec4 fanField(vec2 p, float aspect, float t, float s) {
             0.5 + 0.5 * sin(ft * (0.017 + 0.007 * kk) + s * (5.7 + kk)));
         float n1 = fbm3(vec3(u * 7.0 + 13.0 * kk, 0.5 + kk, ft * 0.09 + s * 7.0), 2);
         float ray = 0.35 + 0.65 * smoothstep(0.25, 0.85, n1);
-        float hx = clamp(0.5 + 0.45 * u + 0.16 * sin(ft * 0.02 + s * (1.3 + kk)) + 0.12 * kk, 0.0, 1.0);
+        // A narrower slice of the spectrum than on the wallpaper: along a window edge,
+        // colours should blend into one another, not read as separate strips.
+        float hx = clamp(0.5 + 0.20 * u + 0.16 * sin(ft * 0.02 + s * (1.3 + kk)) + 0.12 * kk, 0.0, 1.0);
         float e = env * reach * life * (0.5 + 0.5 * ray);
         if (e > bestE) {
             bestE = e;
@@ -154,7 +155,12 @@ float winSd(vec4 r, vec2 px) {
     vec2 hs = r.zw * 0.5;
     float rad = min(ubuf.rounding, min(hs.x, hs.y));
     vec2 q = abs(px - (r.xy + hs)) - hs + vec2(rad);
-    return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - rad;
+    // Inside, a plain max(q.x, q.y) creases along the diagonals from each corner.
+    // A smooth max agrees with it on the diagonal and away from it, and rounds the
+    // crease off; the edge itself and its true corner radius are untouched.
+    float k = max(ubuf.rimWidth, 1.0);
+    float smax = 0.5 * (q.x + q.y + sqrt((q.x - q.y) * (q.x - q.y) + k * k)) - 0.5 * k;
+    return length(max(q, 0.0)) + min(smax, 0.0) - rad;
 }
 
 // The distance used for the glow: inside a window, minus the depth below its
@@ -183,7 +189,7 @@ void main() {
 
     // Almost every pixel is nowhere near an edge, and stops here.
     float sd = field(px);
-    if (sd > 0.7 * w || sd < -2.6 * w) {
+    if (sd > 0.7 * w || sd < -2.2 * w) {
         fragColor = vec4(0.0);
         return;
     }
@@ -202,15 +208,15 @@ void main() {
     // Depth below the edge, in band widths: positive inside, negative outside.
     float u = -sd / w;
     // Light hugs the edge and fades inward; the halo outside is tighter and weaker.
-    float prof = inside ? exp(-u * 1.1) * (1.0 - smoothstep(1.4, 2.5, u)) : 0.55 * exp(-(-u) * 4.0);
+    float prof = inside ? exp(-u * 1.7) * (1.0 - smoothstep(1.1, 2.0, u)) : 0.65 * exp(-(-u) * 4.0);
     // A faint ambient so no edge is ever completely dark.
-    float strength = max(fan.y, 0.16);
+    float strength = max(fan.y, 0.20);
     // The prism: hue sweeps through the spectrum across the width of the band.
-    vec3 col = lightSpectrum(clamp(fan.x + 0.22 * clamp(u, -1.0, 1.5), 0.0, 1.0));
+    vec3 col = lightSpectrum(clamp(fan.x + 0.06 * clamp(u, -1.0, 1.5), 0.0, 1.0));
     // A thin bright line right at the edge, like the bright rim of a piece of glass.
-    float edge = exp(-(u / 0.10) * (u / 0.10)) * 0.45;
+    float edge = exp(-(u / 0.14) * (u / 0.14)) * 0.25;
 
-    vec3 rgb = (col * prof + AQUA * edge) * strength * 1.8;
+    vec3 rgb = (col * prof + AQUA * edge) * strength * 2.5;
 
     vec4 acc = vec4(rgb, 0.0) * (ubuf.intensity * 2.0);
     if (ubuf.additive < 0.5) acc.a = max(acc.r, max(acc.g, acc.b));
