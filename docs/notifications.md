@@ -11,11 +11,12 @@ gotchas; this file is only about notifications.
 |---|------|-------|
 | 0 | Notification feed (plugin learns when a toast arrives) | **built; works live** (user confirmed with item 1) |
 | 1 | Arrival glow (light spreads from the toast corner) | **built; user: "looks great"** |
-| 2 | Sound (synthesized, opt-in) | **built, not heard** (the agent cannot hear) |
-| 4 | Missed notifications on the bar prism | **built, not seen live** |
+| 2 | Sound (synthesized, opt-in) | **built; user confirmed working** (no feedback yet on how the tones sound) |
+| 4 | Missed notifications on the bar prism | **built; user confirmed working**, expired and silenced paths |
 | 6 | Themed fork of the notification daemon | **follow-up, not planned yet** |
 
-Numbers match the numbered list in the conversation that produced this plan.
+Items 0, 1, 2 and 4 are done and confirmed live by the user; what is left is item 6 and
+the optional items under "Not chosen". Numbers match the numbered list in the conversation that produced this plan.
 3 and 5 were offered and not chosen; they are in "Not chosen" below. Do 0 first,
 then 1, 2, 4 in any order.
 
