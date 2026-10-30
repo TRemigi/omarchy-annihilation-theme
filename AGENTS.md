@@ -29,8 +29,9 @@ extras/plugin/annihilation.shimmer/ the Quickshell plugin (see below)
 ```
 
 Plugin files: `manifest.json` (service + bar-widget), `Service.qml` (settings,
-theme gate, IPC, idle monitor, passage timing, font loading), `ShimmerLayer.qml`
+theme gate, IPC, idle monitor, passage parts, font loading), `ShimmerLayer.qml`
 (wallpaper overlay per screen), `Screensaver.qml` (overlay per screen),
+`Crawl.qml` (the scrolling, glowing text line),
 `BarWidget.qml` + `Panel.qml` (prism glyph and popup), `shaders/*.frag` and the
 committed compiled `*.frag.qsb`, `fonts/` (Jost, Cinzel + OFL licences),
 `passage.txt` (screensaver text), `journal.txt` (popup daily entries).
@@ -179,6 +180,13 @@ iridescence (oil on water); bioluminescent fungi.
   the radius.
 - Variable fonts: set the weight with `font.variableAxes: ({ "wght": 250 })`
   (Qt >= 6.7). `FontLoader.name` is the family to use.
+- The crawl is **one item per part, not one long strip**: a strip holding the
+  whole passage would be tens of thousands of pixels wide, beyond GPU texture
+  limits (often 8192) once blurred. The widest part (65 type-sizes) is about
+  5,100 px on an ultrawide, which fits. Keep parts short if you change them.
+- Recycling in `Crawl.advance` must add the removed part's width plus the gap
+  back onto `ribbonX`, or everything visibly jumps. The simulation test below
+  catches that.
 - Letter-spacing trails the last glyph; the text layers add
   `leftPadding: font.letterSpacing` so the ink is truly centred.
 - `Text.AllUppercase` is applied through `font.capitalization`, not by
@@ -210,6 +218,17 @@ render. The user is the only one who can confirm anything live. What works:
   draws `Text` (so centring, wrapping, fonts and weights are testable via
   `grabToImage` and an ImageMagick `-trim` bounding box) but **not**
   `ShaderEffect` or `MultiEffect`.
+- **`console.log` prints nothing in this sandbox** unless you set
+  `QT_LOGGING_TO_CONSOLE=1 QT_FORCE_STDERR_LOGGING=1`. Without them a test looks
+  like it silently did nothing. Reading a file from QML also needs
+  `QML_XHR_ALLOW_FILE_READ=1`.
+- `Crawl.qml` has `autoDrive`, `glow` and `fade` switches for tests. A harness
+  that sets `autoDrive: false`, `glow: false`, `fade: false`, calls
+  `advance(dt)` from a `Timer`, calls `forceLayout()` on the Row (found by
+  `objectName: "crawlRibbon"`; parts are `"crawlPart"`) and checks per-step
+  invariants (constant step, exact gaps, nothing popping in, ribbon reaching the
+  right edge, correct cyclic order) is how the crawl was verified. Mutation
+  check: removing the `ribbonX += first.width + gap` line makes it fail loudly.
 - Screenshots land in `~/Pictures/screenshot-*.png`; the user can point you at
   one. The first one showed old code still running (the `keepLoaded` problem),
   so confirm the version with `omarchy-shell shimmer status` (new fields appear
@@ -228,11 +247,17 @@ Settings (inline on the plugin entry): `layerEnabled`, `layerIntensity` (0.35),
 IPC (`omarchy-shell shimmer ...`): `toggleLayer`, `pulse`, `screensaver`,
 `dismiss`, `status`.
 
-Screensaver timings live in `Service.qml`: 3 s wait, then each passage part
-kindles 2.5 s, holds 5 s, fades 2.5 s (10 s per part, index persists between
-runs). Glow strength is the layer model in `Screensaver.qml`. Typography
-(family, weight axis, caps, tracking, size as a fraction of height) is
-`Service.passageStyle`.
+Also a setting: `crawlSpeed` (0.5 to 8).
+
+The passage is a continuous right-to-left crawl (`Crawl.qml`): parts enter at
+the right edge, fade in over the first 22% of the width and out over the last
+22%, with a gap of seven type-sizes between parts. `crawlSpeed` is in
+type-sizes per second (default 2.5, so a part takes about 50 s to cross). The
+resume index is written back to `Service.passageIndex` when the screensaver
+closes, so the next run starts at the first part that was on screen. The glow
+layer model is `Crawl.glowLayers`; its colours are set from `Screensaver.qml`.
+Typography (family, weight axis, caps, tracking, size as a fraction of height)
+is `Service.passageStyle`.
 
 ## Conventions
 

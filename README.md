@@ -31,7 +31,7 @@ repo, so the live parts ship separately. Clone the repo somewhere permanent
 | --- | --- |
 | Hyprland | A border gradient that slowly turns, a faint teal shadow on the focused window, blur on shell surfaces, 6% dimming of inactive windows, slower open/close and workspace motion. |
 | Shimmer layer | A click-through layer between wallpaper and windows: a slow band of thin-film colour, rising spores, faint caustics along the bottom. Pauses under fullscreen windows. |
-| Screensaver | After `idle.screensaver` seconds the wallpaper slowly warps, its colour channels drift apart, and a lattice of glowing cells grows over it. A passage kindles as living light, one part about every ten seconds, picking up where it left off. Replaces Omarchy's text screensaver while this theme is active. |
+| Screensaver | After `idle.screensaver` seconds the wallpaper slowly warps, its colour channels drift apart, and a lattice of glowing cells grows over it. A passage crawls right to left as living light, fading in at the right edge and out at the left in one continuous line, picking up where it left off. Replaces Omarchy's text screensaver while this theme is active. |
 | Bar glyph | A prism whose edge shifts teal, magenta, amber. Click for "Day N inside Area X" (uptime), the day's log entry and the controls; right click toggles the layer; middle click starts the screensaver. |
 
 Everything is tied to the theme: switch to another theme and the extras go
@@ -59,6 +59,7 @@ entry under `bar.layout`, or `plugins[]` if you run it without the glyph):
 | `screensaver` | `true` | set `false` to keep Omarchy's idle behavior without it |
 | `screensaverSeconds` | `0` | `0` follows `idle.screensaver` |
 | `screensaverBrightness` | `0.16` | how much of the photo shows, 0.02 to 1 |
+| `crawlSpeed` | `2.5` | type-sizes per second, 0.5 to 8 |
 | `passageFont` | `"jost"` | `"jost"`, `"cinzel"`, or the name of any installed font |
 
 ### Commands

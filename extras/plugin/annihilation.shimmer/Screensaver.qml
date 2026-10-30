@@ -1,12 +1,11 @@
 // The Shimmer screensaver: one fullscreen overlay per screen showing the
-// wallpaper slowly taken by the bloom shader, with a passage that kindles one
-// part at a time as living light. Which part, and when, is the service's call
-// (so every screen agrees); this file only draws it. Idle-driven instances are
-// ended by the idle monitor on any input; summoned ones take input and end
-// themselves (see Service.screensaverForced).
+// wallpaper slowly taken by the bloom shader, with a passage crawling across it
+// as living light (see Crawl.qml). Every screen starts from the same saved
+// position, so they agree. Idle-driven instances are ended by the idle monitor
+// on any input; summoned ones take input and end themselves (see
+// Service.screensaverForced).
 
 import QtQuick
-import QtQuick.Effects
 import Quickshell
 import Quickshell.Wayland
 import qs.Commons
@@ -39,9 +38,16 @@ PanelWindow {
   WlrLayershell.keyboardFocus: service.screensaverForced ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
   onVisibleChanged: {
-    if (!visible) return
-    startedAt = Date.now()
-    elapsed = 0
+    if (visible) {
+      startedAt = Date.now()
+      elapsed = 0
+      crawl.opacity = 0
+      crawlIn.restart()
+    } else {
+      crawlIn.stop()
+      // Next time, carry on from the first part that was still on screen.
+      service.passageIndex = crawl.resumeIndex()
+    }
   }
 
   Timer {
@@ -82,75 +88,39 @@ PanelWindow {
     fragmentShader: Qt.resolvedUrl("shaders/bloom.frag.qsb")
   }
 
-  // The passage, as living light: a dark halo for legibility, two blooms of
-  // teal that breathe slowly, and a pale core that now and then gutters.
-  Item {
-    id: passage
-    anchors.fill: parent
-    opacity: win.service.passageOpacity
+  // The passage, as living light: a dark halo for legibility, three blooms of
+  // teal that breathe slowly, and a pale core that now and then gutters. The
+  // band is tall enough for the widest bloom not to be clipped.
+  Crawl {
+    id: crawl
+    anchors.verticalCenter: parent.verticalCenter
+    width: parent.width
+    height: Math.max(win.passageSize * 5, win.passageSize * 1.5 + 160)
+    opacity: 0
 
-    property real breath: 0.85
-    property real flicker: 1
+    parts: win.service.passageParts
+    startIndex: win.service.passageIndex
+    running: win.visible
+    speed: win.service.crawlSpeed * win.passageSize
+    gap: win.passageSize * 7
 
-    Behavior on flicker { NumberAnimation { duration: 140 } }
+    fontFamily: win.passageStyle.family
+    fontAxes: win.passageStyle.axes
+    capitals: win.passageStyle.caps
+    pixelSize: win.passageSize
+    letterSpacing: win.passageSize * win.passageStyle.tracking
 
-    SequentialAnimation on breath {
-      running: win.visible
-      loops: Animation.Infinite
-      NumberAnimation { to: 1.0; duration: 3200; easing.type: Easing.InOutSine }
-      NumberAnimation { to: 0.7; duration: 3800; easing.type: Easing.InOutSine }
-    }
+    wideColor: Color.accent
+    midColor: Qt.lighter(Color.accent, 1.25)
+    nearColor: Qt.lighter(Color.accent, 1.5)
+    coreColor: Qt.lighter(Color.accent, 1.8)
+  }
 
-    Timer {
-      interval: 110
-      running: win.visible && passage.opacity > 0.05
-      repeat: true
-      onTriggered: passage.flicker = Math.random() < 0.025 ? 0.5 : 0.88 + Math.random() * 0.12
-    }
-
-    Repeater {
-      model: [
-        { kind: "shadow", blur: 40, tint: "#131109", alpha: 0.7 },
-        { kind: "halo", blur: 64, tint: Color.accent, alpha: 0.9 },
-        { kind: "halo", blur: 32, tint: Qt.lighter(Color.accent, 1.25), alpha: 0.9 },
-        { kind: "halo", blur: 14, tint: Qt.lighter(Color.accent, 1.5), alpha: 1.0 },
-        { kind: "core", blur: 0, tint: Qt.lighter(Color.accent, 1.8), alpha: 0.95 }
-      ]
-
-      Text {
-        id: layerText
-        required property var modelData
-
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.verticalCenter: parent.verticalCenter
-        width: passage.width * 0.8
-        horizontalAlignment: Text.AlignHCenter
-        verticalAlignment: Text.AlignVCenter
-        wrapMode: Text.WordWrap
-        textFormat: Text.PlainText
-        text: win.service.passageText
-        color: modelData.tint
-        font.family: win.passageStyle.family
-        font.variableAxes: win.passageStyle.axes
-        font.capitalization: win.passageStyle.caps ? Font.AllUppercase : Font.MixedCase
-        font.pixelSize: win.passageSize
-        font.letterSpacing: win.passageSize * win.passageStyle.tracking
-        lineHeight: 1.15
-        // Letter-spacing trails the last glyph of a line; pad the other side
-        // so the text sits dead centre.
-        leftPadding: font.letterSpacing
-
-        opacity: modelData.alpha * (modelData.kind === "halo" ? passage.breath
-          : modelData.kind === "core" ? passage.flicker : 1)
-
-        layer.enabled: modelData.blur > 0
-        layer.effect: MultiEffect {
-          blurEnabled: true
-          blur: 1.0
-          blurMax: layerText.modelData.blur
-        }
-      }
-    }
+  // Let the wallpaper settle before the first words drift in.
+  SequentialAnimation {
+    id: crawlIn
+    PauseAnimation { duration: 2000 }
+    NumberAnimation { target: crawl; property: "opacity"; from: 0; to: 1; duration: 3000; easing.type: Easing.InOutSine }
   }
 
   Item {
