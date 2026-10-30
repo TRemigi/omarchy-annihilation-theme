@@ -140,6 +140,20 @@ The brief: **subdued psychedelic horror mixed with the beauty of nature.**
   `hyprctl getoption ... -j | jq` (failure keeps 4 and 2), inflates each rectangle
   by the border (the border is drawn outside `at`/`size`), and the shader keeps the
   true radius at the edge while a smooth max rounds off the inside diagonal creases.
+  Second round of feedback (from a screen recording): the user likes the soft
+  shimmering band around the edges, but its inner edge needed to be softer, and the
+  bright spots "still need a lot of work": they should look like bright spots,
+  "without the spotlighty projecting effect". The spots had come from the fan's
+  rays, so they streaked across the edge like beams. They are now `glints()` in
+  `windowglow.frag`: plain isotropic Gaussian blobs on a coarse hashed grid (about
+  one cell in seven, so a few at a time), drifting and twinkling slowly, with a
+  colour from the pink-violet-blue part of the spectrum mixed with a little aqua,
+  shown only near an edge and faded to nothing before the shader's cut-offs. The
+  band's falloff is now a mix of an exponential and a Gaussian with a long smooth
+  tail (no kink, and its end is faded to zero). Rule: anything that should read as a
+  *spot* must be radially symmetric; any structure borrowed from the fans (rays,
+  angle) reads as a projected beam. Judge counts at the user's size: a few per large
+  window, not a string of lights, and keep the peak below white.
   Other lessons: (a) a "which way does the edge face" term made diagonal
   picture-frame seams at corners, because the nearest edge switches along the
   diagonal; it was removed. (b) A glow cut off at a fixed depth while still bright

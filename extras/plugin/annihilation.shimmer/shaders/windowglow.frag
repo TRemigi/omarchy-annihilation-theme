@@ -61,6 +61,16 @@ float hash13(vec3 p3) {
     return fract((p3.x + p3.y) * p3.z);
 }
 
+float hash12(vec2 p) {
+    return hash13(vec3(p, 1.7));
+}
+
+vec2 hash22(vec2 p) {
+    vec3 p3 = fract(vec3(p.xyx) * vec3(0.1031, 0.1030, 0.0973));
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.xx + p3.yz) * p3.zy);
+}
+
 float noise3(vec3 p) {
     vec3 i = floor(p);
     vec3 f = fract(p);
@@ -148,6 +158,33 @@ vec4 fanField(vec2 p, float aspect, float t, float s) {
     return vec4(bestH, bestE, bestDir);
 }
 
+// Bright spots: a few soft round glints that drift and twinkle. Each is a plain
+// Gaussian blob, the same in every direction, so nothing is projected from it; the
+// caller only lets them show close to a window edge. About one cell in seven of a
+// coarse grid hosts one, so at any moment there are only a few.
+vec3 glints(vec2 px, float w, float t, float s) {
+    float cs = 4.6 * w;
+    vec2 id = floor(px / cs);
+    vec3 acc = vec3(0.0);
+    for (int j = -1; j <= 1; j++) {
+        for (int i = -1; i <= 1; i++) {
+            vec2 c = id + vec2(float(i), float(j));
+            float h = hash12(c + s * 3.1);
+            if (h < 0.86) continue;
+            vec2 o = hash22(c + s * 1.7);
+            vec2 pos = (c + 0.15 + 0.7 * o) * cs
+                + 0.28 * cs * vec2(sin(t * (0.13 + 0.10 * h) + h * 31.0), cos(t * (0.10 + 0.09 * h) + h * 17.0));
+            vec2 dv = px - pos;
+            float r = w * (0.85 + 0.9 * fract(h * 9.0));
+            float g = exp(-dot(dv, dv) / (r * r));
+            float tw = 0.30 + 0.70 * smoothstep(0.15, 0.95, 0.5 + 0.5 * sin(t * (0.22 + 0.35 * h) + h * 47.0));
+            vec3 col = mix(lightSpectrum(0.28 + 0.52 * fract(h * 13.0)), AQUA, 0.35);
+            acc += col * g * tw;
+        }
+    }
+    return acc;
+}
+
 // Signed distance from px to a window's rounded rectangle: negative inside.
 // A rectangle with no width means no window.
 float winSd(vec4 r, vec2 px) {
@@ -189,7 +226,7 @@ void main() {
 
     // Almost every pixel is nowhere near an edge, and stops here.
     float sd = field(px);
-    if (sd > 0.7 * w || sd < -2.2 * w) {
+    if (sd > 1.6 * w || sd < -3.1 * w) {
         fragColor = vec4(0.0);
         return;
     }
@@ -207,8 +244,10 @@ void main() {
 
     // Depth below the edge, in band widths: positive inside, negative outside.
     float u = -sd / w;
-    // Light hugs the edge and fades inward; the halo outside is tighter and weaker.
-    float prof = inside ? exp(-u * 1.7) * (1.0 - smoothstep(1.1, 2.0, u)) : 0.65 * exp(-(-u) * 4.0);
+// Light hugs the edge and dissolves inward: a sharp-ish start, then a long smooth
+    // tail with no kink and no end that shows. The halo outside is tighter and weaker.
+    float prof = inside ? (0.6 * exp(-u * 1.5) + 0.4 * exp(-u * u / 1.2)) * (1.0 - smoothstep(1.6, 3.0, u))
+                        : 0.65 * exp(-(-u) * 4.0);
     // A faint ambient so no edge is ever completely dark.
     float strength = max(fan.y, 0.20);
     // The prism: hue sweeps through the spectrum across the width of the band.
@@ -217,6 +256,11 @@ void main() {
     float edge = exp(-(u / 0.14) * (u / 0.14)) * 0.25;
 
     vec3 rgb = (col * prof + AQUA * edge) * strength * 2.5;
+
+    // The bright spots, shown only near an edge and faded to nothing before the limits above.
+    float nearEdge = exp(-abs(sd) / (1.3 * w))
+        * (inside ? 1.0 - smoothstep(1.4, 2.4, -sd / w) : 1.0 - smoothstep(0.9, 1.6, sd / w));
+    rgb += glints(px, w, ubuf.time, ubuf.seed) * nearEdge * 1.5;
 
     vec4 acc = vec4(rgb, 0.0) * (ubuf.intensity * 2.0);
     if (ubuf.additive < 0.5) acc.a = max(acc.r, max(acc.g, acc.b));
