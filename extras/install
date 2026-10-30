@@ -1,0 +1,78 @@
+#!/bin/bash
+
+# Opt-in installer for the parts of Annihilation that `omarchy theme install`
+# cannot carry (Hyprland Lua, Quickshell plugin). Everything is a symlink into
+# this repo, nothing is copied, and nothing under /usr/share/omarchy is touched.
+#
+#   extras/install link      install the extras
+#   extras/install unlink    remove them
+#   extras/install status    show what is installed
+
+set -euo pipefail
+
+REPO=$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")
+CONFIG=$HOME/.config/omarchy
+STATE=$HOME/.local/state/omarchy/current
+
+HOOK_SRC=$REPO/extras/hooks/theme-set.sh
+HOOK_DST=$CONFIG/hooks/theme-set.d/annihilation.sh
+STAGED_LUA=$STATE/theme/hyprland.lua
+MARK="-- annihilation-extras"
+
+current_theme() { cat "$STATE/theme.name" 2>/dev/null || echo none; }
+
+# True when $1 is a symlink resolving to $2.
+links_to() { [[ -L $1 && $(readlink -f "$1") == "$(readlink -f "$2")" ]]; }
+
+reload_hyprland() { hyprctl reload >/dev/null 2>&1 || true; }
+
+link_hook() {
+  mkdir -p "$(dirname "$HOOK_DST")"
+  if [[ -e $HOOK_DST || -L $HOOK_DST ]] && ! links_to "$HOOK_DST" "$HOOK_SRC"; then
+    echo "refusing to replace $HOOK_DST (not ours); move it aside and rerun" >&2
+    return 1
+  fi
+  chmod +x "$HOOK_SRC"
+  ln -nsf "$HOOK_SRC" "$HOOK_DST"
+  echo "hook      linked $HOOK_DST"
+}
+
+unlink_hook() {
+  if links_to "$HOOK_DST" "$HOOK_SRC"; then
+    rm "$HOOK_DST"
+    echo "hook      removed"
+  elif [[ -e $HOOK_DST || -L $HOOK_DST ]]; then
+    echo "hook      left $HOOK_DST alone (not ours)"
+  fi
+}
+
+# The hook only fires on `theme set`; run it now if annihilation is already
+# the active theme so the extras show up without a theme switch.
+apply_now() {
+  [[ $(current_theme) == annihilation ]] && "$HOOK_SRC" annihilation || true
+}
+
+# Drop the dofile line the hook appended so unlink takes effect immediately
+# rather than at the next theme switch.
+strip_staged() {
+  [[ -f $STAGED_LUA ]] && grep -qF -- "$MARK" "$STAGED_LUA" || return 0
+  sed -i "/$MARK/d" "$STAGED_LUA"
+  reload_hyprland
+  echo "hyprland  extras removed from staged theme"
+}
+
+status() {
+  if links_to "$HOOK_DST" "$HOOK_SRC"; then echo "hook      linked"; else echo "hook      not installed"; fi
+  if [[ -f $STAGED_LUA ]] && grep -qF -- "$MARK" "$STAGED_LUA"; then
+    echo "hyprland  extras active in staged theme"
+  else
+    echo "hyprland  extras not loaded (theme: $(current_theme))"
+  fi
+}
+
+case ${1:-} in
+  link) link_hook; apply_now ;;
+  unlink) strip_staged; unlink_hook ;;
+  status) status ;;
+  *) echo "Usage: ${0##*/} link|unlink|status" >&2; exit 1 ;;
+esac
