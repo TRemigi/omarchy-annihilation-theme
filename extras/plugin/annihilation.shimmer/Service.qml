@@ -12,6 +12,8 @@
 //   windowGlowCenter (0-2.5, 1: brightness of the cursor glow's bright centre; "Glow brightness" in the popup),
 //   notifyGlow (bool, true: light spreads off a toast when a notification arrives),
 //   notifyGlowStrength (0.1-2, 1: "Arrival glow" in the popup),
+//   notifySound (bool, false: a soft tone when a notification arrives; not for Omarchy's own action toasts),
+//   notifySoundVolume (0.05-1, 0.5),
 //   layerAdditive (bool, true),
 //   fpsCap (5-60, 30), screensaver (bool, true),
 //   screensaverSeconds (0 = follow idle.screensaver in shell.json),
@@ -61,6 +63,9 @@ Scope {
   property real windowGlowCenter: 1.0
   property bool notifyGlow: true
   property real notifyGlowStrength: 1.0
+  property bool notifySound: false
+  property real notifySoundVolume: 0.5
+  property real lastSoundMs: 0
   property real layerIntensity: 0.35
   // How fast the Shimmer evolves, as a multiple of its natural pace.
   property real layerSpeed: 1.0
@@ -156,6 +161,8 @@ Scope {
     windowGlowCenter = typeof entry.windowGlowCenter === "number" ? clamp(entry.windowGlowCenter, 0, 2.5) : 1.0
     notifyGlow = entry.notifyGlow !== false
     notifyGlowStrength = typeof entry.notifyGlowStrength === "number" ? clamp(entry.notifyGlowStrength, 0.1, 2) : 1.0
+    notifySound = entry.notifySound === true
+    notifySoundVolume = typeof entry.notifySoundVolume === "number" ? clamp(entry.notifySoundVolume, 0.05, 1) : 0.5
     motes = entry.motes !== false
     layerIntensity = typeof entry.layerIntensity === "number" ? clamp(entry.layerIntensity, 0, 1) : 0.35
     layerSpeed = typeof entry.layerSpeed === "number" ? clamp(entry.layerSpeed, 0.1, 4) : 1.0
@@ -215,6 +222,32 @@ Scope {
     pulseAnimation.restart()
   }
 
+  // Which tone an arrival gets, or "" for none. Off by default. Omarchy's own action toasts (a
+  // screenshot, a recording) are the user's own doing, so they are silent unless critical. At most
+  // one a second, and none under the screensaver.
+  function soundFor(entry, now) {
+    if (!notifySound || screensaverActive) return ""
+    if (now - lastSoundMs < 1000) return ""
+    if (entry.app === "omarchy-action" && entry.urgency !== 2) return ""
+    return entry.urgency === 2 ? "urgent" : (entry.urgency === 0 ? "low" : "arrive")
+  }
+
+  // Fire and forget: a missing player or a busy sound server must never reach the shell.
+  function playSound(name) {
+    var file = dir + "sounds/" + name + ".ogg"
+    Quickshell.execDetached(["bash", "-c",
+      "pw-play --volume=\"$1\" \"$2\" &>/dev/null || paplay \"$2\" &>/dev/null || true",
+      "--", String(notifySoundVolume), file])
+  }
+
+  function playArrival(entry) {
+    var now = Date.now()
+    var name = soundFor(entry, now)
+    if (name === "") return
+    lastSoundMs = now
+    playSound(name)
+  }
+
   // Same mechanism as omarchy-screensaver: newer Hyprland takes Lua, older
   // takes a keyword.
   function setCursorHidden(hidden) {
@@ -258,6 +291,7 @@ Scope {
     id: notifyFeed
     active: root.themeActive
     dir: root.home + "/.local/state/omarchy/notifications"
+    onArrived: function(entry) { root.playArrival(entry) }
   }
 
   FileView {
@@ -340,6 +374,11 @@ Scope {
       if (root.themeActive) notifyFeed.simulate(urgency)
     }
 
+    // Hear one of the tones (arrive, low, urgent) at the current volume, whether or not sound is on.
+    function sound(name: string): void {
+      if (name === "arrive" || name === "low" || name === "urgent") root.playSound(name)
+    }
+
     function screensaver(): void {
       if (root.themeActive) root.screensaverForced = true
     }
@@ -364,6 +403,8 @@ Scope {
         cursor: [pointer.cursorX, pointer.cursorY],
         notifyGlow: root.notifyGlow,
         notifyGlowStrength: root.notifyGlowStrength,
+        notifySound: root.notifySound,
+        notifySoundVolume: root.notifySoundVolume,
         notificationsWatching: notifyFeed.watching,
         notificationArrivals: notifyFeed.arrivals,
         notificationsRecent: notifyFeed.recent,

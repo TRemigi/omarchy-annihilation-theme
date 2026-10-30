@@ -11,7 +11,7 @@ gotchas; this file is only about notifications.
 |---|------|-------|
 | 0 | Notification feed (plugin learns when a toast arrives) | **built; works live** (user confirmed with item 1) |
 | 1 | Arrival glow (light spreads from the toast corner) | **built; user: "looks great"** |
-| 2 | Sound (synthesized, opt-in) | not started |
+| 2 | Sound (synthesized, opt-in) | **built, not heard** (the agent cannot hear) |
 | 4 | Missed notifications on the bar prism | not started |
 | 6 | Themed fork of the notification daemon | **follow-up, not planned yet** |
 
@@ -160,6 +160,28 @@ look at a filmstrip of the ring over time, and scan with `extras/dev/edge-scan.p
 for colour steps. Only the user can judge it live.
 
 ## Item 2: sound
+
+**Built:** three synthesized tones in `sounds/` (`arrive.ogg` G4 with its fifth and a
+faint octave shimmer, `low.ogg` C4 alone and quieter, `urgent.ogg` G3 then C#4, a
+tritone), made by `extras/dev/make-sounds.py` (stdlib and ffmpeg; rerun it to
+retune). Peaks are -8.8, -14.9 and -8.9 dBFS; the volume setting scales down from
+there. Checked by level and spectrogram only: **nobody has heard them.** Playback
+is `Service.playSound` (`pw-play --volume`, falling back to `paplay`, errors
+ignored); the gating is `Service.soundFor`, tested in
+`extras/dev/notify-sound-test.js` (16 checks, 8 deliberate breaks caught).
+Settings `notifySound` (default **off**) and `notifySoundVolume` (0.05 to 1, 0.5),
+in the popup as "Sound on notifications" and "Sound volume".
+Rules as built: `omarchy-action` toasts are silent unless critical; at most one a
+second; none under the screensaver; the feed is only live on this theme.
+To audition: `omarchy-shell shimmer sound arrive|low|urgent` plays one at the
+current volume whether or not sound is on; `omarchy-shell shimmer notify 1` plays
+the arrival path (only if sound is on). Needs `omarchy restart shell` for the new
+IPC function and settings.
+If the tones are wrong the knobs are in `make-sounds.py`: pitch, `decay`, `attack`,
+`detune` (the beating), the echo line and the target levels.
+Wishes not done: a per-app choice, and a quiet-hours setting.
+
+Original brief for this item, kept for reference:
 
 A synthesized tone, so there is no licensing question. Slow attack (about 120 ms),
 long decay, slightly detuned partials that beat gently, like glass or refracted

@@ -38,6 +38,8 @@ Panel {
   readonly property real center: Number(setting("windowGlowCenter", 1.0))
   readonly property real notifyStrength: Number(setting("notifyGlowStrength", 1.0))
   readonly property bool notifyGlow: setting("notifyGlow", true) !== false
+  readonly property real soundVolume: Number(setting("notifySoundVolume", 0.5))
+  readonly property bool notifySound: setting("notifySound", false) === true
 
   function sliderValue(key) {
     switch (key) {
@@ -46,6 +48,7 @@ Panel {
     case "windowGlowDepth": return depth
     case "windowGlowCenter": return center
     case "notifyGlowStrength": return notifyStrength
+    case "notifySoundVolume": return soundVolume
     default: return intensity
     }
   }
@@ -165,7 +168,8 @@ Panel {
             { label: "Glow span", key: "windowGlowSpan", min: 0.5, max: 2.5, step: 0.05 },
             { label: "Glow depth", key: "windowGlowDepth", min: 0.05, max: 2.5, step: 0.05 },
             { label: "Glow brightness", key: "windowGlowCenter", min: 0, max: 2.5, step: 0.05 },
-            { label: "Arrival glow", key: "notifyGlowStrength", min: 0.1, max: 2, step: 0.05 }
+            { label: "Arrival glow", key: "notifyGlowStrength", min: 0.1, max: 2, step: 0.05 },
+            { label: "Sound volume", key: "notifySoundVolume", min: 0.05, max: 1, step: 0.05 }
           ]
 
           Row {
@@ -175,7 +179,8 @@ Panel {
             spacing: Style.space(10)
             // The span and the centre only do anything while the glow follows the cursor.
             opacity: ((sliderRow.modelData.key === "windowGlowSpan" || sliderRow.modelData.key === "windowGlowCenter")
-              && !root.glowFollows) || (sliderRow.modelData.key === "notifyGlowStrength" && !root.notifyGlow) ? 0.45 : 1
+              && !root.glowFollows) || (sliderRow.modelData.key === "notifyGlowStrength" && !root.notifyGlow)
+              || (sliderRow.modelData.key === "notifySoundVolume" && !root.notifySound) ? 0.45 : 1
 
             Text {
               id: sliderLabel
@@ -205,7 +210,8 @@ Panel {
             { label: "Wallpaper layer", key: "layerEnabled" },
             { label: "Spores", key: "motes" },
             { label: "Glow follows cursor", key: "windowGlowMode" },
-            { label: "Glow on notifications", key: "notifyGlow" }
+            { label: "Glow on notifications", key: "notifyGlow" },
+            { label: "Sound on notifications", key: "notifySound" }
           ]
 
           Item {
@@ -229,7 +235,8 @@ Panel {
               anchors.verticalCenter: parent.verticalCenter
               checked: row.modelData.key === "layerEnabled" ? root.layerEnabled
                 : row.modelData.key === "windowGlowMode" ? root.glowFollows
-                : row.modelData.key === "notifyGlow" ? root.notifyGlow : root.motes
+                : row.modelData.key === "notifyGlow" ? root.notifyGlow
+                : row.modelData.key === "notifySound" ? root.notifySound : root.motes
               // windowGlowMode is a word, not a switch: "cursor" (active window, pooled at the
               // pointer) or "all" (every window, evenly).
               onToggled: root.change(row.modelData.key,
