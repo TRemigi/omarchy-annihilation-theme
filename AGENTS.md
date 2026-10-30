@@ -294,6 +294,17 @@ The brief: **subdued psychedelic horror mixed with the beauty of nature.**
   possible band, so it needs a second, tight one once the local width is known. Hard-edge
   scan with the pointer in five places and the span at 0.5, 1 and 2.5: worst colour step
   0.08 to 0.10, as with it off.
+  **Depth** (`windowGlowDepth`, a slider in the popup, 0.5 to 2.5, default 1): how far into the
+  window the light reaches, in both modes. It is the `depth` uniform, a multiple of `rimWidth`:
+  `wd = w0 * depth` is the band's depth, the core's depth profile, the `edgeOnly` gate and the crease
+  rounding in `winSd`. The span (`R0`), the proximity boost and the glints stay on the base `w0`, so
+  depth and span are independent. The bright point's radius is `0.44 w0 * spotScale`, with
+  `spotScale = sqrt(depth * span)` (1 at the defaults; measured 10% extent 69 px at 1x1, 142 px at
+  scale 2, 36 px at 0.5). The early exits are in band widths, so with a shallow band they cut the
+  larger point off in a straight line (0.05 excess at depth 0.5, span 2.5); `exitScale =
+  max(1, spotScale / depth)` widens them (now 1/255). Defaults are byte-identical to the shader
+  before depth existed, in all mode, cursor mode and mid-spill. Measure the point by differencing
+  against a copy with `spot` zeroed, and judge it at the corners of depth x span.
   **The pointer feed** (`CursorTracker.qml`) is the part with real cost and the part that
   could NOT be tested here (the sandbox forbids creating sockets). Hyprland has no pointer
   event and a click-through layer cannot receive hover, so it polls: first over Quickshell's

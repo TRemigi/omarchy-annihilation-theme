@@ -34,6 +34,7 @@ Panel {
   readonly property bool motes: setting("motes", true) !== false
   readonly property bool glowFollows: setting("windowGlowMode", "all") === "cursor"
   readonly property real span: Number(setting("windowGlowSpan", 1.0))
+  readonly property real depth: Number(setting("windowGlowDepth", 1.0))
 
   function change(key, value) {
     if (root.hostWidget && typeof root.hostWidget.updateSetting === "function")
@@ -134,12 +135,13 @@ Panel {
 
         PanelSectionHeader { text: "THE SHIMMER" }
 
-        // Two sliders with their labels in a common column, so they line up.
+        // The sliders, with their labels in a common column, so they line up.
         Repeater {
           model: [
             { label: "Intensity", key: "layerIntensity", min: 0, max: 1, step: 0.05 },
             { label: "Speed", key: "layerSpeed", min: 0.25, max: 3, step: 0.05 },
-            { label: "Glow span", key: "windowGlowSpan", min: 0.5, max: 2.5, step: 0.05 }
+            { label: "Glow span", key: "windowGlowSpan", min: 0.5, max: 2.5, step: 0.05 },
+            { label: "Glow depth", key: "windowGlowDepth", min: 0.5, max: 2.5, step: 0.05 }
           ]
 
           Row {
@@ -168,7 +170,8 @@ Panel {
               maximum: sliderRow.modelData.max
               step: sliderRow.modelData.step
               value: sliderRow.modelData.key === "layerSpeed" ? root.speed
-                : sliderRow.modelData.key === "windowGlowSpan" ? root.span : root.intensity
+                : sliderRow.modelData.key === "windowGlowSpan" ? root.span
+                : sliderRow.modelData.key === "windowGlowDepth" ? root.depth : root.intensity
               onReleased: function(v) { root.change(sliderRow.modelData.key, Math.round(v * 100) / 100) }
             }
           }

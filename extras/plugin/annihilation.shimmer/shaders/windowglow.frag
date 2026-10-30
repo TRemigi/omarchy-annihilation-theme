@@ -51,6 +51,7 @@ layout(std140, binding = 0) uniform buf {
     vec4 cursor;         // pointer x, y in pixels; its signed distance to the nearest window edge
                          // (negative inside the window); 1 = on
     float cursorSpan;    // how much length of edge the pool covers, as a multiple of the default
+    float depth;         // how far into a window the light reaches, as a multiple of rimWidth
     vec4 nearest;        // the point of the window's edge nearest the pointer (x, y), and the edge's unit direction
     vec4 nearestPrev;    // the same for the edge that was nearest before, while its light fades out
     vec4 pools;          // spill 0..1 of the current pool; how much of the previous one is left, 0..1; the
@@ -230,7 +231,8 @@ float winSd(vec4 r, vec2 px) {
     // Inside, a plain max(q.x, q.y) creases along the diagonals from each corner.
     // A smooth max agrees with it on the diagonal and away from it, and rounds the
     // crease off; the edge itself and its true corner radius are untouched.
-    float k = max(ubuf.rimWidth, 1.0);
+    // It scales with the band's depth, so that a deeper band rounds off a wider crease.
+    float k = max(ubuf.rimWidth * max(ubuf.depth, 0.1), 1.0);
     float smax = 0.5 * (q.x + q.y + sqrt((q.x - q.y) * (q.x - q.y) + k * k)) - 0.5 * k;
     return length(max(q, 0.0)) + min(smax, 0.0) - rad;
 }
@@ -261,7 +263,7 @@ float field(vec2 px) {
 // Spilling is the light arriving: the pool grows outward along the edge from the nearest point
 // while it brightens, and flares a little on the way (`bloom`, 1 at both ends and 1.3 halfway),
 // the way a lamp turned on behind a window throws a front of light before it settles.
-vec4 pool(vec2 px, vec4 nr, float dist, float amount, float spill, float w0, float R0) {
+vec4 pool(vec2 px, vec4 nr, float dist, float amount, float spill, float w0, float wd, float R0, float spotScale) {
     vec2 dq = px - nr.xy;
     float lat = dot(dq, nr.zw);
     float lat2 = lat * lat;
@@ -270,7 +272,7 @@ vec4 pool(vec2 px, vec4 nr, float dist, float amount, float spill, float w0, flo
     // as brightly. Fade with distance across, from the line of the edge: flat out to
     // about a band depth (the fourth power keeps the edge's own tail untouched) and
     // gone before the window's far side.
-    float ac = dot(dq, vec2(-nr.w, nr.z)) / (7.0 * w0);
+    float ac = dot(dq, vec2(-nr.w, nr.z)) / (7.0 * wd);
     float edgeOnly = exp(-ac * ac * ac * ac);
     // The pointer being close to the edge strengthens the pooling.
     float pz = dist / (22.0 * w0);
@@ -284,12 +286,14 @@ vec4 pool(vec2 px, vec4 nr, float dist, float amount, float spill, float w0, flo
     // The bright core: the same, but narrower along the edge, and it hugs the edge.
     float hot = exp(-lat2 / (0.25 * R * R)) * peak * edgeOnly * bloom;
     float hotter = exp(-lat2 / (0.05 * R * R)) * peak * edgeOnly * bloom;
-    // A point, not a patch: about 25 px across whatever the span, centred on the spot of the
-    // edge nearest the pointer, and the first thing to appear. Its profile has long soft
+    // A point, not a patch: about 25 px across at the default depth and span (`spotScale` is 1
+    // there, and grows with the square root of depth times span, so a deeper band or a longer
+    // pool gets a proportionally bigger point), centred on the spot of the edge nearest the
+    // pointer, and the first thing to appear. Its profile has long soft
     // shoulders (a power law cut off by a wide Gaussian) rather than a Gaussian's quick drop:
     // the glow behind it is nearly saturated, so a Gaussian read as a flat white disc with a
     // rim where it fell away.
-    float rs = 0.44 * w0;
+    float rs = 0.44 * w0 * spotScale;
     float uu = dot(dq, dq) / (rs * rs);
     float spot = pow(1.0 / (1.0 + uu), 1.3) * exp(-uu / 6.76) * peak * smoothstep(0.0, 0.35, spill) * bloom;
     return vec4(g, hot, hotter, spot);
@@ -299,9 +303,17 @@ void main() {
     vec2 uv = qt_TexCoord0;
     vec2 px = uv * ubuf.resolution;
     float w0 = ubuf.rimWidth;
+    // The band's depth; the span and the glints keep to w0, so depth alone changes how far in the light goes.
+    float wd = w0 * max(ubuf.depth, 0.1);
     bool follow = ubuf.cursor.w > 0.5;
+    // The bright point grows with the depth and the span.
+    float spotScale = sqrt(max(ubuf.depth, 0.1) * max(ubuf.cursorSpan, 0.1));
+    // The point grows with depth and span but the band's early exits are measured in band widths,
+    // so where the point is large against the band (a shallow band, a long pool) they are widened
+    // to keep from cutting it off in a straight line. Exactly 1 at the defaults.
+    float exitScale = follow ? max(1.0, spotScale / max(ubuf.depth, 0.1)) : 1.0;
     // The widest the band can get, for the early exit below.
-    float wmax = follow ? w0 * 1.85 : w0;
+    float wmax = (follow ? wd * 1.85 : wd) * exitScale;
 
     // Almost every pixel is nowhere near an edge, and stops here.
     float sd = field(px);
@@ -314,7 +326,7 @@ void main() {
     // point and for pixels no farther from the pointer than that, falling off beyond.
     float g = 1.0;
     float gain = 1.0;
-    float w = w0;
+    float w = wd;
     // The bright core at the centre of the pool: 1 at the point of the edge nearest the
     // pointer, falling off along the edge, scaled by how close the pointer is.
     float hot = 0.0;
@@ -322,17 +334,17 @@ void main() {
     float spot = 0.0;         // and on top of it a small bright point, right on the edge
     if (follow) {
         float R0 = max(ubuf.cursorSpan, 0.1) * 8.0 * w0;
-        vec4 pl = pool(px, ubuf.nearest, ubuf.cursor.z, 1.0, ubuf.pools.x, w0, R0);
+        vec4 pl = pool(px, ubuf.nearest, ubuf.cursor.z, 1.0, ubuf.pools.x, w0, wd, R0, spotScale);
         // The edge that was nearest, while its light drains away.
-        if (ubuf.pools.y > 0.001) pl += pool(px, ubuf.nearestPrev, ubuf.pools.z, ubuf.pools.y, 1.0, w0, R0);
+        if (ubuf.pools.y > 0.001) pl += pool(px, ubuf.nearestPrev, ubuf.pools.z, ubuf.pools.y, 1.0, w0, wd, R0, spotScale);
         g = min(pl.x, 1.0);
         hot = pl.y;
         hotter = pl.z;
         spot = pl.w;
         gain = 0.20 + 0.80 * g;
-        w = w0 * (0.8 + 0.8 * g);
+        w = wd * (0.8 + 0.8 * g);
         // The first exit had to allow for the widest the band can be; now the real width is known.
-        if (sd > 1.6 * w || sd < -3.6 * w) {
+        if (sd > 1.6 * w * exitScale || sd < -3.6 * w * exitScale) {
             fragColor = vec4(0.0);
             return;
         }
@@ -378,7 +390,7 @@ void main() {
     // behind the window. Rolled off below with the rest, so it never clips flat.
     // Its depth profile is tighter than the band's, so the bright part sits on the edge and does
     // not bulge into the window.
-    float cdepth = inside ? exp(-1.5 * (-sd) / w0) : 0.8 * exp(-3.0 * sd / w0);
+    float cdepth = inside ? exp(-1.5 * (-sd) / wd) : 0.8 * exp(-3.0 * sd / wd);
     vec3 core = vec3(1.0, 0.95, 0.88) * (cdepth + 0.5 * edge) * (hot * 1.5 + hotter * 1.6) + vec3(1.0, 0.97, 0.92) * spot * 2.6;
     vec4 acc = vec4((rgb * (gain + 1.0 * hot + 0.8 * hotter + 1.2 * spot) + core) * (ubuf.intensity * 2.0), 0.0);
     // Roll bright peaks off smoothly instead of clipping them. A spot that is cut off
