@@ -359,13 +359,13 @@ The brief: **subdued psychedelic horror mixed with the beauty of nature.**
   `Behavior` with a 110 ms OutQuad `NumberAnimation`, restarted by every reading. An ease-out starts
   at full speed and slows down, so each restart was a surge: simulated on a steady 1200 px/s sweep
   (`extras/dev/pointer-smoothing-sim.js`), the drawn speed had a spread of 100% of its mean at a
-  60 Hz display and 52% at 144 Hz, with a third of the frames below half speed. It is now a critically
+  60 Hz display and 52% at 144 Hz, with half the frames (60 Hz) or one in six (144 Hz) below half speed. It is now a critically
   damped spring (`springStep`, the exact solution, so any frame time is stable), stepped by a
   `FrameAnimation` (`stepPointer`) that runs only while the glow is catching up and is off in all
   mode, with no window to light, and for the first three readings (which jump, as before). Its speed
   is continuous from frame to frame: spread 3 to 11%, worst frame-to-frame change 5 to 21%, at
-  `followRate` 32 (rad/s; lag behind a steady pointer about 2 / 32 s, 60 ms, against 80 to 120 ms
-  before; 25 is smoother and 15 ms slower). The polling went from 33 ms to 16 ms (60 Hz) while the
+  `followRate` 32 (rad/s; lag behind a steady pointer about 2 / 32 s, 60 ms, against 78 to 118 ms
+  before at 30 Hz polling; 25 is smoother and 15 ms slower). The polling went from 33 ms to 16 ms (60 Hz) while the
   pointer moves: that halves the readings' own spacing, worth about 3 percentage points of spread
   and 8 ms of lag. The hyprctl fallback stays at 160 ms, where nothing can make it smooth, and
   **if the user is on that route the glow will still step**: `cursorSource` in `shimmer status`
