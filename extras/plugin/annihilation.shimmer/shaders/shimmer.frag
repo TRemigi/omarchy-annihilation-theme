@@ -170,25 +170,25 @@ void main() {
     float s = ubuf.seed;
 
     // A gentle domain warp, so nothing stands rigid.
-    float wx = fbm3(vec3(p * 0.9, t * 0.050 + s), 2);
-    float wy = fbm3(vec3(p * 0.9 + vec2(7.3, 3.1), t * 0.0435 + s * 1.7), 2);
+    float wx = fbm3(vec3(p * 0.9, t * 0.090 + s), 2);
+    float wy = fbm3(vec3(p * 0.9 + vec2(7.3, 3.1), t * 0.0783 + s * 1.7), 2);
     vec2 q = p + 0.30 * (vec2(wx, wy) - 0.5);
 
     // The wash: where it is, and which hue it has there. The hue runs across the
     // screen along a slowly turning direction, and its centre drifts, so any
     // given patch is sometimes mostly blue, sometimes mostly pink.
-    float dw = fbm3(vec3(q * vec2(2.8, 2.1) + vec2(6.3, 1.9), t * 0.035 + s * 1.9), 3);
+    float dw = fbm3(vec3(q * vec2(2.8, 2.1) + vec2(6.3, 1.9), t * 0.070 + s * 1.9), 3);
     float wmask = smoothstep(0.52, 0.72, dw) * mix(0.6, 1.0, 1.0 - uv.y);
-    float ang = 0.5 + 0.6 * sin(t * 0.021 + s * 2.1);
+    float ang = 0.5 + 0.6 * sin(t * 0.040 + s * 2.1);
     float pc = ((q.x - aspect * 0.5) * cos(ang) + (q.y - 0.5) * sin(ang)) * 0.75
-        + 0.5 * (fbm3(vec3(q * 0.7 + vec2(0.0, 4.0), t * 0.03 + s * 5.3), 2) - 0.5)
-        + 0.5 + 0.14 * sin(t * 0.013 + s * 3.3);
+        + 0.5 * (fbm3(vec3(q * 0.7 + vec2(0.0, 4.0), t * 0.06 + s * 5.3), 2) - 0.5)
+        + 0.5 + 0.14 * sin(t * 0.026 + s * 3.3);
     float wa = wmask * 0.42;
     vec3 rgb = washSpectrum(pc) * wa;
     float a = wa;
 
     // The light: small curtains, each born and dying on its own.
-    float d = fbm3(vec3(q * vec2(2.5, 1.9) + vec2(2.1, 9.4), t * 0.0455 + s * 2.3), 3);
+    float d = fbm3(vec3(q * vec2(2.5, 1.9) + vec2(2.1, 9.4), t * 0.080 + s * 2.3), 3);
     float core = smoothstep(0.56, 0.76, d);
     float halo = smoothstep(0.44, 0.70, d);
     float hot = smoothstep(0.70, 0.84, d);

@@ -79,8 +79,12 @@ The brief: **subdued psychedelic horror mixed with the beauty of nature.**
   to 90th percentile 14% to 45%), still varied, and the light curtains similar.
   Check such statistics over many minutes and seeds, not at one instant.
   "Dynamic" can be measured as the overlay's mean change per second relative to
-  its own level: the veil version was 0.04, the light events about 0.21 (0.38
-  felt like flicker).
+  its own level (`extras/dev/overlay-rate.py`, run on the real shader): the veil
+  version was 0.04, the light curtains about 0.21 and felt alive (0.38 felt like
+  flicker), the first spectral tint 0.10-0.14 (the user asked for a little more),
+  and the tint now about 0.20, from evolving the patches, hue sweep and warp at
+  twice the speed. A finer "heat haze" ripple inside the tint changed the rate
+  by almost nothing, so it was left out.
 - **Additive blending.** In the default mode the light part of the shader outputs
   colour larger than its alpha, which a premultiplied "over" blend turns into added light.
   That is outside what the Wayland spec promises, so the `layerAdditive` setting
