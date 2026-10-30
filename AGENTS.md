@@ -172,6 +172,36 @@ The brief: **subdued psychedelic horror mixed with the beauty of nature.**
   complaint, and the clipping count did. The glow's rate of change in time is about
   0.05 of its level per second, calmer than the main layer's 0.2, and the user has
   not asked for more.
+  Fourth round (a screen recording): "you can still see the sharp edges between
+  colors sometimes; whenever that isn't happening it looks great; the colors
+  shifting in the soft glowy areas looks awesome". Found by measuring the real
+  shader at the user's window size (`edgehunt`-style scan: largest colour step
+  between neighbouring pixels where both are bright, skipping 16 px around window
+  edges), not by looking at the recording, whose compression hides it. Three causes,
+  each a discontinuity: (1) `fanField` defaulted the hue to a constant 0.5 where no
+  fan reaches, but a strength-weighted mean over even a trace of a fan takes that
+  fan's full hue, and the ambient floor makes the glow visible everywhere, so the
+  colour changed in a straight line along every fan's edge (teal to pink, over about
+  2 px, 0.87 per pixel). It now has a prior (weight 0.08) pulling toward a base hue
+  that drifts smoothly in space and time. A mean needs a prior, or its weights can go
+  to zero. (2) Each fan's source orbited on an ellipse 1.38 times the half-extents,
+  which at the diagonals passes just inside the screen corner (up to 63 px inside; within
+  0.10 screen heights of the screen 38% of the time), so the source showed as the
+  sharp tip of a thin wedge lit inside a window: the "spotlight". It is now a circle
+  of radius 0.5 * |(aspect, 1)| * (1.28 +- 0.10): at least 0.12 screen heights away,
+  always (checked over 60 seeds and 3000 s). (3) The bend noise sampled the raw
+  `atan` angle, which jumps a full turn along one ray from the source, so the noise
+  jumped there; it is sampled by position now. Also `strength` used sqrt of the fan
+  strength, whose slope is infinite at zero (a faint line at each fan's edge); it is
+  `1 - exp(-4x)`. Result: worst colour step 0.87 to 0.14, typical 0.36 to 0.07.
+  The first fix flattened the colour variety the user likes (hue spread 0.55 to 0.31,
+  orange 12% to 2%), so the base hue's gain was raised until the spread came back
+  (2.6: spread 0.50, orange 12%). Lesson: when removing a discontinuity, re-measure
+  what the user liked, because the discontinuity was carrying some of it. Method
+  that worked: scan for the worst step, print the profile across it, trace its
+  position row by row (a constant slope means a ray from a source), then fix the
+  cause. Rule: any `if (x > 0) mean else default` must be blended, any selection
+  between fields must be a blend, and nothing may sample `atan` directly.
   Other lessons: (a) a "which way does the edge face" term made diagonal
   picture-frame seams at corners, because the nearest edge switches along the
   diagonal; it was removed. (b) A glow cut off at a fixed depth while still bright

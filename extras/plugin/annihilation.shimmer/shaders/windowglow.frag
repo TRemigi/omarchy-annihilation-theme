@@ -118,6 +118,11 @@ float wrapAngle(float a) {
 // strength-weighted mean of their hues. They are blended, never chosen between:
 // picking the stronger one makes colour and strength jump in a hard line wherever
 // the two cross, and that line drifts as the fans wander.
+//
+// The mean has a small prior of its own pulling it toward a base hue. Without it the
+// hue is undefined where no fan reaches, and a mean taken over only a trace of
+// strength still takes that fan's full hue, so the glow changed colour in a straight
+// line along the edge of every fan, however faint the fan was there.
 vec2 fanField(vec2 p, float aspect, float t, float s) {
     float ft = t * FAN_SPEED;
     float sumE = 0.0;
@@ -127,15 +132,21 @@ vec2 fanField(vec2 p, float aspect, float t, float s) {
         float alpha = s * (2.3 + 1.7 * kk)
             + 0.55 * sin(ft * (0.021 + 0.011 * kk) + s * (1.9 + kk))
             + ft * (0.0035 + 0.003 * kk);
-        float rk = 1.38 + 0.12 * sin(ft * (0.013 + 0.005 * kk) + s * 4.1);
-        vec2 src = vec2(aspect * 0.5 + cos(alpha) * aspect * 0.5 * rk,
-                        0.5 + sin(alpha) * 0.5 * rk);
+        // A circle around the middle, big enough to clear the corners. (It used to be an
+        // ellipse 1.38 times the half-extents, which at the diagonals passes just inside
+        // the screen's corner: the source then showed as the sharp tip of a thin wedge
+        // lit inside a window, the spotlight look. Now it stays at least 0.12 screen
+        // heights away, always.)
+        float rk = 1.28 + 0.10 * sin(ft * (0.013 + 0.005 * kk) + s * 4.1);
+        vec2 src = vec2(aspect * 0.5, 0.5) + 0.5 * length(vec2(aspect, 1.0)) * rk * vec2(cos(alpha), sin(alpha));
         float phi0 = atan(0.5 - src.y, aspect * 0.5 - src.x)
             + 0.22 * sin(ft * (0.027 + 0.006 * kk) + s * (3.3 + kk));
         vec2 dv = p - src;
         float dist = length(dv);
         float ang = atan(dv.y, dv.x);
-        float bend = 0.05 * (fbm3(vec3(dist * 1.7 + 5.0 * kk, ang * 2.0 + 3.0 * kk,
+        // Sampled by position, not by angle: atan jumps by a full turn along one ray from
+        // the source, and noise of it would jump there too.
+        float bend = 0.05 * (fbm3(vec3(dv * 1.7 + vec2(5.0 * kk, 3.0 * kk),
                                        ft * 0.12 + s * 3.0), 2) - 0.5) * 2.0;
         float delta = wrapAngle(ang - phi0 + bend);
         float hw = 0.40 + 0.12 * sin(ft * (0.017 + 0.004 * kk) + s * (2.7 + kk));
@@ -154,7 +165,11 @@ vec2 fanField(vec2 p, float aspect, float t, float s) {
         sumE += e;
         sumH += e * hx;
     }
-    return vec2(sumE > 0.0001 ? sumH / sumE : 0.5, min(sumE, 1.0));
+    // The base hue drifts smoothly across the screen and over time, so the glow's
+    // colour keeps shifting where no fan reaches, and never changes in a line.
+    float prior = 0.08;
+    float baseHue = 0.55 + 2.6 * (fbm3(vec3(p * 0.9 + vec2(4.7, 2.3), ft * 0.03 + s * 5.1), 2) - 0.5);
+    return vec2((sumH + prior * baseHue) / (sumE + prior), min(sumE, 1.0));
 }
 
 // Bright spots: a few soft round glints that drift and twinkle. Each is a plain
@@ -248,8 +263,10 @@ void main() {
     float prof = inside ? (0.45 * exp(-u * 1.3) + 0.55 * exp(-u * u / 1.9)) * (1.0 - smoothstep(2.0, 3.4, u))
                         : 0.65 * exp(-(-u) * 4.0);
     // A faint ambient so no edge is ever completely dark.
-    // sqrt spreads the lit region out, so its boundary is a slow gradient and not a wedge.
-    float strength = 0.30 + 0.70 * sqrt(fan.y);
+    // Saturating, with a finite slope at zero: the lit region's boundary is a slow
+    // gradient. (sqrt did this too, but its slope is infinite at the boundary, which
+    // draws a faint line along the fan's edge.)
+    float strength = 0.30 + 0.70 * (1.0 - exp(-4.0 * fan.y));
     // The prism: hue sweeps through the spectrum across the width of the band.
     vec3 col = lightSpectrum(clamp(fan.x + 0.06 * clamp(u, -1.0, 1.5), 0.0, 1.0));
     // A thin bright line right at the edge, like the bright rim of a piece of glass.
