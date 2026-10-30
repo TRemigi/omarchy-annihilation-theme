@@ -2,10 +2,17 @@
   "schemaVersion": 1,
   "id": "annihilation.shimmer",
   "name": "Annihilation Shimmer",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "Taylor Remigi",
-  "description": "A slow iridescent wallpaper layer for the Annihilation theme. Dormant on every other theme.",
-  "kinds": ["service"],
+  "description": "A slow iridescent wallpaper layer, screensaver and bar glyph for the Annihilation theme. Dormant on every other theme.",
+  "kinds": ["service", "bar-widget"],
   "keepLoaded": true,
-  "entryPoints": { "service": "Service.qml" }
+  "entryPoints": { "service": "Service.qml", "barWidget": "BarWidget.qml" },
+  "barWidget": {
+    "displayName": "Shimmer",
+    "description": "A prism that shifts through the Shimmer's colours, with the expedition log and controls",
+    "category": "Theme",
+    "allowMultiple": false,
+    "defaultSection": "left"
+  }
 }

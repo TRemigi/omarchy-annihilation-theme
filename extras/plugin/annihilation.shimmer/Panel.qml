@@ -1,0 +1,219 @@
+// The expedition log popup: how long you have been inside Area X (uptime in
+// days), today's journal entry, and the Shimmer's controls. BarWidget.qml owns
+// the glyph, hands this panel the button to anchor against, and persists the
+// settings this panel asks it to change.
+
+import QtQuick
+import Quickshell
+import Quickshell.Io
+import qs.Commons
+import qs.Ui
+
+Panel {
+  id: root
+  moduleName: "annihilation.shimmer"
+  ipcTarget: "annihilation.shimmer"
+  manageIpc: false
+
+  property var anchorItem: null
+
+  // The bar tracks the widget mounted in its slot, not this nested panel, so
+  // everything it identifies a panel by has to be that widget.
+  property var hostWidget: null
+  readonly property var barIdentity: hostWidget || root
+
+  property real uptimeSeconds: 0
+  property var lines: []
+  property int dayOfYear: 0
+
+  readonly property int day: Math.floor(uptimeSeconds / 86400) + 1
+  readonly property string entry: lines.length > 0 ? lines[dayOfYear % lines.length] : ""
+  readonly property real intensity: Number(setting("layerIntensity", 0.35))
+  readonly property bool layerEnabled: setting("layerEnabled", true) !== false
+  readonly property bool motes: setting("motes", true) !== false
+
+  function change(key, value) {
+    if (root.hostWidget && typeof root.hostWidget.updateSetting === "function")
+      root.hostWidget.updateSetting(key, value)
+  }
+
+  function refreshDay() {
+    var now = new Date()
+    dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000)
+  }
+
+  onOpenedChanged: if (opened) refreshDay()
+
+  FileView {
+    path: Qt.resolvedUrl("journal.txt").toString().replace(/^file:\/\//, "")
+    printErrors: false
+    onLoaded: root.lines = String(text()).split("\n")
+      .map(function(line) { return line.trim() })
+      .filter(function(line) { return line.length > 0 && line.charAt(0) !== "#" })
+  }
+
+  Process {
+    id: uptimeProcess
+    command: ["cat", "/proc/uptime"]
+    stdout: StdioCollector {
+      onStreamFinished: root.uptimeSeconds = parseFloat(String(text).split(" ")[0]) || 0
+    }
+  }
+
+  Timer {
+    interval: 60000
+    running: root.opened
+    repeat: true
+    triggeredOnStart: true
+    onTriggered: if (!uptimeProcess.running) uptimeProcess.running = true
+  }
+
+  KeyboardPanel {
+    id: panel
+    anchorItem: root.anchorItem
+    owner: root.barIdentity
+    bar: root.bar
+    open: root.opened
+    centerOnBar: true
+    focusTarget: keyCatcher
+    contentWidth: panel.fittedContentWidth(Style.space(360))
+    contentHeight: panel.fittedContentHeight(content.implicitHeight)
+
+    PanelKeyCatcher {
+      id: keyCatcher
+      anchors.fill: parent
+      onCloseRequested: root.close()
+      onTabRequested: function(direction) { root.switchPanel(direction) }
+
+      Column {
+        id: content
+        width: parent.width
+        spacing: Style.space(10)
+
+        Column {
+          width: parent.width
+          spacing: Style.space(2)
+
+          Text {
+            width: parent.width
+            horizontalAlignment: Text.AlignHCenter
+            text: "Day " + root.day
+            color: Color.foreground
+            font.family: Style.font.family
+            font.pixelSize: Style.font.display
+          }
+
+          Text {
+            width: parent.width
+            horizontalAlignment: Text.AlignHCenter
+            text: "inside Area X"
+            color: Qt.darker(Color.foreground, 1.4)
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+          }
+        }
+
+        PanelSeparator { width: parent.width }
+
+        PanelSectionHeader { text: "TODAY'S ENTRY" }
+
+        Text {
+          width: parent.width
+          wrapMode: Text.WordWrap
+          text: root.entry
+          color: Color.foreground
+          font.family: Style.font.family
+          font.pixelSize: Style.font.body
+          font.italic: true
+        }
+
+        PanelSeparator { width: parent.width }
+
+        PanelSectionHeader { text: "THE SHIMMER" }
+
+        Row {
+          width: parent.width
+          spacing: Style.space(10)
+
+          Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: "Intensity"
+            color: Color.foreground
+            font.family: Style.font.family
+            font.pixelSize: Style.font.body
+          }
+
+          PanelSlider {
+            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width - x
+            bar: root.bar
+            minimum: 0
+            maximum: 1
+            step: 0.05
+            value: root.intensity
+            onReleased: function(v) { root.change("layerIntensity", Math.round(v * 100) / 100) }
+          }
+        }
+
+        Repeater {
+          model: [
+            { label: "Wallpaper layer", key: "layerEnabled" },
+            { label: "Spores", key: "motes" }
+          ]
+
+          Item {
+            id: row
+            required property var modelData
+            width: content.width
+            height: Math.max(toggle.height, label.implicitHeight)
+
+            Text {
+              id: label
+              anchors.verticalCenter: parent.verticalCenter
+              text: row.modelData.label
+              color: Color.foreground
+              font.family: Style.font.family
+              font.pixelSize: Style.font.body
+            }
+
+            ToggleSwitch {
+              id: toggle
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              checked: row.modelData.key === "layerEnabled" ? root.layerEnabled : root.motes
+              onToggled: root.change(row.modelData.key, !checked)
+            }
+          }
+        }
+
+        Rectangle {
+          width: parent.width
+          height: Style.space(30)
+          radius: Style.cornerRadius
+          color: beginArea.containsMouse ? Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.12) : "transparent"
+          border.width: 1
+          border.color: Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.25)
+
+          Text {
+            anchors.centerIn: parent
+            text: "Begin screensaver"
+            color: Color.foreground
+            font.family: Style.font.family
+            font.pixelSize: Style.font.body
+          }
+
+          MouseArea {
+            id: beginArea
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: {
+              root.close()
+              Quickshell.execDetached(["omarchy-shell", "shimmer", "screensaver"])
+            }
+          }
+        }
+      }
+    }
+  }
+}

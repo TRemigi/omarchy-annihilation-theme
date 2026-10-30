@@ -66,7 +66,10 @@ link_plugin() {
 
   if shell_running; then
     omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
-    if omarchy plugin enable "$PLUGIN_ID" >/dev/null 2>&1; then
+    # The bar glyph goes after the workspaces; fall back to the manifest's
+    # default section if that widget is not in the bar.
+    if omarchy plugin enable "$PLUGIN_ID" --after omarchy.workspaces >/dev/null 2>&1 \
+      || omarchy plugin enable "$PLUGIN_ID" >/dev/null 2>&1; then
       echo "plugin    enabled"
     else
       echo "plugin    could not enable; run: omarchy plugin enable $PLUGIN_ID" >&2

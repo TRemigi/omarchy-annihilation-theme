@@ -70,12 +70,18 @@ Scope {
   function applyConfig(raw) {
     var cfg = ({})
     var entry = ({})
+    function collect(item) {
+      if (!item || item.id !== root.pluginId) return
+      for (var key in item) entry[key] = item[key]
+    }
+    // The settings live on whichever entry enabled the plugin: plugins[] for
+    // the bare service, or the bar layout entry once the widget is placed.
     try {
       cfg = JSON.parse(raw)
-      if (Array.isArray(cfg.plugins)) {
-        for (var i = 0; i < cfg.plugins.length; i++) {
-          if (cfg.plugins[i] && cfg.plugins[i].id === root.pluginId) entry = cfg.plugins[i]
-        }
+      if (Array.isArray(cfg.plugins)) cfg.plugins.forEach(collect)
+      var layout = cfg.bar && cfg.bar.layout ? cfg.bar.layout : ({})
+      for (var section in layout) {
+        if (Array.isArray(layout[section])) layout[section].forEach(collect)
       }
     } catch (e) {}
 
