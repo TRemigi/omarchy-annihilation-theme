@@ -9,7 +9,7 @@ gotchas; this file is only about notifications.
 
 | # | Item | State |
 |---|------|-------|
-| 0 | Notification feed (plugin learns when a toast arrives) | not started |
+| 0 | Notification feed (plugin learns when a toast arrives) | **built, not seen live** |
 | 1 | Arrival glow (light spreads from the toast corner) | not started |
 | 2 | Sound (synthesized, opt-in) | not started |
 | 4 | Missed notifications on the bar prism | not started |
@@ -41,6 +41,21 @@ then 1, 2, 4 in any order.
   That is what makes item 1 possible.
 
 ## Item 0: the notification feed
+
+**Built:** `NotificationFeed.qml` (owned by `Service.qml`, exposed as
+`service.notifications`, signal `arrived(entry)`), logic tests in
+`extras/dev/notification-feed-test.js` (29 checks, 8 deliberate breaks each
+caught), and `shimmer status` reports `notificationsWatching`,
+`notificationArrivals` and `notificationsRecent`. The exact `inotifywait` command
+was run against a scratch directory here: it prints the name of each new file at
+the top level and ignores `history/`. **Not yet seen against the real service.**
+First live check for the user: `notify-send "test" "body"` and then
+`omarchy-shell shimmer status` should show `notificationsWatching: true` and an
+arrival with that summary. If `notificationsWatching` is false, `inotifywait` is
+failing to start; if arrivals stay at 0 with it true, check the file names in
+`~/.local/state/omarchy/notifications/` (the watcher only reads
+`<timestamp>-<id>.json`) and that the toast's timestamp is fresh (5 s).
+Still open: nothing subscribes to `arrived` yet, so the feed does nothing visible.
 
 Everything else hangs off this. The service persists each live toast as one
 compact JSON file in `~/.local/state/omarchy/notifications/` named

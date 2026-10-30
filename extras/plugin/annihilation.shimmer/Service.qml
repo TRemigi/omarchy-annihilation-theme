@@ -245,6 +245,15 @@ Scope {
     active: root.cursorTracking
   }
 
+  // Knows when a toast arrives, from the files the notification service keeps; see the file.
+  readonly property alias notifications: notifyFeed
+
+  NotificationFeed {
+    id: notifyFeed
+    active: root.themeActive
+    dir: root.home + "/.local/state/omarchy/notifications"
+  }
+
   FileView {
     id: themeFile
     path: root.home + "/.local/state/omarchy/current/theme.name"
@@ -342,6 +351,9 @@ Scope {
         cursorSource: pointer.source,
         cursorKnown: pointer.known,
         cursor: [pointer.cursorX, pointer.cursorY],
+        notificationsWatching: notifyFeed.watching,
+        notificationArrivals: notifyFeed.arrivals,
+        notificationsRecent: notifyFeed.recent,
         layerIntensity: root.layerIntensity,
         layerSpeed: root.layerSpeed,
         motes: root.motes,
