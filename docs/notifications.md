@@ -12,7 +12,7 @@ gotchas; this file is only about notifications.
 | 0 | Notification feed (plugin learns when a toast arrives) | **built; works live** (user confirmed with item 1) |
 | 1 | Arrival glow (light spreads from the toast corner) | **built; user: "looks great"** |
 | 2 | Sound (synthesized, opt-in) | **built, not heard** (the agent cannot hear) |
-| 4 | Missed notifications on the bar prism | not started |
+| 4 | Missed notifications on the bar prism | **built, not seen live** |
 | 6 | Themed fork of the notification daemon | **follow-up, not planned yet** |
 
 Numbers match the numbered list in the conversation that produced this plan.
@@ -203,6 +203,40 @@ Decisions:
 - Never block: spawn `pw-play` in a `Process`, ignore failure.
 
 ## Item 4: missed notifications on the prism
+
+**Built, not seen live.** Needs `omarchy restart shell` (new file).
+- `MissedTracker.qml` (owned by `Service.qml`) watches `history/` with
+  `inotifywait -e close_write -e moved_to` (event line format checked against real
+  inotify here) and judges each file. **The rule differs from the first sketch below**:
+  "newer than lastSeen" would have counted toasts the user dismissed or clicked, since
+  those also land in `history/`. The service moves a toast there with `mv` (moved_to)
+  and writes a DND-silenced one directly (close_write), and how long a toast was on
+  screen tells what happened: *silenced* = missed; *expired* (on screen for its whole
+  lifetime: 5 s low, 8 s normal or the requested timeout, 30 s at most, minus 0.5 s
+  grace) = missed; dismissed or clicked earlier = not missed; critical toasts only
+  leave by dismissal = not missed; `omarchy-action` = never missed. A toast that sat
+  on screen while the user read it still counts as expired; that cannot be known.
+  Lifetimes mirror `Service.durationFor` in the first-party notification plugin: if
+  Omarchy changes those numbers, change `lifetimeFor`.
+- The list (newest first, at most ten, nothing older than a week) is saved to
+  `~/.local/state/annihilation-theme/missed.json`, which is also how it reaches the
+  widget and popup (the widget reads files on purpose; it never talks to the service).
+- Bar prism (`BarWidget.qml`): one to three motes on the right edge, in the glyph's own
+  colour cycle on its existing 1 s step (no running animation), a stronger fill, and
+  the tooltip says "Area X · N unseen".
+- Popup (`Panel.qml`): a "WHILE YOU WERE AWAY" section with the newest five (summary,
+  then app, age and "silenced"). Opening the popup snapshots them, then calls
+  `omarchy-shell shimmer seen`, which empties the file; the snapshot stays until the
+  popup closes.
+- `shimmer status` has `missedWatching` and `missed`. Tests:
+  `extras/dev/missed-tracker-test.js` (37 checks, 13 deliberate breaks caught) and
+  `extras/dev/panel-missed-test.js` (9 checks).
+- Known limits: nothing is counted while the shell is not running (inotify only sees
+  new events); a restored-after-restart toast leaving later counts as expired; a
+  notification replaced by its sender is judged as its own file; the popup shows at
+  most five.
+
+First sketch, kept for reference:
 
 A toast lasts 8 seconds. Make what was missed visible on the bar prism
 (`BarWidget.qml`) until the user looks: a faint tint, or a few motes orbiting the

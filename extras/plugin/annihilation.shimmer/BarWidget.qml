@@ -46,6 +46,12 @@ BarWidget {
 
   readonly property color glyphColor: cycleColor(phase)
 
+  // Notifications that went by unnoticed, recorded by the service in a file (MissedTracker.qml).
+  // Up to three motes sit on the prism's right edge until the popup is opened.
+  property int missedCount: 0
+  property bool missedFailed: false
+  readonly property int moteCount: Math.min(3, missedCount)
+
   // Written like the clock does: applied locally so the UI answers the click,
   // then persisted; the service picks it up from shell.json.
   function updateSetting(key, value) {
@@ -97,6 +103,29 @@ BarWidget {
     onLoadFailed: root.themeActive = false
   }
 
+  FileView {
+    id: missedFile
+    path: Quickshell.env("HOME") + "/.local/state/annihilation-theme/missed.json"
+    watchChanges: true
+    printErrors: false
+    onLoaded: {
+      var list = []
+      try { list = JSON.parse(String(text())) } catch (e) { list = [] }
+      root.missedCount = Array.isArray(list) ? list.length : 0
+      root.missedFailed = false
+    }
+    onFileChanged: reload()
+    onLoadFailed: { root.missedCount = 0; root.missedFailed = true }
+  }
+
+  // The file does not exist until the service has made it; look again now and then until it does.
+  Timer {
+    interval: 10000
+    running: root.themeActive && root.missedFailed
+    repeat: true
+    onTriggered: missedFile.reload()
+  }
+
   // One step a second is plenty for a 60 s cycle, and keeps the bar from
   // repainting every frame the way a running animation would.
   Timer {
@@ -125,7 +154,7 @@ BarWidget {
     labelVisible: false
     hasVisualContent: root.themeActive
     dimmed: !root.layerEnabled
-    tooltipText: "Area X"
+    tooltipText: root.missedCount > 0 ? "Area X · " + root.missedCount + " unseen" : "Area X"
     fixedWidth: root.vertical ? -1 : Style.bar.iconSlot + Style.space(10)
     fixedHeight: root.vertical ? Style.bar.iconSlot : -1
 
@@ -149,13 +178,30 @@ BarWidget {
         ShapePath {
           strokeColor: root.glyphColor
           strokeWidth: 1.5
-          fillColor: Qt.rgba(root.glyphColor.r, root.glyphColor.g, root.glyphColor.b, 0.14)
+          fillColor: Qt.rgba(root.glyphColor.r, root.glyphColor.g, root.glyphColor.b, root.missedCount > 0 ? 0.30 : 0.14)
           joinStyle: ShapePath.RoundJoin
           startX: glyph.width * 0.5
           startY: glyph.height * 0.08
           PathLine { x: glyph.width * 0.94; y: glyph.height * 0.88 }
           PathLine { x: glyph.width * 0.06; y: glyph.height * 0.88 }
           PathLine { x: glyph.width * 0.5; y: glyph.height * 0.08 }
+        }
+      }
+
+      // Motes for what was missed: one to three, beside the prism's right edge, in the colours of
+      // its own cycle so they drift with it (on the same one-second step, never a running animation).
+      Repeater {
+        model: root.moteCount
+
+        Rectangle {
+          required property int index
+          width: 3
+          height: 3
+          radius: 1.5
+          x: glyph.width * [0.78, 0.86, 0.96][index] - 1.5
+          y: glyph.height * [0.28, 0.48, 0.68][index] - 1.5
+          color: root.cycleColor(root.phase + index / 3)
+          opacity: 0.9
         }
       }
 

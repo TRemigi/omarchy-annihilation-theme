@@ -26,6 +26,13 @@ Panel {
   property var lines: []
   property int dayOfYear: 0
 
+  // What the service has recorded as missed (see MissedTracker.qml), and the copy shown while the
+  // popup is open: opening it marks them seen, which empties the file, but they stay on screen until
+  // it closes.
+  property var latestMissed: []
+  property var shown: []
+  readonly property string missedPath: Quickshell.env("HOME") + "/.local/state/annihilation-theme/missed.json"
+
   readonly property int day: Math.floor(uptimeSeconds / 86400) + 1
   readonly property string entry: lines.length > 0 ? lines[dayOfYear % lines.length] : ""
   readonly property real intensity: Number(setting("layerIntensity", 0.35))
@@ -63,7 +70,41 @@ Panel {
     dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000)
   }
 
-  onOpenedChanged: if (opened) refreshDay()
+  // "just now", "12 min ago", "3 h ago", "2 d ago".
+  function ageText(ms) {
+    var minutes = Math.floor(Math.max(0, ms) / 60000)
+    if (minutes < 1) return "just now"
+    if (minutes < 60) return minutes + " min ago"
+    if (minutes < 1440) return Math.floor(minutes / 60) + " h ago"
+    return Math.floor(minutes / 1440) + " d ago"
+  }
+
+  // The newest five, with their ages worked out now.
+  function snapshot(list, now) {
+    return list.slice(0, 5).map(function(m) {
+      return { summary: m.summary, app: m.app, silenced: m.kind === "silenced", age: ageText(now - m.timestamp) }
+    })
+  }
+
+  onOpenedChanged: {
+    if (!opened) return
+    refreshDay()
+    shown = snapshot(latestMissed, Date.now())
+    if (latestMissed.length > 0) Quickshell.execDetached(["omarchy-shell", "shimmer", "seen"])
+  }
+
+  FileView {
+    path: root.missedPath
+    watchChanges: true
+    printErrors: false
+    onLoaded: {
+      var list = []
+      try { list = JSON.parse(String(text())) } catch (e) { list = [] }
+      root.latestMissed = Array.isArray(list) ? list : []
+    }
+    onFileChanged: reload()
+    onLoadFailed: root.latestMissed = []
+  }
 
   FileView {
     path: Qt.resolvedUrl("journal.txt").toString().replace(/^file:\/\//, "")
@@ -146,6 +187,40 @@ Panel {
           font.family: Style.font.family
           font.pixelSize: Style.font.body
           font.italic: true
+        }
+
+        PanelSeparator { width: parent.width; visible: root.shown.length > 0 }
+
+        PanelSectionHeader { text: "WHILE YOU WERE AWAY"; visible: root.shown.length > 0 }
+
+        Repeater {
+          model: root.shown
+
+          Column {
+            id: missedRow
+            required property var modelData
+            width: content.width
+            spacing: Style.space(1)
+
+            Text {
+              width: parent.width
+              elide: Text.ElideRight
+              text: missedRow.modelData.summary
+              color: Color.foreground
+              font.family: Style.font.family
+              font.pixelSize: Style.font.body
+            }
+
+            Text {
+              width: parent.width
+              elide: Text.ElideRight
+              text: (missedRow.modelData.app.length > 0 ? missedRow.modelData.app + " · " : "")
+                + missedRow.modelData.age + (missedRow.modelData.silenced ? " · silenced" : "")
+              color: Qt.darker(Color.foreground, 1.4)
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+            }
+          }
         }
 
         PanelSeparator { width: parent.width }

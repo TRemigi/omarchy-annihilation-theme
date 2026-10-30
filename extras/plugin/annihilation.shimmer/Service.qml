@@ -294,6 +294,16 @@ Scope {
     onArrived: function(entry) { root.playArrival(entry) }
   }
 
+  // Which notifications went by unnoticed, kept in a file the bar widget and popup read.
+  readonly property alias missed: missedTracker
+
+  MissedTracker {
+    id: missedTracker
+    active: root.themeActive
+    historyDir: root.home + "/.local/state/omarchy/notifications/history"
+    statePath: root.home + "/.local/state/annihilation-theme/missed.json"
+  }
+
   FileView {
     id: themeFile
     path: root.home + "/.local/state/omarchy/current/theme.name"
@@ -379,6 +389,11 @@ Scope {
       if (name === "arrive" || name === "low" || name === "urgent") root.playSound(name)
     }
 
+    // The popup asks for this when it opens: the missed notifications have now been seen.
+    function seen(): void {
+      missedTracker.clear()
+    }
+
     function screensaver(): void {
       if (root.themeActive) root.screensaverForced = true
     }
@@ -405,6 +420,8 @@ Scope {
         notifyGlowStrength: root.notifyGlowStrength,
         notifySound: root.notifySound,
         notifySoundVolume: root.notifySoundVolume,
+        missedWatching: missedTracker.watching,
+        missed: missedTracker.missed.map(function(m) { return { app: m.app, summary: m.summary, kind: m.kind, urgency: m.urgency } }),
         notificationsWatching: notifyFeed.watching,
         notificationArrivals: notifyFeed.arrivals,
         notificationsRecent: notifyFeed.recent,
