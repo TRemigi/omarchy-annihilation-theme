@@ -114,13 +114,14 @@ float wrapAngle(float a) {
     return mod(a + PI, 2.0 * PI) - PI;
 }
 
-// The two fans, at p (screen height = 1). Returns the hue and strength of the
-// stronger one there, and in zw the direction from p toward its source.
-vec4 fanField(vec2 p, float aspect, float t, float s) {
+// The two fans, at p (screen height = 1). Returns their combined strength and the
+// strength-weighted mean of their hues. They are blended, never chosen between:
+// picking the stronger one makes colour and strength jump in a hard line wherever
+// the two cross, and that line drifts as the fans wander.
+vec2 fanField(vec2 p, float aspect, float t, float s) {
     float ft = t * FAN_SPEED;
-    float bestE = 0.0;
-    float bestH = 0.5;
-    vec2 bestDir = vec2(0.0, -1.0);
+    float sumE = 0.0;
+    float sumH = 0.0;
     for (int k = 0; k < 2; k++) {
         float kk = float(k);
         float alpha = s * (2.3 + 1.7 * kk)
@@ -148,14 +149,12 @@ vec4 fanField(vec2 p, float aspect, float t, float s) {
         // A narrower slice of the spectrum than on the wallpaper: along a window edge,
         // colours should blend into one another, not read as separate strips.
         float hx = clamp(0.5 + 0.20 * u + 0.16 * sin(ft * 0.02 + s * (1.3 + kk)) + 0.12 * kk, 0.0, 1.0);
-        float e = env * reach * life * (0.5 + 0.5 * ray);
-        if (e > bestE) {
-            bestE = e;
-            bestH = hx;
-            bestDir = normalize(src - p);
-        }
+        // Only a trace of the rays: they are what made the glow read as a beam.
+        float e = env * reach * life * (0.85 + 0.15 * ray);
+        sumE += e;
+        sumH += e * hx;
     }
-    return vec4(bestH, bestE, bestDir);
+    return vec2(sumE > 0.0001 ? sumH / sumE : 0.5, min(sumE, 1.0));
 }
 
 // Bright spots: a few soft round glints that drift and twinkle. Each is a plain
@@ -226,7 +225,7 @@ void main() {
 
     // Almost every pixel is nowhere near an edge, and stops here.
     float sd = field(px);
-    if (sd > 1.6 * w || sd < -3.1 * w) {
+    if (sd > 1.6 * w || sd < -3.6 * w) {
         fragColor = vec4(0.0);
         return;
     }
@@ -240,22 +239,23 @@ void main() {
 
     float aspect = ubuf.resolution.x / max(ubuf.resolution.y, 1.0);
     vec2 p = vec2(uv.x * aspect, uv.y);
-    vec4 fan = fanField(p, aspect, ubuf.time, ubuf.seed);
+    vec2 fan = fanField(p, aspect, ubuf.time, ubuf.seed);
 
     // Depth below the edge, in band widths: positive inside, negative outside.
     float u = -sd / w;
 // Light hugs the edge and dissolves inward: a sharp-ish start, then a long smooth
     // tail with no kink and no end that shows. The halo outside is tighter and weaker.
-    float prof = inside ? (0.6 * exp(-u * 1.5) + 0.4 * exp(-u * u / 1.2)) * (1.0 - smoothstep(1.6, 3.0, u))
+    float prof = inside ? (0.45 * exp(-u * 1.3) + 0.55 * exp(-u * u / 1.9)) * (1.0 - smoothstep(2.0, 3.4, u))
                         : 0.65 * exp(-(-u) * 4.0);
     // A faint ambient so no edge is ever completely dark.
-    float strength = max(fan.y, 0.20);
+    // sqrt spreads the lit region out, so its boundary is a slow gradient and not a wedge.
+    float strength = 0.30 + 0.70 * sqrt(fan.y);
     // The prism: hue sweeps through the spectrum across the width of the band.
     vec3 col = lightSpectrum(clamp(fan.x + 0.06 * clamp(u, -1.0, 1.5), 0.0, 1.0));
     // A thin bright line right at the edge, like the bright rim of a piece of glass.
-    float edge = exp(-(u / 0.14) * (u / 0.14)) * 0.25;
+    float edge = exp(-(u / 0.20) * (u / 0.20)) * 0.12;
 
-    vec3 rgb = (col * prof + AQUA * edge) * strength * 2.5;
+    vec3 rgb = (col * prof + AQUA * edge) * strength * 1.7;
 
     // The bright spots, shown only near an edge and faded to nothing before the limits above.
     float nearEdge = exp(-abs(sd) / (1.3 * w))
@@ -263,6 +263,11 @@ void main() {
     rgb += glints(px, w, ubuf.time, ubuf.seed) * nearEdge * 1.5;
 
     vec4 acc = vec4(rgb, 0.0) * (ubuf.intensity * 2.0);
+    // Roll bright peaks off smoothly instead of clipping them. A spot that is cut off
+    // flat at the maximum has a visible edge where it drops below the clip, and reads
+    // as a hard-edged disc; this leaves low values almost alone and approaches the
+    // maximum gradually.
+    acc.rgb = 1.0 - exp(-acc.rgb);
     if (ubuf.additive < 0.5) acc.a = max(acc.r, max(acc.g, acc.b));
     acc = clamp(acc, 0.0, 1.0);
     fragColor = acc * ubuf.qt_Opacity;

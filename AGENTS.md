@@ -154,6 +154,24 @@ The brief: **subdued psychedelic horror mixed with the beauty of nature.**
   *spot* must be radially symmetric; any structure borrowed from the fans (rays,
   angle) reads as a projected beam. Judge counts at the user's size: a few per large
   window, not a string of lights, and keep the peak below white.
+  Third round (two screen recordings): it still looked spotlit sometimes, the inner
+  edge could be softer still, and "the colours move around and glob with these very
+  hard edges". Causes: (1) `fanField` *chose* the stronger of the two fans at each
+  pixel, so hue and strength jumped along a line wherever the fans cross, and that
+  line drifts as they wander: the hard-edged globs. It now blends them, with a
+  strength-weighted mean hue. Never pick between fields with `if (a > b)`; blend.
+  (2) The rays were still in the strength (a 50% modulation), which is where the
+  residual spotlight came from; they are down to 15%. (3) The brightness was
+  hard-clipped with `clamp`, so the brightest patches were flat discs with an edge
+  where they dropped below the clip (2.4% of glow pixels after a gain increase). It
+  now rolls off with `1 - exp(-x)`, 0% clipped. (4) The inner tail is longer and
+  more Gaussian, and the bright line at the edge is fainter. Measured on the real
+  shader over a synthetic desktop: clipped 0.5% to 0.0%; colour change along an edge
+  0.0010 to 0.0007 per pixel. A "sharpest gradient" metric did NOT show the
+  improvement (0.056 to 0.063) because the glints dominate it; metrics must match the
+  complaint, and the clipping count did. The glow's rate of change in time is about
+  0.05 of its level per second, calmer than the main layer's 0.2, and the user has
+  not asked for more.
   Other lessons: (a) a "which way does the edge face" term made diagonal
   picture-frame seams at corners, because the nearest edge switches along the
   diagonal; it was removed. (b) A glow cut off at a fixed depth while still bright
