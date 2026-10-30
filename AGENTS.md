@@ -202,6 +202,43 @@ The brief: **subdued psychedelic horror mixed with the beauty of nature.**
   position row by row (a constant slope means a ray from a source), then fix the
   cause. Rule: any `if (x > 0) mean else default` must be blended, any selection
   between fields must be a blend, and nothing may sample `atan` directly.
+  **Cursor mode** (`windowGlowMode: "cursor"`; the user asked for it, and for a
+  performance estimate first). Only the active window (`focusHistoryID` 0, if it is on
+  this screen) is passed to the shader; the glow is faint and narrow everywhere on it
+  (20% gain, 0.75 of the band width) except along the span of edge nearest the pointer
+  (full gain, 1.85 of the width). "Nearest" is *relative*: the shader gets the pointer
+  position and its distance `d` to the nearest edge (`cursor` = x, y, d, on), and a
+  pixel's pull is `exp(-(max(|px - pointer| - d, 0) / 9 band widths)^2)`, so the closest
+  part of the edge pools light even with the pointer mid-window; `d` also scales the
+  peak (0.35 to 1, over 22 band widths). Cursor off (`cursor.w` = 0) is byte-identical to
+  the old shader, checked at several moments. Measured cost (CPU rasteriser, 1880x1190,
+  ratios only): all mode with three windows 92 ms; cursor mode, one window, 47 to 66 ms;
+  the cursor term itself under 1%. Pitfall: the first early exit must allow for the
+  widest possible band, so it needs a second, tight one once the local width is known
+  (the first version ran at 74 ms because of that). Scan for hard edges with the pointer
+  in five places: worst colour step 0.12 to 0.14, same as with it off.
+  **The pointer feed** (`CursorTracker.qml`) is the part with real cost and the part that
+  could NOT be tested here (the sandbox forbids creating sockets). Hyprland has no pointer
+  event and a click-through layer cannot receive hover, so it polls: first over Quickshell's
+  `Socket` to `Hyprland.requestSocketPath` (what hyprctl does; no process; sends `cursorpos`;
+  Hyprland replies "x, y" and closes the connection), and after six consecutive misses it
+  falls back to spawning `hyprctl cursorpos` (about 7 ms of CPU a spawn, so 6 polls a
+  second, about 4% of a core), and after six more to "none" (the glow goes uniform).
+  `omarchy-shell shimmer status` reports `cursorSource` ("socket", "hyprctl" or "none"),
+  `cursorKnown` and `cursor`: **check that first** if cursor mode does nothing. It polls
+  only while the glow is visible and in cursor mode, at 30 Hz while the pointer moves and
+  about 7 Hz once it has rested. Unverified assumptions, in order of doubt: that
+  `SplitParser { splitMarker: "" }` delivers an unterminated reply (the fallback covers
+  it failing); that the `connected` property goes false when Hyprland closes the
+  connection; that `Socket` is allowed for a third-party plugin (no first-party code uses
+  it). A fourth route, not built because it runs user code on the compositor's main
+  thread (a bug there stalls the desktop): a Hyprland Lua `hl.timer` calling
+  `hl.get_cursor_pos()` and writing to a file the plugin watches. Logic tests (reply parsing,
+  the miss and fallback state machine, active-window choice, edge distance, the shader
+  uniform) are in `extras/dev/cursor-tracker-test.js` and `extras/dev/window-glow-test.js`,
+  which run the real functions from the QML files in node; every check was confirmed to
+  fail when its code is broken on purpose. `extras/dev/edge-scan.py` is the hard-edge scan
+  that found the colour edges (run it on any change to the glow).
   Other lessons: (a) a "which way does the edge face" term made diagonal
   picture-frame seams at corners, because the nearest edge switches along the
   diagonal; it was removed. (b) A glow cut off at a fixed depth while still bright

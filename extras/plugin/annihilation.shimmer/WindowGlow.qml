@@ -8,6 +8,10 @@
 // event (an interactive resize), so during a resize the glow lags until it ends.
 // The windows are sorted by focus history, most recent first, as a stand-in for
 // stacking order. Hidden while a fullscreen window covers the screen.
+//
+// In cursor mode (service.windowGlowMode) only the active window glows, faintly, and the
+// span of its edge nearest the pointer is wider and brighter; the pointer comes from the
+// service's CursorTracker and is smoothed here so the pool of light glides.
 
 import QtQuick
 import Quickshell
@@ -34,8 +38,26 @@ PanelWindow {
   property real styleRounding: 4
   property real styleBorder: 2
 
-  // Topmost first, at most six, in this screen's logical pixels.
+  // Topmost first, at most six, in this screen's logical pixels. In cursor mode: just the
+  // active window, if it is on this screen.
   property var rects: []
+
+  readonly property bool cursorMode: service.windowGlowMode === "cursor"
+  // Which window is active, so that moving to another one can fade the glow in anew.
+  property string activeKey: ""
+  property real fade: 1
+
+  // The pointer, smoothed. The first few readings jump, so the glow does not sweep in
+  // from the corner of the screen when tracking starts.
+  property real smoothX: service.pointer.cursorX
+  property real smoothY: service.pointer.cursorY
+  Behavior on smoothX { enabled: win.service.pointer.samples > 2; NumberAnimation { duration: 110; easing.type: Easing.OutQuad } }
+  Behavior on smoothY { enabled: win.service.pointer.samples > 2; NumberAnimation { duration: 110; easing.type: Easing.OutQuad } }
+
+  onCursorModeChanged: refresh.restart()
+  onActiveKeyChanged: if (activeKey !== "") fadeIn.restart()
+
+  NumberAnimation { id: fadeIn; target: win; property: "fade"; from: 0; to: 1; duration: 350; easing.type: Easing.InOutSine }
 
   readonly property var relevantEvents: ["openwindow", "closewindow", "movewindow", "movewindowv2",
     "changefloatingmode", "fullscreen", "workspace", "workspacev2", "activewindow", "activewindowv2",
@@ -53,10 +75,37 @@ PanelWindow {
       if (!o.workspace || o.workspace.id !== wsId || o.monitor !== mon.id) continue
       // The border is drawn outside the window's own rectangle; start at its outer edge.
       var b = styleBorder
-      found.push({ x: o.at[0] - mon.x - b, y: o.at[1] - mon.y - b, w: o.size[0] + 2 * b, h: o.size[1] + 2 * b, z: o.focusHistoryID })
+      found.push({ x: o.at[0] - mon.x - b, y: o.at[1] - mon.y - b, w: o.size[0] + 2 * b, h: o.size[1] + 2 * b, z: o.focusHistoryID, a: String(o.address) })
     }
     found.sort(function(a, b) { return a.z - b.z })
-    rects = found.slice(0, 6)
+    if (cursorMode) {
+      // The active window is the most recently focused one (focusHistoryID 0), and only
+      // counts here if it is on this screen.
+      var active = found.length > 0 && found[0].z === 0 ? found[0] : null
+      rects = active ? [active] : []
+      activeKey = active ? active.a : ""
+    } else {
+      rects = found.slice(0, 6)
+      activeKey = ""
+    }
+  }
+
+  // How far a point is from the nearest edge of a rectangle, inside or out.
+  function edgeDistance(cx, cy, r) {
+    var dx = Math.max(r.x - cx, 0, cx - (r.x + r.w))
+    var dy = Math.max(r.y - cy, 0, cy - (r.y + r.h))
+    if (dx > 0 || dy > 0) return Math.sqrt(dx * dx + dy * dy)
+    return Math.min(cx - r.x, r.x + r.w - cx, cy - r.y, r.y + r.h - cy)
+  }
+
+  // The pointer for the shader: x, y on this screen, its distance to the active window's
+  // nearest edge, and 1 when the cursor effect applies (0 gives the uniform glow).
+  function cursorUniform() {
+    var mon = hyprMonitor
+    if (!cursorMode || !service.pointer.known || rects.length === 0 || !mon) return Qt.vector4d(0, 0, 0, 0)
+    var cx = smoothX - mon.x
+    var cy = smoothY - mon.y
+    return Qt.vector4d(cx, cy, edgeDistance(cx, cy, rects[0]), 1)
   }
 
   function rectAt(i) {
@@ -142,6 +191,8 @@ PanelWindow {
     property real rounding: win.styleRounding
     property size resolution: Qt.size(width, height)
     property vector4d usable: win.usableRect()
+    property vector4d cursor: win.cursorUniform()
+    opacity: win.fade
     property vector4d win0: win.rectAt(0)
     property vector4d win1: win.rectAt(1)
     property vector4d win2: win.rectAt(2)

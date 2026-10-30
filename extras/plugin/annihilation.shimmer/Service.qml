@@ -6,6 +6,7 @@
 // Settings are inline fields on this plugin's entry in shell.json `plugins[]`:
 //   layerEnabled (bool, true), layerIntensity (0-1, 0.35), layerSpeed (0.1-4, 1),
 //   motes (bool, true), windowGlow (bool, true: light spilling over window edges),
+//   windowGlowMode ("all", or "cursor": the active window only, pooled near the pointer),
 //   layerAdditive (bool, true),
 //   fpsCap (5-60, 30), screensaver (bool, true),
 //   screensaverSeconds (0 = follow idle.screensaver in shell.json),
@@ -44,6 +45,9 @@ Scope {
   property bool layerAdditive: true
   // Light spilling over the edges of windows, from behind them (WindowGlow.qml).
   property bool windowGlow: true
+  // "all": every window glows evenly. "cursor": only the active window does, faintly, with the
+  // span of its edge nearest the pointer wider and brighter.
+  property string windowGlowMode: "all"
   property real layerIntensity: 0.35
   // How fast the Shimmer evolves, as a multiple of its natural pace.
   property real layerSpeed: 1.0
@@ -133,6 +137,7 @@ Scope {
     layerEnabled = entry.layerEnabled !== false
     layerAdditive = entry.layerAdditive !== false
     windowGlow = entry.windowGlow !== false
+    windowGlowMode = entry.windowGlowMode === "cursor" ? "cursor" : "all"
     motes = entry.motes !== false
     layerIntensity = typeof entry.layerIntensity === "number" ? clamp(entry.layerIntensity, 0, 1) : 0.35
     layerSpeed = typeof entry.layerSpeed === "number" ? clamp(entry.layerSpeed, 0.1, 4) : 1.0
@@ -216,6 +221,16 @@ Scope {
   FontLoader {
     id: cinzelFont
     source: Qt.resolvedUrl("fonts/Cinzel.ttf")
+  }
+
+  // Polled only while something needs the pointer.
+  readonly property bool cursorTracking: themeActive && layerEnabled && windowGlow
+    && windowGlowMode === "cursor" && !screensaverActive
+  readonly property alias pointer: pointerTracker
+
+  CursorTracker {
+    id: pointerTracker
+    active: root.cursorTracking
   }
 
   FileView {
@@ -308,6 +323,10 @@ Scope {
         layerEnabled: root.layerEnabled,
         layerAdditive: root.layerAdditive,
         windowGlow: root.windowGlow,
+        windowGlowMode: root.windowGlowMode,
+        cursorSource: pointer.source,
+        cursorKnown: pointer.known,
+        cursor: [pointer.cursorX, pointer.cursorY],
         layerIntensity: root.layerIntensity,
         layerSpeed: root.layerSpeed,
         motes: root.motes,

@@ -16,6 +16,12 @@
 // the width of the band the hue shifts only a little, the way a bright edge is split by a prism. A faint ambient glow keeps every edge from going completely
 // dark.
 //
+// In cursor mode (cursor.w = 1) only the active window is passed in, and the glow is
+// faint everywhere on it except along the span of its edge nearest the pointer, where
+// it is wider and brighter. "Nearest" is relative: the pointer need not be near an edge,
+// the closest part of the edge always pools the light, and it pools more strongly the
+// closer the pointer is. With cursor.w = 0 the glow is uniform, as before.
+//
 // Windows come in as rectangles (x, y, width, height in logical pixels), topmost
 // first; a pixel inside several belongs to the first. Output is added light:
 // colour above alpha, as in shimmer.frag, and `additive` off falls back to
@@ -34,6 +40,7 @@ layout(std140, binding = 0) uniform buf {
     float rimWidth;      // how far the light reaches into a window, in pixels
     float rounding;      // the windows' corner radius, in pixels
     vec2 resolution;
+    vec4 cursor;         // pointer x, y in pixels; its distance to the nearest window edge; 1 = on
     vec4 usable;         // the part of the screen not reserved by bars: x, y, w, h
     vec4 win0;
     vec4 win1;
@@ -236,13 +243,37 @@ float field(vec2 px) {
 void main() {
     vec2 uv = qt_TexCoord0;
     vec2 px = uv * ubuf.resolution;
-    float w = ubuf.rimWidth;
+    float w0 = ubuf.rimWidth;
+    bool follow = ubuf.cursor.w > 0.5;
+    // The widest the band can get, for the early exit below.
+    float wmax = follow ? w0 * 1.85 : w0;
 
     // Almost every pixel is nowhere near an edge, and stops here.
     float sd = field(px);
-    if (sd > 1.6 * w || sd < -3.6 * w) {
+    if (sd > 1.6 * wmax || sd < -3.6 * wmax) {
         fragColor = vec4(0.0);
         return;
+    }
+
+    // How close this pixel is to the span of edge nearest the pointer: 1 at the nearest
+    // point and for pixels no farther from the pointer than that, falling off beyond.
+    float g = 1.0;
+    float gain = 1.0;
+    float w = w0;
+    if (follow) {
+        float dcur = length(px - ubuf.cursor.xy);
+        float ex = max(dcur - ubuf.cursor.z, 0.0) / (9.0 * w0);
+        float near = exp(-ex * ex);
+        // The pointer being close to the edge strengthens the pooling.
+        float pz = ubuf.cursor.z / (22.0 * w0);
+        g = near * (0.35 + 0.65 * exp(-pz * pz));
+        gain = 0.20 + 0.80 * g;
+        w = w0 * (0.75 + 1.10 * g);
+        // The first exit had to allow for the widest the band can be; now the real width is known.
+        if (sd > 1.6 * w || sd < -3.6 * w) {
+            fragColor = vec4(0.0);
+            return;
+        }
     }
     bool inside = sd < 0.0;
     // Outside a window, keep out of the bars' reserved strips.
@@ -277,9 +308,10 @@ void main() {
     // The bright spots, shown only near an edge and faded to nothing before the limits above.
     float nearEdge = exp(-abs(sd) / (1.3 * w))
         * (inside ? 1.0 - smoothstep(1.4, 2.4, -sd / w) : 1.0 - smoothstep(0.9, 1.6, sd / w));
-    rgb += glints(px, w, ubuf.time, ubuf.seed) * nearEdge * 1.5;
+    // Glints sit on a fixed grid, so their size must not depend on the pixel.
+    rgb += glints(px, w0, ubuf.time, ubuf.seed) * nearEdge * 1.5 * g;
 
-    vec4 acc = vec4(rgb, 0.0) * (ubuf.intensity * 2.0);
+    vec4 acc = vec4(rgb * gain, 0.0) * (ubuf.intensity * 2.0);
     // Roll bright peaks off smoothly instead of clipping them. A spot that is cut off
     // flat at the maximum has a visible edge where it drops below the clip, and reads
     // as a hard-edged disc; this leaves low values almost alone and approaches the

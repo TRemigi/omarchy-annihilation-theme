@@ -32,6 +32,7 @@ Panel {
   readonly property real speed: Number(setting("layerSpeed", 1.0))
   readonly property bool layerEnabled: setting("layerEnabled", true) !== false
   readonly property bool motes: setting("motes", true) !== false
+  readonly property bool glowFollows: setting("windowGlowMode", "all") === "cursor"
 
   function change(key, value) {
     if (root.hostWidget && typeof root.hostWidget.updateSetting === "function")
@@ -171,7 +172,8 @@ Panel {
         Repeater {
           model: [
             { label: "Wallpaper layer", key: "layerEnabled" },
-            { label: "Spores", key: "motes" }
+            { label: "Spores", key: "motes" },
+            { label: "Glow follows cursor", key: "windowGlowMode" }
           ]
 
           Item {
@@ -193,8 +195,12 @@ Panel {
               id: toggle
               anchors.right: parent.right
               anchors.verticalCenter: parent.verticalCenter
-              checked: row.modelData.key === "layerEnabled" ? root.layerEnabled : root.motes
-              onToggled: root.change(row.modelData.key, !checked)
+              checked: row.modelData.key === "layerEnabled" ? root.layerEnabled
+                : row.modelData.key === "windowGlowMode" ? root.glowFollows : root.motes
+              // windowGlowMode is a word, not a switch: "cursor" (active window, pooled at the
+              // pointer) or "all" (every window, evenly).
+              onToggled: root.change(row.modelData.key,
+                row.modelData.key === "windowGlowMode" ? (checked ? "all" : "cursor") : !checked)
             }
           }
         }
