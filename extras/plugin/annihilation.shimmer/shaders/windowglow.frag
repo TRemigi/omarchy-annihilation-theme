@@ -264,7 +264,7 @@ float field(vec2 px) {
 // Spilling is the light arriving: the pool grows outward along the edge from the nearest point
 // while it brightens, and flares a little on the way (`bloom`, 1 at both ends and 1.3 halfway),
 // the way a lamp turned on behind a window throws a front of light before it settles.
-vec4 pool(vec2 px, vec4 nr, float dist, float amount, float spill, float w0, float wd, float R0, float spotScale) {
+vec4 pool(vec2 px, vec4 nr, float dist, float amount, float spill, float w0, float wd, float R0, vec2 spotR, float sdv) {
     vec2 dq = px - nr.xy;
     float lat = dot(dq, nr.zw);
     float lat2 = lat * lat;
@@ -273,7 +273,8 @@ vec4 pool(vec2 px, vec4 nr, float dist, float amount, float spill, float w0, flo
     // as brightly. Fade with distance across, from the line of the edge: flat out to
     // about a band depth (the fourth power keeps the edge's own tail untouched) and
     // gone before the window's far side.
-    float ac = dot(dq, vec2(-nr.w, nr.z)) / (7.0 * wd);
+    float acr = dot(dq, vec2(-nr.w, nr.z));
+    float ac = acr / (7.0 * wd);
     float edgeOnly = exp(-ac * ac * ac * ac);
     // The pointer being close to the edge strengthens the pooling.
     float pz = dist / (22.0 * w0);
@@ -287,15 +288,20 @@ vec4 pool(vec2 px, vec4 nr, float dist, float amount, float spill, float w0, flo
     // The bright core: the same, but narrower along the edge, and it hugs the edge.
     float hot = exp(-lat2 / (0.25 * R * R)) * peak * edgeOnly * bloom;
     float hotter = exp(-lat2 / (0.05 * R * R)) * peak * edgeOnly * bloom;
-    // A point, not a patch: about 25 px across at the default depth and span (`spotScale` is 1
-    // there, and grows with the square root of depth times span, so a deeper band or a longer
-    // pool gets a proportionally bigger point), centred on the spot of the edge nearest the
-    // pointer, and the first thing to appear. Its profile has long soft
-    // shoulders (a power law cut off by a wide Gaussian) rather than a Gaussian's quick drop:
-    // the glow behind it is nearly saturated, so a Gaussian read as a flat white disc with a
-    // rim where it fell away.
-    float rs = 0.44 * w0 * spotScale;
-    float uu = dot(dq, dq) / (rs * rs);
+    // The bright point is light escaping over the edge, so it is a streak lying along the edge, not a
+    // disc: as long as the span says (`spotR.x`), as thick as the depth says (`spotR.y`, the
+    // radius across the edge), and tighter outside the window than in, like the halo around it.
+    // At the default depth and span the two radii are equal (about 25 px across). `sdv` is the
+    // shaped distance, used only to tell which side of the edge this pixel is on; the
+    // distance across is the true one, from the nearest edge's line. The side weight is smooth, so the
+    // change from the inside radius to the outside one leaves no line. The profile has long
+    // soft shoulders (a power law cut off by a wide Gaussian) rather than a Gaussian's quick
+    // drop: the glow behind it is nearly saturated, so a Gaussian read as a flat white disc
+    // with a rim where it fell away.
+    float outside = smoothstep(-1.0, 1.0, sdv / spotR.y);
+    float ud = abs(acr) * mix(1.0, 1.0 / 0.65, outside) / spotR.y;
+    float ul = lat / spotR.x;
+    float uu = ul * ul + ud * ud;
     float spot = pow(1.0 / (1.0 + uu), 1.3) * exp(-uu / 6.76) * peak * smoothstep(0.0, 0.35, spill) * bloom;
     return vec4(g, hot, hotter, spot);
 }
@@ -308,13 +314,14 @@ void main() {
     float wd = w0 * max(ubuf.depth, 0.02);
     bool follow = ubuf.cursor.w > 0.5;
     // The bright point grows with the depth and the span.
-    float spotScale = sqrt(max(ubuf.depth, 0.02) * max(ubuf.cursorSpan, 0.1));
-    // The point grows with depth and span but the band's early exits are measured in band widths,
-    // so where the point is large against the band (a shallow band, a long pool) they are widened
-    // to keep from cutting it off in a straight line. Exactly 1 at the defaults.
-    float exitScale = follow ? max(1.0, spotScale / max(ubuf.depth, 0.02)) : 1.0;
+    // The bright point's radii: along the edge with the span, across it with the depth (with a
+    // floor of about a pixel, so a very shallow band keeps a hairline of light, not nothing).
+    vec2 spotR = vec2(0.44 * w0 * max(ubuf.cursorSpan, 0.1), sqrt(0.1936 * wd * wd + 1.0));
+    // The early exits are measured in band widths, which shrink with depth, and must not cut the
+    // point off: widen them to its across-radius where that is the larger.
+    float wspot = follow ? 2.4 * spotR.y : 0.0;
     // The widest the band can get, for the early exit below.
-    float wmax = (follow ? wd * 1.85 : wd) * exitScale;
+    float wmax = max(follow ? wd * 1.85 : wd, wspot);
 
     // Almost every pixel is nowhere near an edge, and stops here.
     float sd = field(px);
@@ -335,9 +342,9 @@ void main() {
     float spot = 0.0;         // and on top of it a small bright point, right on the edge
     if (follow) {
         float R0 = max(ubuf.cursorSpan, 0.1) * 8.0 * w0;
-        vec4 pl = pool(px, ubuf.nearest, ubuf.cursor.z, 1.0, ubuf.pools.x, w0, wd, R0, spotScale);
+        vec4 pl = pool(px, ubuf.nearest, ubuf.cursor.z, 1.0, ubuf.pools.x, w0, wd, R0, spotR, sd);
         // The edge that was nearest, while its light drains away.
-        if (ubuf.pools.y > 0.001) pl += pool(px, ubuf.nearestPrev, ubuf.pools.z, ubuf.pools.y, 1.0, w0, wd, R0, spotScale);
+        if (ubuf.pools.y > 0.001) pl += pool(px, ubuf.nearestPrev, ubuf.pools.z, ubuf.pools.y, 1.0, w0, wd, R0, spotR, sd);
         g = min(pl.x, 1.0);
         hot = pl.y * ubuf.centerGain;
         hotter = pl.z * ubuf.centerGain;
@@ -345,7 +352,8 @@ void main() {
         gain = 0.20 + 0.80 * g;
         w = wd * (0.8 + 0.8 * g);
         // The first exit had to allow for the widest the band can be; now the real width is known.
-        if (sd > 1.6 * w * exitScale || sd < -3.6 * w * exitScale) {
+        float wx = max(w, wspot);
+        if (sd > 1.6 * wx || sd < -3.6 * wx) {
             fragColor = vec4(0.0);
             return;
         }

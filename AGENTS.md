@@ -298,18 +298,34 @@ The brief: **subdued psychedelic horror mixed with the beauty of nature.**
   window the light reaches, in both modes. It is the `depth` uniform, a multiple of `rimWidth`:
   `wd = w0 * depth` is the band's depth, the core's depth profile, the `edgeOnly` gate and the crease
   rounding in `winSd`. The span (`R0`), the proximity boost and the glints stay on the base `w0`, so
-  depth and span are independent. The bright point's radius is `0.44 w0 * spotScale`, with
-  `spotScale = sqrt(depth * span)` (1 at the defaults; measured 10% extent 69 px at 1x1, 142 px at
-  scale 2, 36 px at 0.5). The early exits are in band widths, so with a shallow band they cut the
-  larger point off in a straight line (0.05 excess at depth 0.5, span 2.5); `exitScale =
-  max(1, spotScale / depth)` widens them (now 1/255). Defaults are byte-identical to the shader
-  before depth existed, in all mode, cursor mode and mid-spill. Measure the point by differencing
-  against a copy with `spot` zeroed, and judge it at the corners of depth x span.
+  depth and span are independent.
+  **The bright point is a streak along the edge, not a disc** (user: with a low depth it "remains
+  perfectly circular and looks unrealistic"). Light escaping over an edge from behind is thin across
+  and long along. Its radius along the edge is `0.44 w0 * span`, across it `sqrt((0.44 wd)^2 + 1)`
+  (the +1 keeps a hairline of about a pixel at tiny depths), and outside the window it is tighter
+  (across-distance scaled by 1/0.65, as the band's halo is). Equal radii at the defaults (about 25 px
+  across), so the default is still a round point, now slightly tighter on the outside (mean change
+  0.003, max 0.13 around the pointer). The across distance is the true one from the nearest edge's
+  line (`acr`), as before; `sd` only picks the side, through `smoothstep(-1, 1, sd / rd)` so the
+  radius changes without a line (`sd` is offset from the true edge by about half the crease
+  rounding, so a hard `sd < 0` test would draw one). Do not take the across distance from `sd`:
+  at small windows the opposite edge would light up. This is not the beam look the older rule warns
+  about: the rule is about rays and angle structure; an ellipse lying along the edge and centred on
+  the nearest point is still a blob. The early exits must not cut the point off: they use
+  `max(w, 2.4 * rd)`. Measured: the point's excess on the first lit row stays at or under 2/255 for
+  depth 0.02 to 2.5 and span 0.5 to 2.5. At low depth the pool's core already saturates the line
+  itself, so what the streak removes is the round halo that used to sit off the line.
+  Seen on a contact sheet of depth (2.5, 1, 0.25, 0.05) by span (0.5, 1, 2.5), composited over a
+  dark backdrop: render both versions and look, because the numbers do not show roundness.
+  Known and not touched: the band's profile steps from 0.65 (outside) to 1.0 (inside) at `sd = 0`,
+  which is about half the crease rounding outside the true edge, so at depth 2.5 it shows as a
+  faint strip with a hard top edge (about 0.04 in luminance, 14 px above the edge). It predates
+  depth; the fix would be to make `prof` continuous there.
   Depth was first limited to 0.5-2.5, and the user found 0.5 still too deep, so the setting goes
   down to 0.02 (the popup slider from 0.05; the shader floors it at 0.02). Measured inward reach at
   the 10% level: 175 px at 2.5, 51 at 1, 25 at 0.5, 12 at 0.25, 5 at 0.1, 3 at 0.05 (2 px of halo
   outside). The bright point shrinks with it (10% extent 14 px at 0.05, span 1).
-  **Centre brightness** (`windowGlowCenter`, slider "Glow center", 0-2.5, default 1, cursor mode
+  **Centre brightness** (`windowGlowCenter`, slider "Glow brightness", 0-2.5, default 1, cursor mode
   only): the `centerGain` uniform multiplies the pool's `hot`, `hotter` and `spot` terms right
   after `pool()` returns, which scales both the white core and the point, but not the broad pool
   (`g`). Exactly 1 at the default, so output is byte-identical. The centre sits in the tone-map's

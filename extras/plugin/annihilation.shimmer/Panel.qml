@@ -146,6 +146,14 @@ Panel {
 
         PanelSectionHeader { text: "THE SHIMMER" }
 
+        // The longest slider label, so that the common column fits it.
+        TextMetrics {
+          id: labelMetrics
+          font.family: Style.font.family
+          font.pixelSize: Style.font.body
+          text: "Glow brightness"
+        }
+
         // The sliders, with their labels in a common column, so they line up.
         Repeater {
           model: [
@@ -153,7 +161,7 @@ Panel {
             { label: "Speed", key: "layerSpeed", min: 0.25, max: 3, step: 0.05 },
             { label: "Glow span", key: "windowGlowSpan", min: 0.5, max: 2.5, step: 0.05 },
             { label: "Glow depth", key: "windowGlowDepth", min: 0.05, max: 2.5, step: 0.05 },
-            { label: "Glow center", key: "windowGlowCenter", min: 0, max: 2.5, step: 0.05 }
+            { label: "Glow brightness", key: "windowGlowCenter", min: 0, max: 2.5, step: 0.05 }
           ]
 
           Row {
@@ -168,7 +176,7 @@ Panel {
             Text {
               id: sliderLabel
               anchors.verticalCenter: parent.verticalCenter
-              width: Style.space(84)
+              width: Math.max(Style.space(84), Math.ceil(labelMetrics.advanceWidth))
               text: sliderRow.modelData.label
               color: Color.foreground
               font.family: Style.font.family

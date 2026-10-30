@@ -9,7 +9,7 @@
 //   windowGlowMode ("all", or "cursor": the active window only, pooled near the pointer),
 //   windowGlowSpan (0.5-2.5, 1: how much length of edge the pool covers, in cursor mode),
 //   windowGlowDepth (0.02-2.5, 1: how far into a window the glow reaches),
-//   windowGlowCenter (0-2.5, 1: brightness of the cursor glow's bright centre),
+//   windowGlowCenter (0-2.5, 1: brightness of the cursor glow's bright centre; "Glow brightness" in the popup),
 //   layerAdditive (bool, true),
 //   fpsCap (5-60, 30), screensaver (bool, true),
 //   screensaverSeconds (0 = follow idle.screensaver in shell.json),
