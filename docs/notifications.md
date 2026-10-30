@@ -10,7 +10,7 @@ gotchas; this file is only about notifications.
 | # | Item | State |
 |---|------|-------|
 | 0 | Notification feed (plugin learns when a toast arrives) | **built, not seen live** |
-| 1 | Arrival glow (light spreads from the toast corner) | not started |
+| 1 | Arrival glow (light spreads from the toast corner) | **built, not seen live** |
 | 2 | Sound (synthesized, opt-in) | not started |
 | 4 | Missed notifications on the bar prism | not started |
 | 6 | Themed fork of the notification daemon | **follow-up, not planned yet** |
@@ -89,6 +89,42 @@ Design:
   `notify-send` first.
 
 ## Item 1: arrival glow
+
+**Built:** `ArrivalGlow.qml` (one layer per screen, namespace `annihilation-arrival`,
+`WlrLayer.Top`, click-through, shown only while an arrival is running),
+`shaders/arrival.frag` (+ committed `.qsb`), settings `notifyGlow` and
+`notifyGlowStrength` (popup: "Glow on notifications" and "Arrival glow"), the
+Hyprland layer rule extended to the new namespace (needs `hyprctl reload`), and
+`omarchy-shell shimmer notify [0|1|2]` to trigger one without `notify-send`.
+Tests: `extras/dev/arrival-glow-test.js` (26 checks, 10 deliberate breaks each
+caught). The shader was rendered through `extras/dev/shader-harness.c` (it now
+takes `EV0..EV2`, `ORIGIN`, `BOX`, `REACH`, `STRENGTH`) and judged from
+filmstrips over a dark backdrop with a stand-in card.
+
+What the design is, and what it took to get there (so it is not re-derived):
+- A **ring** leaves the source and travels out, widening and dimming, plus a slower
+  **halo**. Duration 3.2 s low, 4.2 s normal, 6 s critical; strength 0.6 / 1 / 1.3;
+  `omarchy-action` toasts 0.7 and a burst (within 400 ms of the last) 0.6; at most
+  three at once. Colour: normal teal to blue, critical amber to pink, low moss to
+  teal (across the ring's width only, a narrow slice of the spectrum).
+- First version used the card's own 380x68 outline as the source. The ring stayed
+  a big rounded rectangle (a picture frame) and a flat fill sat between card and
+  ring. Blending box distance into circle distance made a shield-shaped kink at the
+  lower left. What worked: a source box **narrower than the card** (100x30 half-size,
+  `sourceBox`), pure rounded-box distance, so the ring rounds off soon; and the halo
+  cut to sigma 0.22 reach at half the amplitude. Ring 0.30, halo 0.15.
+- Measured on the real shader at 1880x1190 (border shaved): largest step between
+  neighbouring pixels 3/255 (0.012), peak channel 0.45 for a critical arrival and
+  0.42 for three stacked, never near white. Cost is negligible (renders at half
+  scale, only while an arrival runs).
+- Known: the layer is above the bar, so the glow can lighten the bar's right end;
+  the origin assumes a 380 px card at `Style.gapsOut` from the corner and the bar's
+  reserved area, so it is a few pixels off for a tall card; `renderScale` is 0.5.
+- **Look at it live first.** `omarchy-shell shimmer notify 1` (then 2, 0). If it is
+  too strong or too weak the slider is the quick test; defaults live in the shader
+  (`0.30` ring, `0.15` halo) and `amplitudeFor`.
+
+Original brief for this item, kept for reference:
 
 When a toast arrives, a slow ring of refracted light spreads from the top-right
 corner (where toasts land) and fades over a few seconds. Colour by urgency: teal

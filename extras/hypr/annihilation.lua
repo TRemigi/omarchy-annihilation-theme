@@ -43,8 +43,8 @@ hl.layer_rule({
   ignore_alpha = 0.3,
 })
 
--- The shimmer wallpaper layer and the window glow should appear and vanish without a fade.
-hl.layer_rule({ match = { namespace = "^annihilation-(shimmer|windowglow)$" }, no_anim = true, animation = "none" })
+-- The shimmer wallpaper layer, the window glow and the arrival glow should appear and vanish without a fade.
+hl.layer_rule({ match = { namespace = "^annihilation-(shimmer|windowglow|arrival)$" }, no_anim = true, animation = "none" })
 
 hl.curve("tendril", { type = "bezier", points = { { 0.22, 1 }, { 0.36, 1 } } })
 hl.curve("exhale", { type = "bezier", points = { { 0.5, 0 }, { 0.75, 1 } } })

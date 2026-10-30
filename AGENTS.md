@@ -32,7 +32,9 @@ Plugin files: `manifest.json` (service + bar-widget), `Service.qml` (settings,
 theme gate, IPC, idle monitor, passage parts, font loading), `ShimmerLayer.qml`
 (wallpaper overlay per screen), `Screensaver.qml` (overlay per screen),
 `Crawl.qml` (the scrolling, glowing text line),
-`BarWidget.qml` + `Panel.qml` (prism glyph and popup), `shaders/*.frag` and the
+`BarWidget.qml` + `Panel.qml` (prism glyph and popup), `NotificationFeed.qml` (an `arrived`
+signal from the notification service's popup files) and `ArrivalGlow.qml` (light off a toast;
+see `docs/notifications.md`), `shaders/*.frag` and the
 committed compiled `*.frag.qsb`, `fonts/` (Jost, Cinzel + OFL licences),
 `passage.txt` (screensaver text), `journal.txt` (popup daily entries).
 
@@ -641,7 +643,8 @@ Settings (inline on the plugin entry): `layerEnabled`, `layerIntensity` (0.35), 
 `cinzel`, or an installed family).
 
 IPC (`omarchy-shell shimmer ...`): `toggleLayer`, `pulse`, `screensaver`,
-`dismiss`, `status`.
+`dismiss`, `status`, `notify <0|1|2>` (fake an arrival, to see its effects).
+Settings added for notifications: `notifyGlow` (true), `notifyGlowStrength` (0.1 to 2, 1).
 
 Also a setting: `crawlSpeed` (0.5 to 8).
 

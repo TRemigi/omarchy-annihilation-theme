@@ -10,6 +10,8 @@
 //   windowGlowSpan (0.5-2.5, 1: how much length of edge the pool covers, in cursor mode),
 //   windowGlowDepth (0.02-2.5, 1: how far into a window the glow reaches),
 //   windowGlowCenter (0-2.5, 1: brightness of the cursor glow's bright centre; "Glow brightness" in the popup),
+//   notifyGlow (bool, true: light spreads off a toast when a notification arrives),
+//   notifyGlowStrength (0.1-2, 1: "Arrival glow" in the popup),
 //   layerAdditive (bool, true),
 //   fpsCap (5-60, 30), screensaver (bool, true),
 //   screensaverSeconds (0 = follow idle.screensaver in shell.json),
@@ -57,6 +59,8 @@ Scope {
   property real windowGlowDepth: 1.0
   // How bright the centre of the cursor glow (its core and bright point) is, as a multiple of the default.
   property real windowGlowCenter: 1.0
+  property bool notifyGlow: true
+  property real notifyGlowStrength: 1.0
   property real layerIntensity: 0.35
   // How fast the Shimmer evolves, as a multiple of its natural pace.
   property real layerSpeed: 1.0
@@ -150,6 +154,8 @@ Scope {
     windowGlowSpan = typeof entry.windowGlowSpan === "number" ? clamp(entry.windowGlowSpan, 0.5, 2.5) : 1.0
     windowGlowDepth = typeof entry.windowGlowDepth === "number" ? clamp(entry.windowGlowDepth, 0.02, 2.5) : 1.0
     windowGlowCenter = typeof entry.windowGlowCenter === "number" ? clamp(entry.windowGlowCenter, 0, 2.5) : 1.0
+    notifyGlow = entry.notifyGlow !== false
+    notifyGlowStrength = typeof entry.notifyGlowStrength === "number" ? clamp(entry.notifyGlowStrength, 0.1, 2) : 1.0
     motes = entry.motes !== false
     layerIntensity = typeof entry.layerIntensity === "number" ? clamp(entry.layerIntensity, 0, 1) : 0.35
     layerSpeed = typeof entry.layerSpeed === "number" ? clamp(entry.layerSpeed, 0.1, 4) : 1.0
@@ -329,6 +335,11 @@ Scope {
       root.pulse()
     }
 
+    // Pretend a notification arrived (0 low, 1 normal, 2 critical), to see the effects without sending one.
+    function notify(urgency: int): void {
+      if (root.themeActive) notifyFeed.simulate(urgency)
+    }
+
     function screensaver(): void {
       if (root.themeActive) root.screensaverForced = true
     }
@@ -351,6 +362,8 @@ Scope {
         cursorSource: pointer.source,
         cursorKnown: pointer.known,
         cursor: [pointer.cursorX, pointer.cursorY],
+        notifyGlow: root.notifyGlow,
+        notifyGlowStrength: root.notifyGlowStrength,
         notificationsWatching: notifyFeed.watching,
         notificationArrivals: notifyFeed.arrivals,
         notificationsRecent: notifyFeed.recent,
@@ -384,6 +397,16 @@ Scope {
     model: Quickshell.screens
 
     WindowGlow {
+      required property var modelData
+      screen: modelData
+      service: root
+    }
+  }
+
+  Variants {
+    model: Quickshell.screens
+
+    ArrivalGlow {
       required property var modelData
       screen: modelData
       service: root

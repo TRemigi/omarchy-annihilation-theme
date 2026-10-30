@@ -59,6 +59,13 @@ Scope {
     return "arrival"
   }
 
+  // An arrival that did not come from a file, for trying the effects (`shimmer notify`).
+  function simulate(urgency) {
+    var u = Number(urgency)
+    arrived({ app: "test", summary: "Test notification", body: "", urgency: u === 0 || u === 2 ? u : 1,
+              timestamp: Date.now(), expireTimeout: 0 })
+  }
+
   // Names come from inotify one at a time; reads are queued so two toasts in the same
   // millisecond are both read.
   function enqueue(name) {

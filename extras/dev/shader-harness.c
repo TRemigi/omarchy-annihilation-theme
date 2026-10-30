@@ -88,6 +88,15 @@ int main(int argc, char **argv) {
     }
     free(copy);
   }
+  // For arrival.frag: EV0, EV1, EV2 = "progress,urgency,amplitude,salt" (default off), ORIGIN="x,y" (the card's
+  // centre), BOX="halfwidth,halfheight", REACH (pixels) and STRENGTH.
+  { const char *names[3] = { "EV0", "EV1", "EV2" }; char nm[24];
+    for (int i = 0; i < 3; i++) { float a = 0, b = 1, c = 1, d = 0; if (getenv(names[i])) sscanf(getenv(names[i]), "%f,%f,%f,%f", &a, &b, &c, &d);
+      snprintf(nm, sizeof nm, "ubuf.ev%d", i); glUniform4f(glGetUniformLocation(prog, nm), a, b, c, d); } }
+  { float ox = W - 200, oy = 44, bx = 190, by = 34; if (getenv("ORIGIN")) sscanf(getenv("ORIGIN"), "%f,%f", &ox, &oy); if (getenv("BOX")) sscanf(getenv("BOX"), "%f,%f", &bx, &by);
+    glUniform2f(glGetUniformLocation(prog, "ubuf.origin"), ox, oy); glUniform2f(glGetUniformLocation(prog, "ubuf.box"), bx, by); }
+  glUniform1f(glGetUniformLocation(prog, "ubuf.reach"), getenv("REACH") ? (float)atof(getenv("REACH")) : 310.f);
+  glUniform1f(glGetUniformLocation(prog, "ubuf.strength"), getenv("STRENGTH") ? (float)atof(getenv("STRENGTH")) : 1.f);
   glUniform1f(glGetUniformLocation(prog, "ubuf.additive"), getenv("ADDITIVE") ? (float)atof(getenv("ADDITIVE")) : 1.f);
   glUniform2f(glGetUniformLocation(prog, "ubuf.resolution"), (float)W, (float)H);
   GLuint fbo, tex; glGenTextures(1, &tex); glBindTexture(GL_TEXTURE_2D, tex);
