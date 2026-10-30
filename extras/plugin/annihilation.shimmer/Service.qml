@@ -7,7 +7,8 @@
 //   layerEnabled (bool, true), layerIntensity (0-1, 0.35), motes (bool, true),
 //   fpsCap (5-60, 30), screensaver (bool, true),
 //   screensaverSeconds (0 = follow idle.screensaver in shell.json),
-//   passageFont ("fell", "cormorant", or any installed family name).
+//   screensaverBrightness (0.02-1, 0.16: how much of the photo shows),
+//   passageFont ("jost", "cinzel", or any installed family name).
 
 import QtQuick
 import Quickshell
@@ -41,14 +42,27 @@ Scope {
   property bool screensaverEnabled: true
   property int screensaverSecondsSetting: 0
   property int idleScreensaverSeconds: 150
-  property string passageFont: "fell"
+  property string passageFont: "jost"
+  property real screensaverBrightness: 0.16
 
-  // The bundled fonts load from fonts/ (SIL OFL, licences alongside); anything
-  // else is taken as the name of an installed family.
-  readonly property string passageFontFamily: {
-    if (passageFont === "fell") return fellFont.status === FontLoader.Ready ? fellFont.name : "serif"
-    if (passageFont === "cormorant") return cormorantFont.status === FontLoader.Ready ? cormorantFont.name : "serif"
-    return passageFont
+  // Typography for the passage. The bundled fonts load from fonts/ (SIL OFL,
+  // licences alongside); any other value is the name of an installed family.
+  // `tracking` is letter-spacing in ems, `scale` the type size as a fraction
+  // of screen height.
+  readonly property var passageStyle: {
+    if (passageFont === "jost") {
+      return {
+        family: jostFont.status === FontLoader.Ready ? jostFont.name : "sans-serif",
+        axes: { "wght": 250 }, caps: true, tracking: 0.22, scale: 0.032
+      }
+    }
+    if (passageFont === "cinzel") {
+      return {
+        family: cinzelFont.status === FontLoader.Ready ? cinzelFont.name : "serif",
+        axes: { "wght": 400 }, caps: true, tracking: 0.12, scale: 0.036
+      }
+    }
+    return { family: passageFont, axes: {}, caps: false, tracking: 0.04, scale: 0.042 }
   }
 
   readonly property int screensaverSeconds: screensaverSecondsSetting > 0
@@ -108,7 +122,8 @@ Scope {
     layerIntensity = typeof entry.layerIntensity === "number" ? clamp(entry.layerIntensity, 0, 1) : 0.35
     fpsCap = typeof entry.fpsCap === "number" ? Math.round(clamp(entry.fpsCap, 5, 60)) : 30
     screensaverEnabled = entry.screensaver !== false
-    passageFont = typeof entry.passageFont === "string" && entry.passageFont.length > 0 ? entry.passageFont : "fell"
+    passageFont = typeof entry.passageFont === "string" && entry.passageFont.length > 0 ? entry.passageFont : "jost"
+    screensaverBrightness = typeof entry.screensaverBrightness === "number" ? clamp(entry.screensaverBrightness, 0.02, 1) : 0.16
     screensaverSecondsSetting = typeof entry.screensaverSeconds === "number"
       ? Math.max(0, Math.round(entry.screensaverSeconds)) : 0
 
@@ -189,13 +204,13 @@ Scope {
   Component.onDestruction: if (screensaverActive) setCursorHidden(false)
 
   FontLoader {
-    id: fellFont
-    source: Qt.resolvedUrl("fonts/IMFeENit28P.ttf")
+    id: jostFont
+    source: Qt.resolvedUrl("fonts/Jost.ttf")
   }
 
   FontLoader {
-    id: cormorantFont
-    source: Qt.resolvedUrl("fonts/CormorantGaramond-Italic.ttf")
+    id: cinzelFont
+    source: Qt.resolvedUrl("fonts/Cinzel.ttf")
   }
 
   FileView {
@@ -294,7 +309,8 @@ Scope {
         fpsCap: root.fpsCap,
         screensaverEnabled: root.screensaverEnabled,
         screensaverSeconds: root.screensaverSeconds,
-        passageFont: root.passageFontFamily,
+        passageFont: root.passageStyle.family,
+        screensaverBrightness: root.screensaverBrightness,
         screensaverActive: root.screensaverActive,
         passageParts: root.passageParts.length,
         customPassage: root.customParts.length > 0

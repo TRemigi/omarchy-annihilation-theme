@@ -1,9 +1,11 @@
 #version 440
 
 // The screensaver: the wallpaper, slowly taken. `time` is seconds since the
-// screensaver appeared. Over two minutes the image warps like heat over water,
-// its colour channels drift apart, and a Voronoi lattice of cells (the
-// refracted organism dividing) glows faintly along its seams. Rebuild with
+// screensaver appeared. The photo is dimmed to `brightness` of itself, then
+// over two minutes it warps like heat over water, its colour channels drift
+// apart, and a Voronoi lattice of cells (the refracted organism dividing)
+// glows faintly along its seams. The image is cropped to cover the screen,
+// not stretched: `imageAspect` is its width over height. Rebuild with
 // shaders/build-shaders.sh after editing.
 
 layout(location = 0) in vec2 qt_TexCoord0;
@@ -14,6 +16,8 @@ layout(std140, binding = 0) uniform buf {
     float qt_Opacity;
     float time;
     vec2 resolution;
+    float imageAspect;
+    float brightness;
     vec4 tealColor;
 } ubuf;
 
@@ -76,6 +80,17 @@ vec3 cells(vec2 p, float t) {
     return vec3(d1, d2 - d1, id);
 }
 
+// Where the image sits under a screen coordinate when it is scaled to cover the
+// screen and centred, as Image.PreserveAspectCrop would draw it. A shader
+// sampling an Image gets the whole texture whatever the item's fillMode says.
+vec2 cover(vec2 uv, float screenAspect) {
+    float ia = max(ubuf.imageAspect, 0.01);
+    vec2 c = uv - 0.5;
+    if (ia > screenAspect) c.x *= screenAspect / ia;
+    else c.y *= ia / screenAspect;
+    return c + 0.5;
+}
+
 void main() {
     vec2 uv = qt_TexCoord0;
     float aspect = ubuf.resolution.x / max(ubuf.resolution.y, 1.0);
@@ -89,20 +104,22 @@ void main() {
 
     vec2 dir = normalize(uv - 0.5 + vec2(1e-4));
     float sep = 0.004 * grow;
-    vec3 col = vec3(texture(source, wuv + dir * sep).r,
-                    texture(source, wuv).g,
-                    texture(source, wuv - dir * sep).b);
+    vec3 col = vec3(texture(source, cover(wuv + dir * sep, aspect)).r,
+                    texture(source, cover(wuv, aspect)).g,
+                    texture(source, cover(wuv - dir * sep, aspect)).b);
+
+    // Dim the photograph first, so the seams below stay as bright as they are.
+    col *= mix(1.0, ubuf.brightness, smoothstep(0.0, 10.0, t));
 
     float on = smoothstep(15.0, 100.0, t);
     vec3 c = cells(p * 3.5, t);
-    float seam = 1.0 - smoothstep(0.0, 0.07, c.y);
+    float seam = 1.0 - smoothstep(0.0, 0.04, c.y);
     col *= 1.0 + (c.z - 0.5) * 0.25 * on;
-    col += ubuf.tealColor.rgb * seam * 0.35 * on;
+    col += ubuf.tealColor.rgb * seam * 0.1 * on;
 
-    float dim = mix(1.0, 0.5, smoothstep(0.0, 10.0, t));
     float edge = length((uv - 0.5) * vec2(aspect * 0.6, 1.0));
     float vignette = 1.0 - smoothstep(0.35, 1.1, edge);
-    col *= dim * mix(0.55, 1.0, vignette);
+    col *= mix(0.6, 1.0, vignette);
 
     float fadeIn = smoothstep(0.0, 3.0, t);
     fragColor = vec4(col * fadeIn, 1.0) * ubuf.qt_Opacity;

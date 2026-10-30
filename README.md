@@ -58,7 +58,8 @@ entry under `bar.layout`, or `plugins[]` if you run it without the glyph):
 | `fpsCap` | `30` | 5 to 60 |
 | `screensaver` | `true` | set `false` to keep Omarchy's idle behavior without it |
 | `screensaverSeconds` | `0` | `0` follows `idle.screensaver` |
-| `passageFont` | `"fell"` | `"fell"`, `"cormorant"`, or the name of any installed font |
+| `screensaverBrightness` | `0.16` | how much of the photo shows, 0.02 to 1 |
+| `passageFont` | `"jost"` | `"jost"`, `"cinzel"`, or the name of any installed font |
 
 ### Commands
 
@@ -79,10 +80,12 @@ punctuation, so a pasted paragraph still reads in turn.
 
 ### Fonts
 
-The passage is set in IM Fell English Italic (Igino Marini), whose uneven,
-ink-pressed letterforms suit the writing on the tower wall; Cormorant Garamond
-Italic (the Cormorant Project Authors) is bundled as a more delicate
-alternative. Both are under the SIL Open Font License; the licences are in
+The film's logotype is custom and no free font matches it exactly. The passage
+is set in thin, widely tracked capitals in Jost (a Futura-like geometric sans),
+the nearest freely licensed look. `"cinzel"` gives classical Roman capitals
+instead. Any other value is taken as the name of an installed font, so a
+lookalike you install yourself, such as Kiona, works too. Jost and Cinzel are
+bundled under the SIL Open Font License; the licences are in
 `extras/plugin/annihilation.shimmer/fonts/`.
 
 ### Editing the shaders

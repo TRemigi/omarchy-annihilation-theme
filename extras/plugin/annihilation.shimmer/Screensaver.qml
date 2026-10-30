@@ -19,7 +19,8 @@ PanelWindow {
   // The shader is soft, but this is a photograph: keep most of its detail.
   readonly property real renderScale: 0.75
   readonly property string wallpaperPath: Quickshell.env("HOME") + "/.local/state/omarchy/current/background"
-  readonly property real passageSize: Math.max(22, Math.round(win.height * 0.042))
+  readonly property var passageStyle: win.service.passageStyle
+  readonly property real passageSize: Math.max(22, Math.round(win.height * passageStyle.scale))
 
   property real startedAt: 0
   property real elapsed: 0
@@ -71,6 +72,11 @@ PanelWindow {
     property variant source: wallpaper
     property real time: win.elapsed
     property size resolution: Qt.size(width, height)
+    // The shader crops the image to cover the screen itself: a sampled Image
+    // hands it the whole texture whatever its fillMode says.
+    property real imageAspect: wallpaper.implicitHeight > 0
+      ? wallpaper.implicitWidth / wallpaper.implicitHeight : width / Math.max(1, height)
+    property real brightness: win.service.screensaverBrightness
     property color tealColor: Color.accent
 
     fragmentShader: Qt.resolvedUrl("shaders/bloom.frag.qsb")
@@ -116,16 +122,18 @@ PanelWindow {
 
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
-        width: passage.width * 0.62
+        width: passage.width * 0.8
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
         wrapMode: Text.WordWrap
         textFormat: Text.PlainText
         text: win.service.passageText
         color: modelData.tint
-        font.family: win.service.passageFontFamily
+        font.family: win.passageStyle.family
+        font.variableAxes: win.passageStyle.axes
+        font.capitalization: win.passageStyle.caps ? Font.AllUppercase : Font.MixedCase
         font.pixelSize: win.passageSize
-        font.letterSpacing: win.passageSize * 0.04
+        font.letterSpacing: win.passageSize * win.passageStyle.tracking
         lineHeight: 1.15
         // Letter-spacing trails the last glyph of a line; pad the other side
         // so the text sits dead centre.
