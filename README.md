@@ -31,7 +31,7 @@ repo, so the live parts ship separately. Clone the repo somewhere permanent
 | --- | --- |
 | Hyprland | A border gradient that turns once a minute, a faint teal shadow on the focused window, blur on shell surfaces, 6% dimming of inactive windows, slower open/close and workspace motion. |
 | Shimmer layer | A click-through layer between wallpaper and windows: a slow band of thin-film colour, rising spores, faint caustics along the bottom. Pauses under fullscreen windows. |
-| Screensaver | After `idle.screensaver` seconds the wallpaper slowly warps, its colour channels drift apart, and a lattice of glowing cells grows over it, with an expedition-log line that now and then mis-spells itself. Replaces Omarchy's text screensaver while this theme is active. |
+| Screensaver | After `idle.screensaver` seconds the wallpaper slowly warps, its colour channels drift apart, and a lattice of glowing cells grows over it. A passage kindles as living light, one part about every ten seconds, picking up where it left off. Replaces Omarchy's text screensaver while this theme is active. |
 | Bar glyph | A prism whose edge shifts teal, magenta, amber. Click for "Day N inside Area X" (uptime), the day's log entry and the controls; right click toggles the layer; middle click starts the screensaver. |
 
 Everything is tied to the theme: switch to another theme and the extras go
@@ -67,8 +67,17 @@ entry under `bar.layout`, or `plugins[]` if you run it without the glyph):
     omarchy-shell shimmer dismiss
     omarchy-shell shimmer status
 
+### The screensaver passage
+
+`passage.txt` ships original text in the manner of the tower wall writing. To
+spell out something else, such as the passage from the book, put it in
+`~/.config/omarchy/annihilation-passage.txt`, one part per line. That file
+replaces the shipped one and is picked up as soon as you save it. Lines too
+long for the screen are broken at word boundaries, preferably after
+punctuation, so a pasted paragraph still reads in turn.
+
 ### Editing the shaders
 
 `extras/plugin/annihilation.shimmer/shaders/*.frag` are compiled to the
 committed `.qsb` files with `build-shaders.sh` (needs `qt6-shadertools`).
-Journal lines live in `journal.txt`, one per line.
+`journal.txt` holds the bar popup's daily entries, one per line.

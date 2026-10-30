@@ -57,7 +57,15 @@ Scope {
   readonly property bool screensaverActive: themeActive
     && (screensaverForced || (screensaverEnabled && idleMonitor.isIdle))
 
-  property var journalLines: []
+  // The passage the screensaver spells out, one part every ten seconds,
+  // carrying on from where it stopped the last time. passage.txt ships with
+  // the plugin; a file at ~/.config/omarchy/annihilation-passage.txt replaces it.
+  property var shippedParts: []
+  property var customParts: []
+  readonly property var passageParts: customParts.length > 0 ? customParts : shippedParts
+  property int passageIndex: 0
+  property string passageText: ""
+  property real passageOpacity: 0
 
   // Shared clock origin, randomised so each session starts mid-drift rather
   // than with the band in the same place every login.
@@ -97,19 +105,40 @@ Scope {
     idleScreensaverSeconds = Math.max(10, Math.round(idle))
   }
 
-  function applyJournal(raw) {
-    journalLines = String(raw || "").split("\n")
-      .map(function(line) { return line.trim() })
-      .filter(function(line) { return line.length > 0 && line.charAt(0) !== "#" })
+  // One part per line. A line too long for the screen is broken at a word,
+  // preferably after punctuation, so a pasted paragraph still reads in turn.
+  function partsFrom(raw) {
+    var parts = []
+    String(raw || "").split("\n").forEach(function(line) {
+      line = line.trim()
+      if (line.length === 0 || line.charAt(0) === "#") return
+      var chunk = ""
+      line.split(/\s+/).forEach(function(word) {
+        if (chunk.length > 0 && chunk.length + word.length + 1 > 90) {
+          parts.push(chunk)
+          chunk = word
+        } else {
+          chunk = chunk.length > 0 ? chunk + " " + word : word
+        }
+        if (chunk.length > 55 && /[.;:!?,]$/.test(word)) {
+          parts.push(chunk)
+          chunk = ""
+        }
+      })
+      if (chunk.length > 0) parts.push(chunk)
+    })
+    return parts
   }
 
-  function randomLine(previous) {
-    var lines = journalLines
-    if (lines.length === 0) return ""
-    if (lines.length === 1) return lines[0]
-    var pick = previous
-    while (pick === previous) pick = lines[Math.floor(Math.random() * lines.length)]
-    return pick
+  function advancePassage() {
+    var parts = passageParts
+    if (parts.length === 0) {
+      passageText = ""
+      return
+    }
+    passageIndex = passageIndex % parts.length
+    passageText = parts[passageIndex]
+    passageIndex = (passageIndex + 1) % parts.length
   }
 
   // Apply locally first so the change is instant, then persist it.
@@ -136,7 +165,14 @@ Scope {
 
   onScreensaverActiveChanged: {
     setCursorHidden(screensaverActive)
-    if (!screensaverActive) screensaverForced = false
+    if (screensaverActive) {
+      passageStart.restart()
+    } else {
+      passageStart.stop()
+      passageCycle.stop()
+      passageOpacity = 0
+      screensaverForced = false
+    }
   }
 
   Component.onDestruction: if (screensaverActive) setCursorHidden(false)
@@ -162,10 +198,20 @@ Scope {
   }
 
   FileView {
-    id: journalFile
-    path: root.dir + "journal.txt"
+    id: passageFile
+    path: root.dir + "passage.txt"
     printErrors: false
-    onLoaded: root.applyJournal(text())
+    onLoaded: root.shippedParts = root.partsFrom(text())
+  }
+
+  FileView {
+    id: customPassageFile
+    path: root.home + "/.config/omarchy/annihilation-passage.txt"
+    watchChanges: true
+    printErrors: false
+    onLoaded: root.customParts = root.partsFrom(text())
+    onFileChanged: reload()
+    onLoadFailed: root.customParts = []
   }
 
   IdleMonitor {
@@ -173,6 +219,23 @@ Scope {
     enabled: root.themeActive && root.screensaverEnabled
     timeout: root.screensaverSeconds
     respectInhibitors: true
+  }
+
+  // Wait out the wallpaper's fade-in, then show a part every ten seconds:
+  // kindle for 2.5 s, hold for 5, fade for 2.5.
+  SequentialAnimation {
+    id: passageStart
+    PauseAnimation { duration: 3000 }
+    ScriptAction { script: passageCycle.start() }
+  }
+
+  SequentialAnimation {
+    id: passageCycle
+    loops: Animation.Infinite
+    ScriptAction { script: root.advancePassage() }
+    NumberAnimation { target: root; property: "passageOpacity"; from: 0; to: 1; duration: 2500; easing.type: Easing.InOutSine }
+    PauseAnimation { duration: 5000 }
+    NumberAnimation { target: root; property: "passageOpacity"; to: 0; duration: 2500; easing.type: Easing.InOutSine }
   }
 
   SequentialAnimation {
@@ -211,7 +274,8 @@ Scope {
         screensaverEnabled: root.screensaverEnabled,
         screensaverSeconds: root.screensaverSeconds,
         screensaverActive: root.screensaverActive,
-        journalLines: root.journalLines.length
+        passageParts: root.passageParts.length,
+        customPassage: root.customParts.length > 0
       })
     }
   }

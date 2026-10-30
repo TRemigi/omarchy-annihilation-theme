@@ -1,0 +1,20 @@
+# The screensaver spells this out one line at a time, about every ten seconds,
+# and carries on from where it stopped. This is original text in the manner of
+# the writing on the tower wall; it is not quoted from the book.
+#
+# To use the real passage (or anything else), put it in
+#   ~/.config/omarchy/annihilation-passage.txt
+# one part per line. That file replaces this one, and lines too long for the
+# screen are broken at word boundaries.
+Where lies the strangling fruit, there the light remembers its roots.
+What was buried has learned the patience of water.
+The seeds of the sleeping are shared among the patient dark.
+Each hollow fills with a slow green fire.
+It speaks in the language of moss and pale rot.
+The tide of small lights climbs the stair of bone.
+Whatever is written here is written in something living.
+The words grow where the words are read.
+We are the ink, and the wall is not finished.
+Come closer. The glow has been waiting for your breath.
+Beneath the roots, a second sky.
+Nothing is lost. Everything is being rewritten.

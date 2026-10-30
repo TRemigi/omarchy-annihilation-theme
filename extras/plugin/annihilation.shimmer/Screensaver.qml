@@ -1,10 +1,12 @@
 // The Shimmer screensaver: one fullscreen overlay per screen showing the
-// wallpaper slowly taken by the bloom shader, with a journal line that fades
-// in and out and now and then mis-spells itself. Idle-driven instances are
+// wallpaper slowly taken by the bloom shader, with a passage that kindles one
+// part at a time as living light. Which part, and when, is the service's call
+// (so every screen agrees); this file only draws it. Idle-driven instances are
 // ended by the idle monitor on any input; summoned ones take input and end
 // themselves (see Service.screensaverForced).
 
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Wayland
 import qs.Commons
@@ -17,29 +19,13 @@ PanelWindow {
   // The shader is soft, but this is a photograph: keep most of its detail.
   readonly property real renderScale: 0.75
   readonly property string wallpaperPath: Quickshell.env("HOME") + "/.local/state/omarchy/current/background"
+  readonly property real passageSize: Math.max(20, Math.round(win.height * 0.034))
 
   property real startedAt: 0
   property real elapsed: 0
-  property string line: ""
-  property string display: ""
-  property int glitchLeft: 0
 
   function dismiss() {
     service.screensaverForced = false
-  }
-
-  function nextLine() {
-    line = service.randomLine(line)
-    display = line
-    glitchLeft = 0
-  }
-
-  // Swap two neighbouring letters, as if the line had briefly forgotten itself.
-  function glitched(text) {
-    if (text.length < 4) return text
-    var i = 1 + Math.floor(Math.random() * (text.length - 2))
-    if (text.charAt(i) === " " || text.charAt(i + 1) === " ") return text
-    return text.slice(0, i) + text.charAt(i + 1) + text.charAt(i) + text.slice(i + 2)
   }
 
   visible: service.screensaverActive
@@ -55,9 +41,6 @@ PanelWindow {
     if (!visible) return
     startedAt = Date.now()
     elapsed = 0
-    line = ""
-    display = ""
-    journalText.opacity = 0
   }
 
   Timer {
@@ -93,46 +76,66 @@ PanelWindow {
     fragmentShader: Qt.resolvedUrl("shaders/bloom.frag.qsb")
   }
 
-  Text {
-    id: journalText
-    anchors.horizontalCenter: parent.horizontalCenter
-    y: parent.height * 0.62
-    width: parent.width * 0.7
-    horizontalAlignment: Text.AlignHCenter
-    wrapMode: Text.WordWrap
-    text: win.display
-    color: Color.foreground
-    opacity: 0
-    font.family: Style.fontFamily
-    font.pixelSize: Math.max(16, Math.round(win.height * 0.024))
-    font.letterSpacing: 1.5
-    style: Text.Outline
-    styleColor: "#99131109"
-  }
+  // The passage, as living light: a dark halo for legibility, two blooms of
+  // teal that breathe slowly, and a pale core that now and then gutters.
+  Item {
+    id: passage
+    anchors.centerIn: parent
+    width: parent.width * 0.62
+    height: 1
+    opacity: win.service.passageOpacity
 
-  // First line after a pause, then one every ~40 s: fade in, hold, fade out.
-  SequentialAnimation {
-    running: win.visible
-    loops: Animation.Infinite
-    PauseAnimation { duration: 6000 }
-    ScriptAction { script: win.nextLine() }
-    NumberAnimation { target: journalText; property: "opacity"; to: 0.85; duration: 3500; easing.type: Easing.InOutSine }
-    PauseAnimation { duration: 28000 }
-    NumberAnimation { target: journalText; property: "opacity"; to: 0; duration: 3500; easing.type: Easing.InOutSine }
-    PauseAnimation { duration: 4000 }
-  }
+    property real breath: 0.85
+    property real flicker: 1
 
-  Timer {
-    interval: 130
-    running: win.visible && journalText.opacity > 0.3
-    repeat: true
-    onTriggered: {
-      if (win.glitchLeft > 0) {
-        win.glitchLeft--
-        if (win.glitchLeft === 0) win.display = win.line
-      } else if (Math.random() < 0.04) {
-        win.display = win.glitched(win.line)
-        win.glitchLeft = 2
+    Behavior on flicker { NumberAnimation { duration: 140 } }
+
+    SequentialAnimation on breath {
+      running: win.visible
+      loops: Animation.Infinite
+      NumberAnimation { to: 1.0; duration: 3200; easing.type: Easing.InOutSine }
+      NumberAnimation { to: 0.7; duration: 3800; easing.type: Easing.InOutSine }
+    }
+
+    Timer {
+      interval: 110
+      running: win.visible && passage.opacity > 0.05
+      repeat: true
+      onTriggered: passage.flicker = Math.random() < 0.025 ? 0.5 : 0.88 + Math.random() * 0.12
+    }
+
+    Repeater {
+      model: [
+        { kind: "shadow", blur: 40, tint: "#131109", alpha: 0.7 },
+        { kind: "halo", blur: 64, tint: Color.accent, alpha: 0.5 },
+        { kind: "halo", blur: 24, tint: Qt.lighter(Color.accent, 1.35), alpha: 0.8 },
+        { kind: "core", blur: 0, tint: Qt.lighter(Color.accent, 1.8), alpha: 0.95 }
+      ]
+
+      Text {
+        id: layerText
+        required property var modelData
+
+        anchors.verticalCenter: parent.verticalCenter
+        width: passage.width
+        horizontalAlignment: Text.AlignHCenter
+        wrapMode: Text.WordWrap
+        textFormat: Text.PlainText
+        text: win.service.passageText
+        color: modelData.tint
+        font.family: Style.fontFamily
+        font.pixelSize: win.passageSize
+        font.letterSpacing: 2
+
+        opacity: modelData.alpha * (modelData.kind === "halo" ? passage.breath
+          : modelData.kind === "core" ? passage.flicker : 1)
+
+        layer.enabled: modelData.blur > 0
+        layer.effect: MultiEffect {
+          blurEnabled: true
+          blur: 1.0
+          blurMax: layerText.modelData.blur
+        }
       }
     }
   }
