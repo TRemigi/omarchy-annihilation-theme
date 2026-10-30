@@ -9,7 +9,7 @@ update and fall back from it.
 
 | Phase | What | State |
 |-------|------|-------|
-| P0 | Fork repo exists and is a functional-parity clone of upstream, installable | **built locally** at `~/dev/omarchy-annihilation-notifications` (not pushed); **awaiting the live checklist** |
+| P0 | Fork repo exists and is a functional-parity clone of upstream, installable | **done, live-verified 2026-10-30** (`~/dev/omarchy-annihilation-notifications`, pushed) |
 | P1 | Update tooling, runbooks and manual fallback (fork repo); installer, README and drift hooks (this repo) | **partly done in P0**: `check-upstream`, `import-upstream` and their tests, and the update, fallback, release and troubleshooting runbooks. **Left:** `contract-check`, `status`, a `fallback` tool, CI; and this repo's installer, hooks and README |
 | P2 | The actual experience: motion, countdown border, per-app accents (theme-gated) | not started |
 | P3 | Integration with the shimmer plugin, automatic fallback, CI | not started |
@@ -233,12 +233,14 @@ says why.
 ## P0 in detail
 
 **Done (2026-10-30, by the agent):** steps 1 to 5 below, in `~/dev/omarchy-annihilation-notifications`
-(a sibling directory; the GitHub owner is **TRemigi**, `origin` is set locally, and nothing is pushed yet: the agent's sandbox cannot create the repo or push, so the user does it, per the fork's `AGENTS.md` "First push"). `upstream` holds the
+(a sibling directory, now pushed to the public repo `TRemigi/omarchy-annihilation-notifications`, which the user created because the agent's sandbox could not). `upstream` holds the
 pristine 4.0.4-1 files with tag `upstream/4.0.4-1`; `main` is that plus the manifest (the only change to
 a vendored file); `git diff upstream main -- Service.qml NotificationLogic.js components` is empty.
 Checked: `omarchy plugin validate`, `tools/check-upstream` exit 0, `test/tools-test.sh` (47 checks,
-9 deliberate breaks caught), `test/logic-test.js` (35 checks). **Step 6, the live run, is the user's, and now tests the real install path**: `omarchy plugin add <url> --enable --yes` from the pushed repo, not a hand-made copy
-and is `docs/runbooks/live-checklist.md` in the fork repo. P0 is not finished until it passes.
+9 deliberate breaks caught), `test/logic-test.js` (35 checks). **Step 6, the live run, passed on 2026-10-30** (user-reported): installed with `omarchy plugin add <url>
+--enable --yes` from the pushed repo, and every item of `docs/runbooks/live-checklist.md` in the fork repo
+passed, including the disable-and-restore cycle. P0 is complete. The repo is public at
+`github.com/TRemigi/omarchy-annihilation-notifications`.
 
 The original steps:
 
@@ -301,7 +303,7 @@ the agent cannot see it, so each step goes to the user by screenshot or recordin
 
 ## Open questions for the user
 
-- Public or private? (Owner is TRemigi.) Public is recommended and needed for `omarchy plugin add <https url>`, which runs without credential prompts; private only works with the SSH URL.
+- ~~Public or private?~~ Answered: public, owner TRemigi.
 - Theme gating: behave as stock off this theme (recommended), or only ever active
   when the theme is (needs the hook swap, rejected above)?
 - Track only packaged Omarchy releases (recommended), or also the `dev`/`edge` channels

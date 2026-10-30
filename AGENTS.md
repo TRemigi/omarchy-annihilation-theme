@@ -412,9 +412,9 @@ questions). Read it before touching anything notification-related, and update it
 Status section as you go.
 The optional themed notification daemon (a separate repo, installed as a registered
 clone of the built-in so that disabling it restores stock) is planned in
-`docs/notifications-fork.md`; read that before starting it. P0 exists as a sibling repo,
-`~/dev/omarchy-annihilation-notifications` (its own `AGENTS.md`, `CONTRACT.md` and runbooks; not
-pushed anywhere yet). This repo's side of it (the `extras/install notifications` wrapper, the
+`docs/notifications-fork.md`; read that before starting it. P0 is done and live-verified: a public repo,
+`github.com/TRemigi/omarchy-annihilation-notifications` (checked out at `~/dev/omarchy-annihilation-notifications`,
+with its own `AGENTS.md`, `CONTRACT.md` and runbooks). This repo's side of it (the `extras/install notifications` wrapper, the
 post-update and post-boot hooks, a README section) is not built; the plan lists it under P1.
 
 Inspiration and context: the film and novel; Swamp Dark base16
