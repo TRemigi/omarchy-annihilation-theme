@@ -220,7 +220,8 @@ The brief: **subdued psychedelic horror mixed with the beauty of nature.**
   distances, `lat2 = |px - pointer|^2 - (d_pointer - sd)^2` (exact for a straight edge; max
   with 0 at corners), and the pool is `exp(-lat2 / R^2)`. The bright core is the same with
   `0.25 R^2` and a tighter depth profile (`exp(-1.5 * depth / w0)`) so it sits on the edge,
-  plus a warm white added after the gain; everything is tone-mapped with `1 - exp(-x)`, so
+  plus a warm white added after the gain, and a tighter `hotter` spot (`0.05 R^2`) inside the
+  core for the very centre (peak 0.60 to 0.82 after the user asked for more); everything is tone-mapped with `1 - exp(-x)`, so
   nothing clips (0.00% of lit pixels above 0.97).
   **Span** (`windowGlowSpan`, a slider in the popup): `R = span * 8 * w0`. The default was
   chosen by measuring the pool's length (where the glow is above half way between baseline

@@ -269,6 +269,7 @@ void main() {
     // The bright core at the centre of the pool: 1 at the point of the edge nearest the
     // pointer, falling off along the edge, scaled by how close the pointer is.
     float hot = 0.0;
+    float hotter = 0.0;       // a tighter hot spot inside the core, at the very centre
     if (follow) {
         float dcur = length(px - ubuf.cursor.xy);
         float R = max(ubuf.cursorSpan, 0.1) * 8.0 * w0;
@@ -283,6 +284,7 @@ void main() {
         g = exp(-lat2 / (R * R)) * peak;
         // The bright core: the same, but narrower along the edge, and it hugs the edge.
         hot = exp(-lat2 / (0.25 * R * R)) * peak;
+        hotter = exp(-lat2 / (0.05 * R * R)) * peak;
         gain = 0.20 + 0.80 * g;
         w = w0 * (0.8 + 0.8 * g);
         // The first exit had to allow for the widest the band can be; now the real width is known.
@@ -333,8 +335,8 @@ void main() {
     // Its depth profile is tighter than the band's, so the bright part sits on the edge and does
     // not bulge into the window.
     float cdepth = inside ? exp(-1.5 * (-sd) / w0) : 0.8 * exp(-3.0 * sd / w0);
-    vec3 core = vec3(1.0, 0.95, 0.88) * (cdepth + 0.5 * edge) * hot * 1.0;
-    vec4 acc = vec4((rgb * (gain + 1.0 * hot) + core) * (ubuf.intensity * 2.0), 0.0);
+    vec3 core = vec3(1.0, 0.95, 0.88) * (cdepth + 0.5 * edge) * (hot * 1.5 + hotter * 1.6);
+    vec4 acc = vec4((rgb * (gain + 1.0 * hot + 0.8 * hotter) + core) * (ubuf.intensity * 2.0), 0.0);
     // Roll bright peaks off smoothly instead of clipping them. A spot that is cut off
     // flat at the maximum has a visible edge where it drops below the clip, and reads
     // as a hard-edged disc; this leaves low values almost alone and approaches the
