@@ -52,6 +52,21 @@ int main(int argc, char **argv) {
   glUniform1f(glGetUniformLocation(prog, "ubuf.intensity"), inten);
   glUniform1f(glGetUniformLocation(prog, "ubuf.motes"), motes);
   glUniform1f(glGetUniformLocation(prog, "ubuf.seed"), seed);
+  // For windowglow.frag: RECTS="x,y,w,h;x,y,w,h" (topmost first, up to six, in pixels),
+  // RIM (default 60), ROUNDING (default 4) and USABLE="x,y,w,h" (default the whole frame).
+  glUniform1f(glGetUniformLocation(prog, "ubuf.rimWidth"), getenv("RIM") ? (float)atof(getenv("RIM")) : 60.f);
+  glUniform1f(glGetUniformLocation(prog, "ubuf.rounding"), getenv("ROUNDING") ? (float)atof(getenv("ROUNDING")) : 4.f);
+  { float ux = 0, uy = 0, uw = (float)W, uh = (float)H;
+    if (getenv("USABLE")) sscanf(getenv("USABLE"), "%f,%f,%f,%f", &ux, &uy, &uw, &uh);
+    glUniform4f(glGetUniformLocation(prog, "ubuf.usable"), ux, uy, uw, uh); }
+  if (getenv("RECTS")) {
+    char *copy = strdup(getenv("RECTS")), *save = NULL; int i = 0;
+    for (char *tok = strtok_r(copy, ";", &save); tok && i < 6; tok = strtok_r(NULL, ";", &save), i++) {
+      float x, y, w, h; char nm[24];
+      if (sscanf(tok, "%f,%f,%f,%f", &x, &y, &w, &h) == 4) { snprintf(nm, sizeof nm, "ubuf.win%d", i); glUniform4f(glGetUniformLocation(prog, nm), x, y, w, h); }
+    }
+    free(copy);
+  }
   glUniform1f(glGetUniformLocation(prog, "ubuf.additive"), getenv("ADDITIVE") ? (float)atof(getenv("ADDITIVE")) : 1.f);
   glUniform2f(glGetUniformLocation(prog, "ubuf.resolution"), (float)W, (float)H);
   GLuint fbo, tex; glGenTextures(1, &tex); glBindTexture(GL_TEXTURE_2D, tex);

@@ -5,7 +5,7 @@
 //
 // Settings are inline fields on this plugin's entry in shell.json `plugins[]`:
 //   layerEnabled (bool, true), layerIntensity (0-1, 0.35), layerSpeed (0.1-4, 1),
-//   motes (bool, true),
+//   motes (bool, true), windowGlow (bool, true: light spilling over window edges),
 //   layerAdditive (bool, true),
 //   fpsCap (5-60, 30), screensaver (bool, true),
 //   screensaverSeconds (0 = follow idle.screensaver in shell.json),
@@ -42,6 +42,8 @@ Scope {
   // translucent layer. Additive stores colour values above their alpha, which a
   // compositor is free to mishandle; this is the way back if it does.
   property bool layerAdditive: true
+  // Light spilling over the edges of windows, from behind them (WindowGlow.qml).
+  property bool windowGlow: true
   property real layerIntensity: 0.35
   // How fast the Shimmer evolves, as a multiple of its natural pace.
   property real layerSpeed: 1.0
@@ -130,6 +132,7 @@ Scope {
 
     layerEnabled = entry.layerEnabled !== false
     layerAdditive = entry.layerAdditive !== false
+    windowGlow = entry.windowGlow !== false
     motes = entry.motes !== false
     layerIntensity = typeof entry.layerIntensity === "number" ? clamp(entry.layerIntensity, 0, 1) : 0.35
     layerSpeed = typeof entry.layerSpeed === "number" ? clamp(entry.layerSpeed, 0.1, 4) : 1.0
@@ -304,6 +307,7 @@ Scope {
         running: root.running,
         layerEnabled: root.layerEnabled,
         layerAdditive: root.layerAdditive,
+        windowGlow: root.windowGlow,
         layerIntensity: root.layerIntensity,
         layerSpeed: root.layerSpeed,
         motes: root.motes,
@@ -324,6 +328,16 @@ Scope {
     model: Quickshell.screens
 
     ShimmerLayer {
+      required property var modelData
+      screen: modelData
+      service: root
+    }
+  }
+
+  Variants {
+    model: Quickshell.screens
+
+    WindowGlow {
       required property var modelData
       screen: modelData
       service: root

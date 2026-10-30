@@ -109,6 +109,29 @@ The brief: **subdued psychedelic horror mixed with the beauty of nature.**
   Overall overlay brightness (mean of the largest colour channel) has a median of
   about 0.11, against 0.07 for the masked version; a first draft at 0.13 looked
   hazy, so the tint strength is 0.34, and the user can use the intensity slider.
+- **Window glow** (`WindowGlow.qml`, `shaders/windowglow.frag`): the user asked to
+  take the prism-fan version (the one rejected as a wallpaper effect: "spotlight-y,
+  uniform, artificial") and have it spill over window edges as if from behind. So
+  the fans are not drawn on the wallpaper at all; they are the light source behind
+  the windows, and a window edge lights up where a fan reaches it. It must be a
+  layer ABOVE the windows (`WlrLayer.Top`), click-through, additive, drawing only a
+  thin band along each edge (inside, plus a tighter halo outside), and hidden under
+  fullscreen. Window rectangles come from `Hyprland.toplevels` (`lastIpcObject`:
+  `at`, `size`, `workspace.id`, `monitor`, `focusHistoryID`), refreshed on
+  Hyprland raw events plus a 1.5 s poll, because an interactive resize raises no
+  event; stacking order is approximated by focus history. Outside a window the
+  band is clipped to the monitor's `reserved` strips so the halo never paints over
+  a bar. Limits: six windows per screen, and the glow lags during a resize or
+  drag until it ends. Not seen against a live Hyprland by the agent.
+  Lessons: (a) a "which way does the edge face" term made diagonal picture-frame
+  seams at corners, because the nearest edge switches along the diagonal; it was
+  removed, since the fan field already varies in space. (b) A glow cut off at a
+  fixed depth while still bright shows as a dark inner rectangle, so fade it to
+  zero. (c) Inside a rounded rectangle, offset contours crease along the diagonals
+  once the depth exceeds the corner radius, so the glow uses a larger radius
+  (0.45 of the band width) than the windows. (d) `half` is a reserved word in
+  GLSL. Test with `RECTS="x,y,w,h;..." RIM=44 ROUNDING=20 harness ...` (see
+  `extras/dev/shader-harness.c`) over a synthetic desktop.
 - **The shader's clock is accumulated, not read from the wall clock**
   (`Service.shimmerClock`, advanced by a service timer by elapsed time times
   `layerSpeed`, with a stall clamped to 0.25 s). Multiplying wall time by a speed

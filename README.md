@@ -31,6 +31,7 @@ repo, so the live parts ship separately. Clone the repo somewhere permanent
 | --- | --- |
 | Hyprland | A border gradient that slowly turns, a faint teal shadow on the focused window, blur on shell surfaces, 6% dimming of inactive windows, slower open/close and workspace motion. |
 | Shimmer layer | A click-through layer between wallpaper and windows, modelled on how the film shows it: the air seems to bend light. A translucent film of spectral colour (teal, blue, violet, magenta, pink, orange) drifts over the whole scene, its colour flowing and swirling into other colour and shifting the hue of whatever is behind it while keeping its detail, with the occasional faint curtain of light and warm glows drifting in from the edges. Its strength and colour vary from place to place and from moment to moment, nothing is scripted, and every session is different. Pauses under fullscreen windows. |
+| Window glow | Light spilling over the edges of your windows, as if it came from behind them. Two fans of prism light enter from beyond the screen edges and wander slowly around them; a window edge lights up where a fan's light reaches it, with a rainbow sweeping across a band a few dozen pixels deep and a faint halo just outside. It lives in a click-through layer above the windows, hides under fullscreen windows, and follows windows as they open, close, move and change workspace (an interactive resize catches up when you let go). |
 | Screensaver | After `idle.screensaver` seconds the wallpaper slowly warps, its colour channels drift apart, and a lattice of glowing cells grows over it. A passage crawls right to left as living light in one continuous line, fading in near the right of the screen and out near the left, picking up where it left off. Replaces Omarchy's text screensaver while this theme is active. |
 | Bar glyph | A prism whose edge shifts teal, magenta, amber. Click for "Day N inside Area X" (uptime), the day's log entry and the controls; right click toggles the layer; middle click starts the screensaver. |
 
@@ -55,6 +56,7 @@ entry under `bar.layout`, or `plugins[]` if you run it without the glyph):
 | `layerEnabled` | `true` | the wallpaper layer |
 | `layerIntensity` | `0.35` | 0 to 1 |
 | `layerSpeed` | `1` | how fast the Shimmer evolves, 0.1 to 4 times its natural pace (the popup's slider covers 0.25 to 3) |
+| `windowGlow` | `true` | the light on window edges; `false` turns just that off |
 | `layerAdditive` | `true` | add the light to the wallpaper; `false` blends it as an ordinary translucent layer if your compositor mishandles that |
 | `motes` | `true` | the spores |
 | `fpsCap` | `30` | 5 to 60 |
