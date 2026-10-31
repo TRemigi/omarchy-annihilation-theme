@@ -11,7 +11,7 @@ update and fall back from it.
 |-------|------|-------|
 | P0 | Fork repo exists and is a functional-parity clone of upstream, installable | **done, live-verified 2026-10-30** (`~/dev/omarchy-annihilation-notifications`, pushed) |
 | P1 | Update tooling, runbooks and manual fallback (fork repo); installer, README and drift hooks (this repo) | **This repo's side done** (`extras/notifications-fork`, `extras/install notifications ...`, the post-update and post-boot guard hooks, README; 141 checks, 22 breaks caught; not yet seen on a real update). **Fork repo's side partly done in P0**: `check-upstream`, `import-upstream` and their tests, and the runbooks. **Left there:** `contract-check`, `status`, a `fallback` tool, CI |
-| P2 | The actual experience: motion, countdown border, per-app accents (theme-gated) | **slice 1 (motion) done and released as 0.2.0** (live-verified 2026-10-30); slices 2 to 4 not started |
+| P2 | The actual experience: the look (iridescent rim, typography, ring icon), countdown, spores, a switch (theme-gated) | **slice 1 (motion) released as 0.2.0**; look chosen 2026-10-30 (blend of mock-ups A, B and C's spores); **slice 2 (the look) built** on fork branch `p2/look`, awaiting the user's live check (checklist section E); Growth kept as a follow-up experiment |
 | P3 | Integration with the shimmer plugin, automatic fallback, CI | not started |
 
 This file is mirrored in the fork repo as `docs/plan.md` (the fork's own copy). The fork's phases are
@@ -270,17 +270,28 @@ The original steps:
 
 Each slice is gated on the theme (stock behaviour otherwise), is judged live by the user before the next, and
 lives on a `p2/...` branch until then. Budget: at most a handful of cards on screen, no per-frame offscreen layer
-per card, nothing that repaints when nothing is changing. The agent cannot see any of it live, so each slice has an
-offscreen test and a rendered filmstrip, and then goes to the user.
+per card beyond one small shader, nothing that repaints when nothing is changing. The agent cannot see any of it
+live, so each slice has offscreen tests, a shader rendered through the harness and composed over a backdrop, and
+then goes to the user.
 
-1. **Motion** (done, released as 0.2.0, all of live-checklist section D confirmed by the user; the first version read as "the same" and
-   was slowed and softened, with a `motion_slowdown` setting to exaggerate it). Toasts unfold into the stack and fold
-   away; expiry and right-click animate, click and IPC dismissals are instant. `components/SlotMotion.qml`; see the
-   fork's AGENTS.md "P2".
-2. **Countdown and hover.** The countdown becomes part of the border (a segment of the gradient that shortens)
-   instead of invisible; a card brightens on hover.
-3. **Spores.** The exit dissolves into a few spores.
-4. **Accents and a switch.** An accent per app or urgency from the Shimmer palette; a setting to turn the motion off.
+The look was chosen on 2026-10-30 from four mock-ups (`docs/design/`): **a blend of A (Refraction) as the base,
+B's (Field note) typographic header, and C's (Growth) spores**, with the full C direction kept as a follow-up
+experiment. A is toned down in saturation, and its rim ignites bright at arrival and cools over about a second, so
+the arrival ring visibly becomes the card.
+
+1. **Motion** (done, released as 0.2.0, all of live-checklist section D confirmed by the user; the first version
+   read as "the same" and was slowed and softened, with a `motion_slowdown` setting to exaggerate it).
+2. **The look** (built on branch `p2/look`, awaiting the user's live check; checklist section E). The iridescent rim with its prism spill inside and faint halo outside
+   (one small shader per card), igniting at arrival; the Cinzel small-caps caption (app name, time) above the
+   title; Jost for the text, with a faint glow on the title; the app icon in a ring; palettes per urgency (teal to
+   violet normally, amber to pink for critical, moss for low).
+3. **Countdown.** A line of light along the bottom edge that drains, ending in a spark; frozen while hovering; none
+   for critical toasts.
+4. **Spores.** The exit dissolves into a few spores, and a faint drift above a card.
+5. **Switch and accents.** A setting to turn the new look and the motion off, and any per-app accents.
+6. **Follow-up experiment: Growth.** Try the rest of C on a branch: the organic outline, the lichen strip, veins
+   reaching out from the corners, the wavering countdown. Judge it against the blend; the mock-up's wavy outline
+   and ragged strip read as glitches, so this needs more design before it is worth building.
 
 ## Phase 3 sketch
 
