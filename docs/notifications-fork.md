@@ -11,7 +11,7 @@ update and fall back from it.
 |-------|------|-------|
 | P0 | Fork repo exists and is a functional-parity clone of upstream, installable | **done, live-verified 2026-10-30** (`~/dev/omarchy-annihilation-notifications`, pushed) |
 | P1 | Update tooling, runbooks and manual fallback (fork repo); installer, README and drift hooks (this repo) | **This repo's side done** (`extras/notifications-fork`, `extras/install notifications ...`, the post-update and post-boot guard hooks, README; 141 checks, 22 breaks caught; not yet seen on a real update). **Fork repo's side partly done in P0**: `check-upstream`, `import-upstream` and their tests, and the runbooks. **Left there:** `contract-check`, `status`, a `fallback` tool, CI |
-| P2 | The actual experience: the look (iridescent rim, typography, ring icon), countdown, spores, a switch (theme-gated) | **slice 1 (motion) released as 0.2.0**; look chosen 2026-10-30 (blend of mock-ups A, B and C's spores); **slices 1 to 3 (motion, the look, the countdown) released as 0.2.0 and 0.3.0**, live-verified 2026-10-30; **slice 4 (spores) released as 0.4.0**, live-verified 2026-10-30; slice 5 (a master switch, accents) and the Growth experiment remain; Growth kept as a follow-up experiment |
+| P2 | The actual experience: the look (iridescent rim, typography, ring icon), countdown, spores, a switch (theme-gated) | **slice 1 (motion) released as 0.2.0**; look chosen 2026-10-30 (blend of mock-ups A, B and C's spores); **slices 1 to 3 (motion, the look, the countdown) released as 0.2.0 and 0.3.0**, live-verified 2026-10-30; **slice 4 (spores) released as 0.4.0**, live-verified 2026-10-30; **slice 6 (the Growth look, opt-in via `look=growth`) released as 0.5.0**, live-verified 2026-10-31; slice 5 (a master switch, accents) remains |
 | P3 | Integration with the shimmer plugin, automatic fallback, CI | not started |
 
 This file is mirrored in the fork repo as `docs/plan.md` (the fork's own copy). The fork's phases are
@@ -275,8 +275,8 @@ live, so each slice has offscreen tests, a shader rendered through the harness a
 then goes to the user.
 
 The look was chosen on 2026-10-30 from four mock-ups (`docs/design/`): **a blend of A (Refraction) as the base,
-B's (Field note) typographic header, and C's (Growth) spores**, with the full C direction kept as a follow-up
-experiment. A is toned down in saturation, and its rim ignites bright at arrival and cools over about a second, so
+B's (Field note) typographic header, and C's (Growth) spores**, with the full C direction built later as
+the opt-in Growth look (slice 6, released as 0.5.0). A is toned down in saturation, and its rim ignites bright at arrival and cools over about a second, so
 the arrival ring visibly becomes the card.
 
 1. **Motion** (done, released as 0.2.0, all of live-checklist section D confirmed by the user; the first version
@@ -289,9 +289,12 @@ the arrival ring visibly becomes the card.
    bottom edge that drains, ending in a spark; frozen while hovering; none for critical toasts.
 4. **Spores.** The exit dissolves into a few spores (done, released as 0.4.0; they drift left, since a toast in the top-right corner has no room above it), and a faint drift off a card's left edge (also done).
 5. **Switch and accents.** A setting to turn the new look and the motion off, and any per-app accents.
-6. **Follow-up experiment: Growth.** Try the rest of C on a branch: the organic outline, the lichen strip, veins
-   reaching out from the corners, the wavering countdown. Judge it against the blend; the mock-up's wavy outline
-   and ragged strip read as glitches, so this needs more design before it is worth building.
+6. **Growth** (done, released as 0.5.0 on 2026-10-31, **opt-in**: `look=growth` in the fork's conf file, `look=blend` is the
+   default). The rest of C, redesigned because the mock-up's wavy outline and ragged strip read as glitches: a straight outline
+   that is alive (thickness and colour vary in colonies, a slow pulse of light), a scatter of lichen dots on the left edge, roots
+   that hang from the left and bottom edges and grow over the toast's whole life (fast at first, still growing near the end of
+   the countdown), and a countdown that is the card's own bottom border, lit. Judged live over many rounds from screen recordings;
+   see the fork repo's `docs/design/README.md`.
 
 ## Phase 3 sketch
 

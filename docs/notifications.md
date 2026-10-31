@@ -13,7 +13,7 @@ gotchas; this file is only about notifications.
 | 1 | Arrival glow (light spreads from the toast corner) | **built; user: "looks great"** |
 | 2 | Sound (synthesized, opt-in) | **built; user confirmed working** (no feedback yet on how the tones sound) |
 | 4 | Missed notifications on the bar prism | **built; user confirmed working**, expired and silenced paths |
-| 6 | Themed fork of the notification daemon | **released as fork 0.4.0** (separate public repo `TRemigi/omarchy-annihilation-notifications`): motion (0.2.0), the look and the countdown (0.3.0), spores (0.4.0), all live-verified; a master switch and the Growth experiment remain; see `docs/notifications-fork.md` |
+| 6 | Themed fork of the notification daemon | **released as fork 0.5.0** (separate public repo `TRemigi/omarchy-annihilation-notifications`): motion (0.2.0), the look and the countdown (0.3.0), spores (0.4.0), and the **Growth look (0.5.0)**, an opt-in alternative (`look=growth` in the fork's conf file: a living outline, lichen, roots that hang from the left and bottom edges and grow over the toast's life, the countdown as the card's own bottom border), all live-verified; a master switch remains; see `docs/notifications-fork.md` |
 
 Items 0, 1, 2 and 4 are done and confirmed live by the user; what is left is item 6 and
 the optional items under "Not chosen". Numbers match the numbered list in the conversation that produced this plan.
