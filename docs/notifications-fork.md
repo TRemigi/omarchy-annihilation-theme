@@ -11,7 +11,7 @@ update and fall back from it.
 |-------|------|-------|
 | P0 | Fork repo exists and is a functional-parity clone of upstream, installable | **done, live-verified 2026-10-30** (`~/dev/omarchy-annihilation-notifications`, pushed) |
 | P1 | Update tooling, runbooks and manual fallback (fork repo); installer, README and drift hooks (this repo) | **This repo's side done** (`extras/notifications-fork`, `extras/install notifications ...`, the post-update and post-boot guard hooks, README; 141 checks, 22 breaks caught; not yet seen on a real update). **Fork repo's side partly done in P0**: `check-upstream`, `import-upstream` and their tests, and the runbooks. **Left there:** `contract-check`, `status`, a `fallback` tool, CI |
-| P2 | The actual experience: motion, countdown border, per-app accents (theme-gated) | **slice 1 (motion) built** on fork branch `p2/motion`, awaiting the user's live check; slices 2 to 4 not started |
+| P2 | The actual experience: motion, countdown border, per-app accents (theme-gated) | **slice 1 (motion) built** on fork branch `p2/motion`; the user confirmed the fold works, rest of section D to confirm before merging to `main`; slices 2 to 4 not started |
 | P3 | Integration with the shimmer plugin, automatic fallback, CI | not started |
 
 This file is mirrored in the fork repo as `docs/plan.md` (the fork's own copy). The fork's phases are
@@ -273,7 +273,8 @@ lives on a `p2/...` branch until then. Budget: at most a handful of cards on scr
 per card, nothing that repaints when nothing is changing. The agent cannot see any of it live, so each slice has an
 offscreen test and a rendered filmstrip, and then goes to the user.
 
-1. **Motion** (built, branch `p2/motion`, awaiting the user's live check; the first version read as "the same" and
+1. **Motion** (built, branch `p2/motion`; the user confirmed the fold works as expected; the rest of live-checklist
+   section D is still to be itemised before merging to `main`; the first version read as "the same" and
    was slowed and softened, with a `motion_slowdown` setting to exaggerate it). Toasts unfold into the stack and fold
    away; expiry and right-click animate, click and IPC dismissals are instant. `components/SlotMotion.qml`; see the
    fork's AGENTS.md "P2".
