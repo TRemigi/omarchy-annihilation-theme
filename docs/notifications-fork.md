@@ -11,7 +11,7 @@ update and fall back from it.
 |-------|------|-------|
 | P0 | Fork repo exists and is a functional-parity clone of upstream, installable | **done, live-verified 2026-10-30** (`~/dev/omarchy-annihilation-notifications`, pushed) |
 | P1 | Update tooling, runbooks and manual fallback (fork repo); installer, README and drift hooks (this repo) | **This repo's side done** (`extras/notifications-fork`, `extras/install notifications ...`, the post-update and post-boot guard hooks, README; 141 checks, 22 breaks caught; not yet seen on a real update). **Fork repo's side partly done in P0**: `check-upstream`, `import-upstream` and their tests, and the runbooks. **Left there:** `contract-check`, `status`, a `fallback` tool, CI |
-| P2 | The actual experience: the look (iridescent rim, typography, ring icon), countdown, spores, a switch (theme-gated) | **slice 1 (motion) released as 0.2.0**; look chosen 2026-10-30 (blend of mock-ups A, B and C's spores); **slices 1 to 3 (motion, the look, the countdown) released as 0.2.0 and 0.3.0**, live-verified 2026-10-30; **slice 4 (spores): the exit burst and the faint drift built** on fork branch `p2/spores`, awaiting the user's live check (checklist section F); Growth kept as a follow-up experiment |
+| P2 | The actual experience: the look (iridescent rim, typography, ring icon), countdown, spores, a switch (theme-gated) | **slice 1 (motion) released as 0.2.0**; look chosen 2026-10-30 (blend of mock-ups A, B and C's spores); **slices 1 to 3 (motion, the look, the countdown) released as 0.2.0 and 0.3.0**, live-verified 2026-10-30; **slice 4 (spores) released as 0.4.0**, live-verified 2026-10-30; slice 5 (a master switch, accents) and the Growth experiment remain; Growth kept as a follow-up experiment |
 | P3 | Integration with the shimmer plugin, automatic fallback, CI | not started |
 
 This file is mirrored in the fork repo as `docs/plan.md` (the fork's own copy). The fork's phases are
@@ -287,7 +287,7 @@ the arrival ring visibly becomes the card.
    violet normally, amber to pink for critical, moss for low).
 3. **Countdown.** (Done, released as 0.3.0.) A line of light along the
    bottom edge that drains, ending in a spark; frozen while hovering; none for critical toasts.
-4. **Spores.** The exit dissolves into a few spores (built on branch `p2/spores`, awaiting the user's live check; they drift left, since a toast in the top-right corner has no room above it), and a faint drift off a card's left edge (also built on the branch).
+4. **Spores.** The exit dissolves into a few spores (done, released as 0.4.0; they drift left, since a toast in the top-right corner has no room above it), and a faint drift off a card's left edge (also done).
 5. **Switch and accents.** A setting to turn the new look and the motion off, and any per-app accents.
 6. **Follow-up experiment: Growth.** Try the rest of C on a branch: the organic outline, the lichen strip, veins
    reaching out from the corners, the wavering countdown. Judge it against the blend; the mock-up's wavy outline
