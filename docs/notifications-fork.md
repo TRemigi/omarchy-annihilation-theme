@@ -285,8 +285,8 @@ the arrival ring visibly becomes the card.
    (one small shader per card), igniting at arrival; the Cinzel small-caps caption (app name, time) above the
    title; Jost for the text, with a faint glow on the title; the app icon in a ring; palettes per urgency (teal to
    violet normally, amber to pink for critical, moss for low).
-3. **Countdown.** A line of light along the bottom edge that drains, ending in a spark; frozen while hovering; none
-   for critical toasts.
+3. **Countdown.** (Built on branch `p2/look` with slice 2, awaiting the user's live check.) A line of light along the
+   bottom edge that drains, ending in a spark; frozen while hovering; none for critical toasts.
 4. **Spores.** The exit dissolves into a few spores, and a faint drift above a card.
 5. **Switch and accents.** A setting to turn the new look and the motion off, and any per-app accents.
 6. **Follow-up experiment: Growth.** Try the rest of C on a branch: the organic outline, the lichen strip, veins
