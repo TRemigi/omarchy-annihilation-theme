@@ -21,7 +21,7 @@ shell.toml             hand-tuned shell surfaces; REPLACES the generated one
 btop.theme             hand-tuned
 unlock.png             the Omarchy wordmark recolored #61A0A8 (disk-unlock screen)
 preview-unlock.png     composed mock of the above
-backgrounds/           film stills (1-, 3-, 4-); 2- was deliberately dropped
+backgrounds/           film stills and Area X art (1-, 3- to 9-), the later ones upscaled 4x with Real-ESRGAN; 2- was deliberately dropped
 extras/install         link | unlink | status (idempotent bash)
 extras/hypr/annihilation.lua        border/shadow/blur/dim/animation tweaks
 extras/hooks/theme-set.sh           loads the Lua; toggles the stock screensaver
