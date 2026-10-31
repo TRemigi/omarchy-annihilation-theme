@@ -21,7 +21,7 @@ shell.toml             hand-tuned shell surfaces; REPLACES the generated one
 btop.theme             hand-tuned
 unlock.png             the Omarchy wordmark recolored #61A0A8 (disk-unlock screen)
 preview-unlock.png     composed mock of the above
-backgrounds/           film stills and art (1-, 3- to 5-), the later ones upscaled 4x with Real-ESRGAN; 2- and 6- to 9- were dropped
+backgrounds/           film stills and art (1-, 3- to 5-; 2- and 6- to 9- were dropped), and annihilation-NNN.jpg (20 Blu-ray frames, NNN = frame number): Real-ESRGAN 4x, then downscaled to height 1200 for the 1920x1200 display. Digit-prefixed names sort first, so 1- stays the default
 extras/install         link | unlink | status (idempotent bash)
 extras/hypr/annihilation.lua        border/shadow/blur/dim/animation tweaks
 extras/hooks/theme-set.sh           loads the Lua; toggles the stock screensaver
