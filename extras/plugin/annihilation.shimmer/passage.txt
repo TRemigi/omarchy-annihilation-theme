@@ -1,11 +1,12 @@
-# The screensaver spells this out one line at a time, about every ten seconds,
-# and carries on from where it stopped. This is original text in the manner of
+# The screensaver shows this one line at a time in the middle of the screen,
+# fading each in and out, and starts again from the first line every time it
+# runs. This is original text in the manner of
 # the writing on the tower wall; it is not quoted from the book.
 #
 # To use the real passage (or anything else), put it in
 #   ~/.config/omarchy/annihilation-passage.txt
 # one part per line. That file replaces this one, and lines too long for the
-# screen are broken at word boundaries.
+# screen are wrapped onto two or more centred lines.
 Where lies the strangling fruit, there the light remembers its roots.
 What was buried has learned the patience of water.
 The seeds of the sleeping are shared among the patient dark.

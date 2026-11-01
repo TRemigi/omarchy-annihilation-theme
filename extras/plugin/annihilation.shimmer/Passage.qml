@@ -1,16 +1,14 @@
-// One continuous line of text scrolling right to left. Parts of a passage
-// appear near the right of the screen, one after another with a gap between
-// them, and disappear near the left. Both ends fade inside the screen (see
-// fadeInset), so text never looks as if it comes from, or goes to, off-screen.
+// The passage, one part at a time, in the middle of the screen. Each part fades
+// up out of the dark, holds long enough to read, fades out, and after a pause
+// the next one comes. When the last part has gone the first returns.
 //
-// Each part is its own item rather than one long strip: a strip holding a whole
-// passage would be far wider than a GPU texture can be once the glow is blurred.
-// The glow textures are made once per part and only moved afterwards, so the
-// crawl costs one cheap composite per frame.
+// What is showing is a pure function of `time` (seconds since the screensaver
+// began), so every screen agrees and a run always starts at the first part.
+// The text only changes while the strength is zero (the pause ends each part),
+// so the blurred glow layers are never re-rendered where anyone could see it.
 //
-// Positions come from one number, ribbonX. Parts are laid out in a Row inside
-// it; when the first part has left, it is removed and ribbonX is advanced by its
-// width plus the gap so nothing visibly moves.
+// A part too long for one line is wrapped inside maxWidth and its width is
+// narrowed to balance the lines, rather than leaving a short last one.
 
 import QtQuick
 import QtQuick.Effects
@@ -19,13 +17,15 @@ Item {
   id: root
 
   property var parts: []
-  property int startIndex: 0
-  property real speed: 100       // pixels per second
-  property real gap: 200         // pixels between parts
-  // Fade zones, as fractions of the width. Fully transparent for the outer
-  // fadeInset at each end, then a ramp fadeWidth wide up to full strength.
-  property real fadeInset: 0.08
-  property real fadeWidth: 0.20
+  property real time: 0
+
+  // Seconds. A part holds for holdBase plus holdPerChar for each character.
+  property real fadeSeconds: 4
+  property real pauseSeconds: 1.5
+  property real holdBase: 3
+  property real holdPerChar: 0.045
+  // Widest a line may be, as a fraction of this item's width.
+  property real maxWidthFraction: 0.78
 
   property string fontFamily: ""
   property var fontAxes: ({})
@@ -40,23 +40,11 @@ Item {
   property color coreColor: "#c5e4e7"
 
   property bool running: false
-  property bool autoDrive: true  // false lets a test call advance() itself
-  property bool glow: true
-  property bool fade: true
+  property bool glow: true   // false lets a test render the plain text
 
   // Slow swell of the halos and an occasional gutter of the core.
   property real breath: 0.85
   property real flicker: 1
-
-  property real ribbonX: 0
-  property int nextIndex: 0
-
-  // False until the first frame with a real width. A layer-shell window is
-  // often still zero-wide the instant it becomes visible, so the start position
-  // cannot be worked out then.
-  property bool primed: false
-
-  readonly property int count: partModel.count
 
   // Back to front. The glow of thin letters is faint once blurred, so the
   // bloom is built up from several layers of staggered radius (blurMax, in
@@ -76,56 +64,57 @@ Item {
   ]
   readonly property var plainLayers: [{ kind: "core", blur: 0, tint: coreColor, alpha: 0.95 }]
 
-  function wrap(index) {
-    var n = parts.length
-    return n > 0 ? ((index % n) + n) % n : 0
+  function holdFor(line) {
+    return holdBase + String(line).length * holdPerChar
   }
 
-  function restart() {
-    partModel.clear()
-    primed = false
-    nextIndex = wrap(startIndex)
+  function spanFor(line) {
+    return 2 * fadeSeconds + holdFor(line) + pauseSeconds
   }
 
-  // Index of the first part still on screen, so the next run can pick up there.
-  function resumeIndex() {
-    return wrap(nextIndex - partModel.count)
-  }
-
-  function advance(dt) {
-    if (parts.length === 0) return
-
-    // The first words begin at the inner end of the fade-in zone, already in
-    // view, so the text can fade up together with whatever is behind it instead
-    // of waiting to scroll into sight.
-    if (!primed) {
-      if (width <= 0) return
-      ribbonX = width * (1.0 - fadeInset - fadeWidth)
-      primed = true
+  // Where each part begins in one pass through the passage, and the length of the pass.
+  function buildSchedule(list) {
+    var starts = []
+    var t = 0
+    for (var i = 0; i < list.length; i++) {
+      starts.push(t)
+      t += spanFor(list[i])
     }
-
-    ribbonX -= speed * dt
-
-    var first = partRepeater.itemAt(0)
-    if (first && first.width > 0 && ribbonX + first.width < 0) {
-      ribbonX += first.width + gap
-      partModel.remove(0)
-    }
-
-    // Keep the ribbon reaching past the right edge. One part per frame is
-    // plenty, and the Row only knows a new part's width on the next frame.
-    if (partModel.count === 0 || ribbonX + ribbon.implicitWidth < width + gap) {
-      partModel.append({ line: parts[nextIndex] })
-      nextIndex = wrap(nextIndex + 1)
-    }
+    return { starts: starts, total: t }
   }
 
-  onRunningChanged: if (running) restart()
-
-  FrameAnimation {
-    running: root.running && root.autoDrive && root.parts.length > 0
-    onTriggered: root.advance(Math.min(frameTime, 0.1))
+  // Which part is showing at t, and how strongly (0 to 1). Opacity is linear
+  // light and bright text on near-black looks far stronger than its number, so
+  // a smoothstep ramp is squared to keep pace with the dim photo behind it.
+  function locate(t) {
+    var s = schedule
+    if (parts.length === 0 || s.total <= 0) return { index: 0, strength: 0 }
+    var u = Math.max(0, t) % s.total
+    var i = 0
+    while (i + 1 < s.starts.length && s.starts[i + 1] <= u) i++
+    var local = u - s.starts[i]
+    var hold = holdFor(parts[i])
+    var a = 0
+    if (local < fadeSeconds) a = local / fadeSeconds
+    else if (local < fadeSeconds + hold) a = 1
+    else if (local < 2 * fadeSeconds + hold) a = 1 - (local - fadeSeconds - hold) / fadeSeconds
+    a = a * a * (3 - 2 * a)
+    return { index: i, strength: a * a }
   }
+
+  readonly property var schedule: buildSchedule(parts)
+  readonly property var moment: locate(time)
+  readonly property string currentLine: parts.length > 0 ? String(parts[moment.index]) : ""
+
+  // One line's width if nothing wrapped, then the width that balances the
+  // lines it has to be broken into.
+  readonly property real maxWidth: width * maxWidthFraction
+  readonly property int lineCount: maxWidth > 0 ? Math.max(1, Math.ceil(measure.implicitWidth / maxWidth)) : 1
+  readonly property real textWidth: lineCount <= 1 ? maxWidth
+    : Math.min(maxWidth, measure.implicitWidth / lineCount * 1.12 + pixelSize * 3)
+
+  visible: moment.strength > 0.001
+  opacity: moment.strength
 
   SequentialAnimation on breath {
     running: root.running && root.glow
@@ -144,79 +133,46 @@ Item {
   }
 
   component PartText: Text {
-    required property var crawl
-    required property string line
+    required property var passage
 
-    text: line
+    text: passage.currentLine
     textFormat: Text.PlainText
-    wrapMode: Text.NoWrap
-    font.family: crawl.fontFamily
-    font.variableAxes: crawl.fontAxes
-    font.capitalization: crawl.capitals ? Font.AllUppercase : Font.MixedCase
-    font.pixelSize: crawl.pixelSize
-    font.letterSpacing: crawl.letterSpacing
+    font.family: passage.fontFamily
+    font.variableAxes: passage.fontAxes
+    font.capitalization: passage.capitals ? Font.AllUppercase : Font.MixedCase
+    font.pixelSize: passage.pixelSize
+    font.letterSpacing: passage.letterSpacing
   }
 
-  Item {
-    id: strip
-    anchors.fill: parent
+  // Sizes the lines; the layers below draw them.
+  PartText { id: measure; passage: root; visible: false; wrapMode: Text.NoWrap }
 
-    // The fade is a small shader of our own (shaders/edgefade.frag). A soft
-    // gradient through MultiEffect's mask came out as a hard edge.
-    layer.enabled: root.fade
-    layer.effect: ShaderEffect {
-      property real inset: root.fadeInset
-      property real ramp: root.fadeWidth
-      fragmentShader: Qt.resolvedUrl("shaders/edgefade.frag.qsb")
-    }
+  Repeater {
+    model: root.glow ? root.glowLayers : root.plainLayers
 
-    Row {
-      id: ribbon
-      objectName: "crawlRibbon"
-      x: root.ribbonX
-      height: strip.height
-      spacing: root.gap
+    PartText {
+      id: layerText
+      objectName: "passageLayer"
+      required property var modelData
 
-      Repeater {
-        id: partRepeater
-        model: ListModel { id: partModel }
+      passage: root
+      anchors.centerIn: parent
+      width: root.textWidth
+      wrapMode: Text.WordWrap
+      horizontalAlignment: Text.AlignHCenter
+      // Letter-spacing trails the last glyph of each line; this puts it back.
+      leftPadding: font.letterSpacing
+      color: modelData.tint
+      style: modelData.outline === true ? Text.Outline : Text.Normal
+      styleColor: modelData.tint
+      opacity: modelData.alpha * (modelData.kind === "halo" ? root.breath
+        : modelData.kind === "core" ? root.flicker : 1)
 
-        Item {
-          id: part
-          objectName: "crawlPart"
-          required property string line
-
-          width: measure.implicitWidth
-          height: ribbon.height
-
-          // Sizes the part; the layers below draw it.
-          PartText { id: measure; crawl: root; line: part.line; visible: false }
-
-          Repeater {
-            model: root.glow ? root.glowLayers : root.plainLayers
-
-            PartText {
-              id: layerText
-              required property var modelData
-
-              crawl: root
-              line: part.line
-              anchors.verticalCenter: parent.verticalCenter
-              color: modelData.tint
-              style: modelData.outline === true ? Text.Outline : Text.Normal
-              styleColor: modelData.tint
-              opacity: modelData.alpha * (modelData.kind === "halo" ? root.breath
-                : modelData.kind === "core" ? root.flicker : 1)
-
-              layer.enabled: modelData.blur > 0
-              layer.effect: MultiEffect {
-                blurEnabled: true
-                blur: 1.0
-                blurMax: layerText.modelData.blur
-              }
-            }
-          }
-        }
+      layer.enabled: modelData.blur > 0
+      layer.effect: MultiEffect {
+        blurEnabled: true
+        blur: 1.0
+        blurMax: layerText.modelData.blur
       }
     }
   }

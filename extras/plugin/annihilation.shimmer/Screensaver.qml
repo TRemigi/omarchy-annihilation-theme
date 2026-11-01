@@ -1,7 +1,7 @@
 // The Shimmer screensaver: one fullscreen overlay per screen showing the
-// wallpaper slowly taken by the bloom shader, with a passage crawling across it
-// as living light (see Crawl.qml). Every screen starts from the same saved
-// position, so they agree. Idle-driven instances are ended by the idle monitor
+// wallpaper slowly taken by the bloom shader, with a passage fading in and out
+// at its centre as living light (see Passage.qml), starting from its first
+// part every time. Every screen runs the same schedule, so they agree. Idle-driven instances are ended by the idle monitor
 // on any input; summoned ones take input and end themselves (see
 // Service.screensaverForced).
 
@@ -23,8 +23,6 @@ PanelWindow {
 
   property real startedAt: 0
   property real elapsed: 0
-  // How far the text has come up, 0 to 1; see crawlIn.
-  property real reveal: 0
 
   function dismiss() {
     service.screensaverForced = false
@@ -43,12 +41,6 @@ PanelWindow {
     if (visible) {
       startedAt = Date.now()
       elapsed = 0
-      reveal = 0
-      crawlIn.restart()
-    } else {
-      crawlIn.stop()
-      // Next time, carry on from the first part that was still on screen.
-      service.passageIndex = crawl.resumeIndex()
     }
   }
 
@@ -92,22 +84,17 @@ PanelWindow {
 
   // The passage, as living light: a dark halo for legibility, layered blooms of
   // teal that breathe slowly, and a pale core that now and then gutters (the
-  // layers are in Crawl.qml). The band is tall enough for the widest bloom not
+  // layers are in Passage.qml). The band is tall enough for the widest bloom not
   // to be clipped.
-  Crawl {
-    id: crawl
-    anchors.verticalCenter: parent.verticalCenter
+  Passage {
+    id: passage
+    anchors.centerIn: parent
     width: parent.width
-    height: Math.max(win.passageSize * 5, win.passageSize * 1.5 + 160)
-    // Squared: opacity is linear light, and bright text on near-black looks
-    // far stronger than its number, so a straight ramp seems to pop in.
-    opacity: win.reveal * win.reveal
+    height: Math.max(win.passageSize * 7, win.passageSize * 3 + 160)
 
     parts: win.service.passageParts
-    startIndex: win.service.passageIndex
+    time: win.elapsed
     running: win.visible
-    speed: win.service.crawlSpeed * win.passageSize
-    gap: win.passageSize * 7
 
     fontFamily: win.passageStyle.family
     fontAxes: win.passageStyle.axes
@@ -119,20 +106,6 @@ PanelWindow {
     midColor: Qt.lighter(Color.accent, 1.25)
     nearColor: Qt.lighter(Color.accent, 1.5)
     coreColor: Qt.lighter(Color.accent, 1.8)
-  }
-
-  // Starts with the photo (smoothstep, which is exactly this cubic Bezier with
-  // control points at one third and two thirds) but takes twice as long, so
-  // the text keeps pace with the dim photo and then settles in.
-  NumberAnimation {
-    id: crawlIn
-    target: win
-    property: "reveal"
-    from: 0
-    to: 1
-    duration: 6000
-    easing.type: Easing.Bezier
-    easing.bezierCurve: [1 / 3, 0, 2 / 3, 1, 1, 1]
   }
 
   Item {

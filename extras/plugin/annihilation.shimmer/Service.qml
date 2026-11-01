@@ -16,7 +16,6 @@
 //   fpsCap (5-60, 30), screensaver (bool, true),
 //   screensaverSeconds (0 = follow idle.screensaver in shell.json),
 //   screensaverBrightness (0.02-1, 0.08: how much of the photo shows),
-//   crawlSpeed (0.5-8, 2.5: type-sizes per second),
 //   passageFont ("jost", "cinzel", or any installed family name).
 
 import QtQuick
@@ -73,7 +72,6 @@ Scope {
   property int idleLockSeconds: 300
   property string passageFont: "jost"
   property real screensaverBrightness: 0.08
-  property real crawlSpeed: 2.5
 
   // Typography for the passage. The bundled fonts load from fonts/ (SIL OFL,
   // licences alongside); any other value is the name of an installed family.
@@ -135,14 +133,12 @@ Scope {
   readonly property bool screensaverActive: themeActive
     && (screensaverForced || (idleAllowed && idleShowing))
 
-  // The passage the screensaver crawls, carrying on from where it stopped the
-  // last time (the screensaver writes passageIndex back). passage.txt ships
-  // with the plugin; a file at ~/.config/omarchy/annihilation-passage.txt
-  // replaces it.
+  // The passage the screensaver fades through, from its first part each time.
+  // passage.txt ships with the plugin; a file at
+  // ~/.config/omarchy/annihilation-passage.txt replaces it.
   property var shippedParts: []
   property var customParts: []
   readonly property var passageParts: customParts.length > 0 ? customParts : shippedParts
-  property int passageIndex: 0
 
   // The shader's clock, in seconds, shared by every screen. It is accumulated
   // rather than read from the wall clock, so changing layerSpeed speeds the
@@ -189,7 +185,6 @@ Scope {
     screensaverEnabled = entry.screensaver !== false
     passageFont = typeof entry.passageFont === "string" && entry.passageFont.length > 0 ? entry.passageFont : "jost"
     screensaverBrightness = typeof entry.screensaverBrightness === "number" ? clamp(entry.screensaverBrightness, 0.02, 1) : 0.08
-    crawlSpeed = typeof entry.crawlSpeed === "number" ? clamp(entry.crawlSpeed, 0.5, 8) : 2.5
     screensaverSecondsSetting = typeof entry.screensaverSeconds === "number"
       ? Math.max(0, Math.round(entry.screensaverSeconds)) : 0
 
@@ -549,7 +544,6 @@ Scope {
         screensaverSeconds: root.screensaverSeconds,
         passageFont: root.passageStyle.family,
         screensaverBrightness: root.screensaverBrightness,
-        crawlSpeed: root.crawlSpeed,
         screensaverActive: root.screensaverActive,
         passageParts: root.passageParts.length,
         customPassage: root.customParts.length > 0
