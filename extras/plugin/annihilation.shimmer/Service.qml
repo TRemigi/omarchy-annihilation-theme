@@ -74,6 +74,7 @@ Scope {
   property bool screensaverEnabled: true
   property int screensaverSecondsSetting: 0
   property int idleScreensaverSeconds: 150
+  property int idleLockSeconds: 300
   property string passageFont: "jost"
   property real screensaverBrightness: 0.08
   property real crawlSpeed: 2.5
@@ -111,8 +112,25 @@ Scope {
   // then grabs input so a key or click can dismiss it; idle-driven ones end
   // when the idle monitor sees any input.
   property bool screensaverForced: false
+
+  // Omarchy's "Stay Awake" bar button (omarchy.idle) is this file. The idle
+  // service stops its own screensaver and lock while it exists; we have to
+  // follow, because our idle monitor is separate from theirs.
+  readonly property string stayAwakeDir: home + "/.local/state/omarchy/indicators"
+  property bool stayAwake: false
+  property bool stayAwakeLoaded: false
+
+  // The screensaver may idle-start only when the lock is not already up and
+  // not due at the same moment (the idle service locks at idle.lock seconds
+  // after the last input, so a screensaver that long is pointless and would
+  // race the lock surface).
+  readonly property bool idleAllowed: themeActive && screensaverEnabled
+    && stayAwakeLoaded && !stayAwake && screensaverSeconds < idleLockSeconds
+  // Set once the monitor reports idle and a check found no session lock;
+  // cleared when input returns or the lock is seen.
+  property bool idleShowing: false
   readonly property bool screensaverActive: themeActive
-    && (screensaverForced || (screensaverEnabled && idleMonitor.isIdle))
+    && (screensaverForced || (idleAllowed && idleShowing))
 
   // The passage the screensaver crawls, carrying on from where it stopped the
   // last time (the screensaver writes passageIndex back). passage.txt ships
@@ -176,6 +194,8 @@ Scope {
 
     var idle = cfg && cfg.idle && typeof cfg.idle.screensaver === "number" ? cfg.idle.screensaver : 150
     idleScreensaverSeconds = Math.max(10, Math.round(idle))
+    var lock = cfg && cfg.idle && typeof cfg.idle.lock === "number" ? cfg.idle.lock : 300
+    idleLockSeconds = Math.max(0, Math.round(lock))
   }
 
   // One part per line. A line too long for the screen is broken at a word,
@@ -343,10 +363,85 @@ Scope {
 
   IdleMonitor {
     id: idleMonitor
-    enabled: root.themeActive && root.screensaverEnabled
+    enabled: root.idleAllowed
     timeout: root.screensaverSeconds
     respectInhibitors: true
+    onIsIdleChanged: {
+      if (isIdle) root.checkLock("start")
+      else root.idleShowing = false
+    }
   }
+
+  // Never show over, or be torn down under, the session lock. The same query
+  // the idle service makes before it launches Omarchy's screensaver. "start"
+  // gates an idle start, "poll" ends the screensaver once the lock is up (as
+  // omarchy-system-lock does for the stock one), "forced" gates the IPC call.
+  property string lockCheckMode: ""
+  property string lockCheckQueued: ""
+  function checkLock(mode) {
+    // A poll in flight must not swallow a start or forced request.
+    if (lockProbe.running) {
+      if (mode !== "poll") lockCheckQueued = mode
+      return
+    }
+    lockCheckMode = mode
+    lockProbe.running = true
+  }
+
+  onIdleAllowedChanged: if (!idleAllowed) idleShowing = false
+
+  function lockChecked(locked) {
+    var mode = lockCheckMode
+    if (mode === "start") idleShowing = idleMonitor.isIdle && !locked
+    else if (mode === "forced") screensaverForced = !locked
+    else if (locked) { idleShowing = false; screensaverForced = false }
+  }
+
+  Process {
+    id: lockProbe
+    command: ["bash", "-c", "omarchy-shell lock isLocked 2>/dev/null"]
+    property string answer: ""
+    stdout: SplitParser {
+      onRead: function(line) { lockProbe.answer = String(line).trim() }
+    }
+    onRunningChanged: if (running) answer = ""
+    onExited: function(exitCode) {
+      // No answer is treated as unlocked, as the idle service does.
+      root.lockChecked(exitCode === 0 && answer === "true")
+      var next = root.lockCheckQueued
+      root.lockCheckQueued = ""
+      if (next !== "") root.checkLock(next)
+    }
+  }
+
+  Timer {
+    interval: 1000
+    running: root.screensaverActive
+    repeat: true
+    onTriggered: root.checkLock("poll")
+  }
+
+  Process {
+    id: stayAwakeProbe
+    command: ["bash", "-c", "mkdir -p \"$HOME/.local/state/omarchy/indicators\"; [[ -f $HOME/.local/state/omarchy/indicators/stay-awake ]] && echo yes || echo no"]
+    stdout: SplitParser {
+      onRead: function(line) {
+        root.stayAwake = String(line).trim() === "yes"
+        root.stayAwakeLoaded = true
+      }
+    }
+    onExited: stayAwakeWatcher.reload()
+  }
+
+  FileView {
+    id: stayAwakeWatcher
+    path: root.stayAwakeDir
+    watchChanges: true
+    printErrors: false
+    onFileChanged: if (!stayAwakeProbe.running) stayAwakeProbe.running = true
+  }
+
+  Component.onCompleted: stayAwakeProbe.running = true
 
   // Advances the clock at the frame rate cap. A long gap (the machine slept, the
   // shell stalled) counts as at most a quarter of a second.
@@ -395,7 +490,7 @@ Scope {
     }
 
     function screensaver(): void {
-      if (root.themeActive) root.screensaverForced = true
+      if (root.themeActive) root.checkLock("forced")
     }
 
     function dismiss(): void {
@@ -430,6 +525,9 @@ Scope {
         motes: root.motes,
         fpsCap: root.fpsCap,
         screensaverEnabled: root.screensaverEnabled,
+        stayAwake: root.stayAwake,
+        idleAllowed: root.idleAllowed,
+        idleLockSeconds: root.idleLockSeconds,
         screensaverSeconds: root.screensaverSeconds,
         passageFont: root.passageStyle.family,
         screensaverBrightness: root.screensaverBrightness,

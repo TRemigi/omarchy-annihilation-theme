@@ -73,7 +73,7 @@ entry under `bar.layout`, or `plugins[]` if you run it without the glyph):
 | `motes` | `true` | the spores |
 | `fpsCap` | `30` | 5 to 60 |
 | `screensaver` | `true` | set `false` to keep Omarchy's idle behavior without it |
-| `screensaverSeconds` | `0` | `0` follows `idle.screensaver` |
+| `screensaverSeconds` | `0` | `0` follows `idle.screensaver`; it does not start on idle if this is not shorter than `idle.lock`, and it is off while the bar's Stay Awake is on |
 | `screensaverBrightness` | `0.08` | how much of the photo shows, 0.02 to 1 |
 | `crawlSpeed` | `2.5` | type-sizes per second, 0.5 to 8 |
 | `passageFont` | `"jost"` | `"jost"`, `"cinzel"`, or the name of any installed font |

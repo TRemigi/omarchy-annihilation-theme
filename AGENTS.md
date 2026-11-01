@@ -529,6 +529,21 @@ iridescence (oil on water); bioluminescent fungi.
 - Do not use a running `ColorAnimation`/`NumberAnimation` for something that
   just changes slowly in the bar; it forces a repaint every frame. The glyph
   uses a 1 s `Timer` instead.
+- **The screensaver must follow Omarchy's idle rules; our `IdleMonitor` is separate from
+  `omarchy.idle`'s, and third-party plugins cannot reach that service.** So `Service.qml`
+  re-implements the three rules that matter: (1) the "Stay Awake" bar button is the file
+  `~/.local/state/omarchy/indicators/stay-awake` (watched the way the idle service does it:
+  watch the directory, re-probe on change); while it exists the idle screensaver is off, a
+  forced one (IPC, middle click) still works. (2) Like `omarchy-launch-screensaver`, ask
+  `omarchy-shell lock isLocked` before showing (`checkLock("start")`), and poll it every
+  second while showing (`"poll"`) so the overlay is unmapped once the lock covers the
+  screen, as `omarchy-system-lock` does to the stock one. Without this the overlay stayed
+  mapped across the session lock and the idle monitor tore it down on the first keypress
+  at the lock screen, which is the suspected (UNCONFIRMED, never reproduced here) cause of
+  a Hyprland crash seen on a second machine when locking. (3) It does not idle-start when
+  `screensaverSeconds >= idle.lock`, since the lock would arrive at once.
+  Get `~/.cache/hyprland/hyprlandCrashReport*.txt` or `coredumpctl info Hyprland` from the
+  machine that crashed before claiming the cause.
 - `Screensaver` is driven by `IdleMonitor` (respects inhibitors), so idle-driven
   instances end on any input. IPC-summoned ones set `screensaverForced`, take
   keyboard focus and end on key or click.
