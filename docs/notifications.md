@@ -10,7 +10,7 @@ gotchas; this file is only about notifications.
 | # | Item | State |
 |---|------|-------|
 | 0 | Notification feed (plugin learns when a toast arrives) | **built; works live** (user confirmed with item 1) |
-| 1 | Arrival glow (light spreads from the toast corner) | **built; user: "looks great"** |
+| 1 | Arrival glow (light spreads from the toast corner) | **moved to the notification fork** (2026-10-31): it could not know where the card was, so the fork draws it from the card's own outline and icon. Removed from this theme with its settings (`notifyGlow`, `notifyGlowStrength`) |
 | 2 | Sound (synthesized, opt-in) | **built; user confirmed working** (no feedback yet on how the tones sound) |
 | 4 | Missed notifications on the bar prism | **built; user confirmed working**, expired and silenced paths |
 | 6 | Themed fork of the notification daemon | **a separate project**, with its own repo, plan, status and releases: [omarchy-annihilation-notifications](https://github.com/TRemigi/omarchy-annihilation-notifications). Not tracked here |
@@ -88,76 +88,13 @@ Design:
   and the exact restart behaviour above. Test with `omarchy-notification-send` /
   `notify-send` first.
 
-## Item 1: arrival glow
+## Item 1: arrival glow (moved)
 
-**Built:** `ArrivalGlow.qml` (one layer per screen, namespace `annihilation-arrival`,
-`WlrLayer.Top`, click-through, shown only while an arrival is running),
-`shaders/arrival.frag` (+ committed `.qsb`), settings `notifyGlow` and
-`notifyGlowStrength` (popup: "Glow on notifications" and "Arrival glow"), the
-Hyprland layer rule extended to the new namespace (needs `hyprctl reload`), and
-`omarchy-shell shimmer notify [0|1|2]` to trigger one without `notify-send`.
-Tests: `extras/dev/arrival-glow-test.js` (26 checks, 10 deliberate breaks each
-caught). The shader was rendered through `extras/dev/shader-harness.c` (it now
-takes `EV0..EV2`, `ORIGIN`, `BOX`, `REACH`, `STRENGTH`) and judged from
-filmstrips over a dark backdrop with a stand-in card.
-
-What the design is, and what it took to get there (so it is not re-derived):
-- A **ring** leaves the source and travels out, widening and dimming, plus a slower
-  **halo**. Duration 3.2 s low, 4.2 s normal, 6 s critical; strength 0.6 / 1 / 1.3;
-  `omarchy-action` toasts 0.7 and a burst (within 400 ms of the last) 0.6; at most
-  three at once. Colour: normal teal to blue, critical amber to pink, low moss to
-  teal (across the ring's width only, a narrow slice of the spectrum).
-- First version used the card's own 380x68 outline as the source. The ring stayed
-  a big rounded rectangle (a picture frame) and a flat fill sat between card and
-  ring. Blending box distance into circle distance made a shield-shaped kink at the
-  lower left. What worked: a source box **narrower than the card** (100x30 half-size,
-  `sourceBox`), pure rounded-box distance, so the ring rounds off soon; and the halo
-  cut to sigma 0.22 reach at half the amplitude. Ring 0.30, halo 0.15.
-- Measured on the real shader at 1880x1190 (border shaved): largest step between
-  neighbouring pixels 3/255 (0.012), peak channel 0.45 for a critical arrival and
-  0.42 for three stacked, never near white. Cost is negligible (renders at half
-  scale, only while an arrival runs).
-- Known: the layer is above the bar, so the glow can lighten the bar's right end;
-  the origin assumes a 380 px card at `Style.gapsOut` from the corner and the bar's
-  reserved area, so it is a few pixels off for a tall card; `renderScale` is 0.5.
-- Live: the user ran it and said it looks great. They needed `omarchy restart shell`
-  (not only `hyprctl reload` and `rescanPlugins`) to pick up the new file; see the
-  AGENTS.md gotcha. Every item that adds a file needs the same instruction.
-- (Superseded) **Look at it live first.** `omarchy-shell shimmer notify 1` (then 2, 0). If it is
-  too strong or too weak the slider is the quick test; defaults live in the shader
-  (`0.30` ring, `0.15` halo) and `amplitudeFor`.
-
-Original brief for this item, kept for reference:
-
-When a toast arrives, a slow ring of refracted light spreads from the top-right
-corner (where toasts land) and fades over a few seconds. Colour by urgency: teal
-`#61A0A8` normal, amber `#DB930D` critical, moss `#7A7653` low. Design rules from
-AGENTS.md apply: edges and halos, never a saturated fill; slow and low-alpha; a
-soft falloff with no hard colour edges; radially symmetric (anything borrowed from
-the fans reads as a beam).
-
-Decisions and reasons:
-- **Anchor to the corner, not to the card.** Card height is unknown (see
-  Constraints). Fitting a halo to a guessed rectangle will look wrong by a few
-  pixels each time, while a corner-anchored wash cannot. If a card-fitted version
-  is wanted later, measure first (a live screenshot) before adding an estimate.
-- Draw it in the **window glow layer** (`WindowGlow.qml`, `Top`, additive,
-  click-through), not the wallpaper layer, which is hidden behind windows. The
-  toast overlay is above it, so the glow lights the area around the card.
-- Probably a small separate shader (`shaders/arrival.frag`, plus the committed
-  `.qsb`) or a uniform block added to `windowglow.frag`. Prefer a separate item so
-  the window-glow shader and its tests stay byte-identical when no toast is live
-  (the same discipline the cursor mode follows).
-- Multiple toasts: queue or sum with a cap; rapid bursts must not stack to a
-  flash. Respect fullscreen (hidden under fullscreen, like the glow).
-- Reach in pixels at the user's real resolution (about 1880x1190 logical), not in
-  a scaled preview. AGENTS.md records how that bit the window glow.
-- Setting: `notifyGlow` (bool, default on) and an intensity, in the popup next to
-  the other sliders.
-
-Verification: render with `extras/dev/shader-harness.c` over a synthetic desktop,
-look at a filmstrip of the ring over time, and scan with `extras/dev/edge-scan.py`
-for colour steps. Only the user can judge it live.
+This lived here as `ArrivalGlow.qml` and `shaders/arrival.frag` (a ring from a fixed source box near the corner, because the theme could not
+know where the card was; the user said it looked great, then that the toasts did not align with it) and **was removed on 2026-10-31**: the
+notification fork owns the card, so it draws the arrival now, from the card's real outline and icon, as one event with the card's own
+appearance. Its design, tests and status are in that repo (`docs/design/arrival/`, `components/Arrival*.qml`). The old design notes and
+numbers are in this file's git history. The feed (`NotificationFeed.qml`), the sound and the missed-notification marks stay here.
 
 ## Item 2: sound
 

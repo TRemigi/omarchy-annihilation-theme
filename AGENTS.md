@@ -36,8 +36,7 @@ theme gate, IPC, idle monitor, passage parts, font loading), `ShimmerLayer.qml`
 (wallpaper overlay per screen), `Screensaver.qml` (overlay per screen),
 `Crawl.qml` (the scrolling, glowing text line),
 `BarWidget.qml` + `Panel.qml` (prism glyph and popup), `sounds/` (three synthesized tones, regenerate with `extras/dev/make-sounds.py`), `MissedTracker.qml` (what went unnoticed, saved to `~/.local/state/annihilation-theme/missed.json` for the widget and popup), `NotificationFeed.qml` (an `arrived`
-signal from the notification service's popup files) and `ArrivalGlow.qml` (light off a toast;
-see `docs/notifications.md`), `shaders/*.frag` and the
+signal from the notification service's popup files; the arrival's light moved to the notification fork), `shaders/*.frag` and the
 committed compiled `*.frag.qsb`, `fonts/` (Jost, Cinzel + OFL licences),
 `passage.txt` (screensaver text), `journal.txt` (popup daily entries).
 
@@ -503,8 +502,8 @@ iridescence (oil on water); bioluminescent fungi.
   not follow symlinks, so after editing run `omarchy-shell shell rescanPlugins`.
   Discovery (`for sub in "$dir"/*/`) does follow them.
 - **A new QML file or a new layer needs `omarchy restart shell`**, not just
-  `rescanPlugins` and `hyprctl reload`. The user hit this when `ArrivalGlow.qml`
-  (a new file, instantiated from `Service.qml`) was added: the rescan did not pick
+  `rescanPlugins` and `hyprctl reload`. The user hit this when a new layer file
+  (instantiated from `Service.qml`) was added: the rescan did not pick
   it up. Edits to existing files may hot-reload; the cause is unverified. When you
   add a file, new layer or new IPC function, tell the user to restart the shell.
 - `omarchy plugin validate` rejects a symlinked plugin folder; validate the real
@@ -681,8 +680,7 @@ Settings (inline on the plugin entry): `layerEnabled`, `layerIntensity` (0.44), 
 
 IPC (`omarchy-shell shimmer ...`): `toggleLayer`, `pulse`, `screensaver`,
 `dismiss`, `status`, `notify <0|1|2>` (fake an arrival, to see its effects), `sound <arrive|low|urgent>` (hear a tone), `seen` (mark missed notifications seen).
-Settings added for notifications: `notifyGlow` (true), `notifyGlowStrength` (0.1 to 2, 1),
-`notifySound` (true), `notifySoundVolume` (0.05 to 1, 0.5).
+Settings added for notifications: `notifySound` (true), `notifySoundVolume` (0.05 to 1, 0.5).
 The defaults of the popup's sliders and switches were set to the author's own values (intensity 0.44, speed 1.29, glow span 1.98, depth 0.21, brightness 0.98, sound on), kept in two places that must agree: `Service.qml` (property and `applyConfig`) and `Panel.qml` (the `setting(key, default)` reads). The popup's "Reset to defaults" button removes `Panel.resettable` from the entry (`BarWidget.resetSettings`; `updateEntryInline` replaces the entry, it does not merge), so a new popup setting must be added to that list. Design numbers in this file quoted "at the default" were measured at the old defaults (1.0).
 
 Also a setting: `crawlSpeed` (0.5 to 8).

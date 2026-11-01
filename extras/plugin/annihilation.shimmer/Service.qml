@@ -10,8 +10,6 @@
 //   windowGlowSpan (0.5-2.5, 1.98: how much length of edge the pool covers, in cursor mode),
 //   windowGlowDepth (0.02-2.5, 0.21: how far into a window the glow reaches),
 //   windowGlowCenter (0-2.5, 0.98: brightness of the cursor glow's bright centre; "Glow brightness" in the popup),
-//   notifyGlow (bool, true: light spreads off a toast when a notification arrives),
-//   notifyGlowStrength (0.1-2, 1: "Arrival glow" in the popup),
 //   notifySound (bool, true: a soft tone when a notification arrives; not for Omarchy's own action toasts),
 //   notifySoundVolume (0.05-1, 0.5),
 //   layerAdditive (bool, true),
@@ -61,8 +59,6 @@ Scope {
   property real windowGlowDepth: 0.21
   // How bright the centre of the cursor glow (its core and bright point) is, as a multiple of the default.
   property real windowGlowCenter: 0.98
-  property bool notifyGlow: true
-  property real notifyGlowStrength: 1.0
   property bool notifySound: true
   property real notifySoundVolume: 0.5
   property real lastSoundMs: 0
@@ -184,8 +180,6 @@ Scope {
     windowGlowSpan = typeof entry.windowGlowSpan === "number" ? clamp(entry.windowGlowSpan, 0.5, 2.5) : 1.98
     windowGlowDepth = typeof entry.windowGlowDepth === "number" ? clamp(entry.windowGlowDepth, 0.02, 2.5) : 0.21
     windowGlowCenter = typeof entry.windowGlowCenter === "number" ? clamp(entry.windowGlowCenter, 0, 2.5) : 0.98
-    notifyGlow = entry.notifyGlow !== false
-    notifyGlowStrength = typeof entry.notifyGlowStrength === "number" ? clamp(entry.notifyGlowStrength, 0.1, 2) : 1.0
     notifySound = entry.notifySound !== false
     notifySoundVolume = typeof entry.notifySoundVolume === "number" ? clamp(entry.notifySoundVolume, 0.05, 1) : 0.5
     motes = entry.motes !== false
@@ -536,8 +530,6 @@ Scope {
         cursorSource: pointer.source,
         cursorKnown: pointer.known,
         cursor: [pointer.cursorX, pointer.cursorY],
-        notifyGlow: root.notifyGlow,
-        notifyGlowStrength: root.notifyGlowStrength,
         notifySound: root.notifySound,
         notifySoundVolume: root.notifySoundVolume,
         missedWatching: missedTracker.watching,
@@ -579,16 +571,6 @@ Scope {
     model: Quickshell.screens
 
     WindowGlow {
-      required property var modelData
-      screen: modelData
-      service: root
-    }
-  }
-
-  Variants {
-    model: Quickshell.screens
-
-    ArrivalGlow {
       required property var modelData
       screen: modelData
       service: root
