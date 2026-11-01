@@ -88,8 +88,8 @@ int main(int argc, char **argv) {
     }
     free(copy);
   }
-  // For arrival.frag: EV0, EV1, EV2 = "progress,urgency,amplitude,salt" (default off), ORIGIN="x,y" (the card's
-  // centre), BOX="halfwidth,halfheight", REACH (pixels) and STRENGTH.
+  // Left from the arrival ring's shader (EV0..EV2, ORIGIN, BOX, REACH, STRENGTH), which moved to the notification fork. The other
+  // shaders have no such uniforms, so these are ignored (location -1).
   { const char *names[3] = { "EV0", "EV1", "EV2" }; char nm[24];
     for (int i = 0; i < 3; i++) { float a = 0, b = 1, c = 1, d = 0; if (getenv(names[i])) sscanf(getenv(names[i]), "%f,%f,%f,%f", &a, &b, &c, &d);
       snprintf(nm, sizeof nm, "ubuf.ev%d", i); glUniform4f(glGetUniformLocation(prog, nm), a, b, c, d); } }
