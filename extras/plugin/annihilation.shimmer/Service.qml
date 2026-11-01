@@ -4,15 +4,15 @@
 // switches is safe.
 //
 // Settings are inline fields on this plugin's entry in shell.json `plugins[]`:
-//   layerEnabled (bool, true), layerIntensity (0-1, 0.35), layerSpeed (0.1-4, 1),
+//   layerEnabled (bool, true), layerIntensity (0-1, 0.44), layerSpeed (0.1-4, 1.29),
 //   motes (bool, true), windowGlow (bool, true: light spilling over window edges),
 //   windowGlowMode ("all", or "cursor": the active window only, pooled near the pointer),
-//   windowGlowSpan (0.5-2.5, 1: how much length of edge the pool covers, in cursor mode),
-//   windowGlowDepth (0.02-2.5, 1: how far into a window the glow reaches),
-//   windowGlowCenter (0-2.5, 1: brightness of the cursor glow's bright centre; "Glow brightness" in the popup),
+//   windowGlowSpan (0.5-2.5, 1.98: how much length of edge the pool covers, in cursor mode),
+//   windowGlowDepth (0.02-2.5, 0.21: how far into a window the glow reaches),
+//   windowGlowCenter (0-2.5, 0.98: brightness of the cursor glow's bright centre; "Glow brightness" in the popup),
 //   notifyGlow (bool, true: light spreads off a toast when a notification arrives),
 //   notifyGlowStrength (0.1-2, 1: "Arrival glow" in the popup),
-//   notifySound (bool, false: a soft tone when a notification arrives; not for Omarchy's own action toasts),
+//   notifySound (bool, true: a soft tone when a notification arrives; not for Omarchy's own action toasts),
 //   notifySoundVolume (0.05-1, 0.5),
 //   layerAdditive (bool, true),
 //   fpsCap (5-60, 30), screensaver (bool, true),
@@ -56,19 +56,19 @@ Scope {
   // span of its edge nearest the pointer wider and brighter.
   property string windowGlowMode: "all"
   // How much length of edge the pool covers in cursor mode, as a multiple of the default.
-  property real windowGlowSpan: 1.0
+  property real windowGlowSpan: 1.98
   // How far into a window the glow reaches, as a multiple of the default.
-  property real windowGlowDepth: 1.0
+  property real windowGlowDepth: 0.21
   // How bright the centre of the cursor glow (its core and bright point) is, as a multiple of the default.
-  property real windowGlowCenter: 1.0
+  property real windowGlowCenter: 0.98
   property bool notifyGlow: true
   property real notifyGlowStrength: 1.0
-  property bool notifySound: false
+  property bool notifySound: true
   property real notifySoundVolume: 0.5
   property real lastSoundMs: 0
-  property real layerIntensity: 0.35
+  property real layerIntensity: 0.44
   // How fast the Shimmer evolves, as a multiple of its natural pace.
-  property real layerSpeed: 1.0
+  property real layerSpeed: 1.29
   property bool motes: true
   property int fpsCap: 30
   property bool screensaverEnabled: true
@@ -156,16 +156,16 @@ Scope {
     layerAdditive = entry.layerAdditive !== false
     windowGlow = entry.windowGlow !== false
     windowGlowMode = entry.windowGlowMode === "cursor" ? "cursor" : "all"
-    windowGlowSpan = typeof entry.windowGlowSpan === "number" ? clamp(entry.windowGlowSpan, 0.5, 2.5) : 1.0
-    windowGlowDepth = typeof entry.windowGlowDepth === "number" ? clamp(entry.windowGlowDepth, 0.02, 2.5) : 1.0
-    windowGlowCenter = typeof entry.windowGlowCenter === "number" ? clamp(entry.windowGlowCenter, 0, 2.5) : 1.0
+    windowGlowSpan = typeof entry.windowGlowSpan === "number" ? clamp(entry.windowGlowSpan, 0.5, 2.5) : 1.98
+    windowGlowDepth = typeof entry.windowGlowDepth === "number" ? clamp(entry.windowGlowDepth, 0.02, 2.5) : 0.21
+    windowGlowCenter = typeof entry.windowGlowCenter === "number" ? clamp(entry.windowGlowCenter, 0, 2.5) : 0.98
     notifyGlow = entry.notifyGlow !== false
     notifyGlowStrength = typeof entry.notifyGlowStrength === "number" ? clamp(entry.notifyGlowStrength, 0.1, 2) : 1.0
-    notifySound = entry.notifySound === true
+    notifySound = entry.notifySound !== false
     notifySoundVolume = typeof entry.notifySoundVolume === "number" ? clamp(entry.notifySoundVolume, 0.05, 1) : 0.5
     motes = entry.motes !== false
-    layerIntensity = typeof entry.layerIntensity === "number" ? clamp(entry.layerIntensity, 0, 1) : 0.35
-    layerSpeed = typeof entry.layerSpeed === "number" ? clamp(entry.layerSpeed, 0.1, 4) : 1.0
+    layerIntensity = typeof entry.layerIntensity === "number" ? clamp(entry.layerIntensity, 0, 1) : 0.44
+    layerSpeed = typeof entry.layerSpeed === "number" ? clamp(entry.layerSpeed, 0.1, 4) : 1.29
     fpsCap = typeof entry.fpsCap === "number" ? Math.round(clamp(entry.fpsCap, 5, 60)) : 30
     screensaverEnabled = entry.screensaver !== false
     passageFont = typeof entry.passageFont === "string" && entry.passageFont.length > 0 ? entry.passageFont : "jost"

@@ -35,18 +35,18 @@ Panel {
 
   readonly property int day: Math.floor(uptimeSeconds / 86400) + 1
   readonly property string entry: lines.length > 0 ? lines[dayOfYear % lines.length] : ""
-  readonly property real intensity: Number(setting("layerIntensity", 0.35))
-  readonly property real speed: Number(setting("layerSpeed", 1.0))
+  readonly property real intensity: Number(setting("layerIntensity", 0.44))
+  readonly property real speed: Number(setting("layerSpeed", 1.29))
   readonly property bool layerEnabled: setting("layerEnabled", true) !== false
   readonly property bool motes: setting("motes", true) !== false
   readonly property bool glowFollows: setting("windowGlowMode", "all") === "cursor"
-  readonly property real span: Number(setting("windowGlowSpan", 1.0))
-  readonly property real depth: Number(setting("windowGlowDepth", 1.0))
-  readonly property real center: Number(setting("windowGlowCenter", 1.0))
+  readonly property real span: Number(setting("windowGlowSpan", 1.98))
+  readonly property real depth: Number(setting("windowGlowDepth", 0.21))
+  readonly property real center: Number(setting("windowGlowCenter", 0.98))
   readonly property real notifyStrength: Number(setting("notifyGlowStrength", 1.0))
   readonly property bool notifyGlow: setting("notifyGlow", true) !== false
   readonly property real soundVolume: Number(setting("notifySoundVolume", 0.5))
-  readonly property bool notifySound: setting("notifySound", false) === true
+  readonly property bool notifySound: setting("notifySound", true) !== false
 
   function sliderValue(key) {
     switch (key) {
@@ -58,6 +58,17 @@ Panel {
     case "notifySoundVolume": return soundVolume
     default: return intensity
     }
+  }
+
+  // Everything the popup controls. Resetting removes these from the entry, so the defaults apply
+  // (the ones above and in Service.applyConfig).
+  readonly property var resettable: ["layerEnabled", "layerIntensity", "layerSpeed", "motes", "windowGlowMode",
+    "windowGlowSpan", "windowGlowDepth", "windowGlowCenter", "notifyGlow", "notifyGlowStrength",
+    "notifySound", "notifySoundVolume"]
+
+  function resetToDefaults() {
+    if (root.hostWidget && typeof root.hostWidget.resetSettings === "function")
+      root.hostWidget.resetSettings(root.resettable)
   }
 
   function change(key, value) {
@@ -317,6 +328,31 @@ Panel {
               onToggled: root.change(row.modelData.key,
                 row.modelData.key === "windowGlowMode" ? (checked ? "all" : "cursor") : !checked)
             }
+          }
+        }
+
+        Rectangle {
+          width: parent.width
+          height: Style.space(30)
+          radius: Style.cornerRadius
+          color: resetArea.containsMouse ? Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.12) : "transparent"
+          border.width: 1
+          border.color: Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.25)
+
+          Text {
+            anchors.centerIn: parent
+            text: "Reset to defaults"
+            color: Color.foreground
+            font.family: Style.font.family
+            font.pixelSize: Style.font.body
+          }
+
+          MouseArea {
+            id: resetArea
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: root.resetToDefaults()
           }
         }
 

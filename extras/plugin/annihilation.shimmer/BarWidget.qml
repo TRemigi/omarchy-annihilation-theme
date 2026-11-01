@@ -63,6 +63,15 @@ BarWidget {
       root.bar.shell.updateEntryInline(root.moduleName, entry)
   }
 
+  // Drops the given keys from the entry, so the service falls back to its defaults for them.
+  function resetSettings(keys) {
+    var entry = { id: root.moduleName }
+    for (var k in root.settings) if (k !== "id" && keys.indexOf(k) < 0) entry[k] = root.settings[k]
+    root.settings = entry
+    if (root.bar && root.bar.shell && typeof root.bar.shell.updateEntryInline === "function")
+      root.bar.shell.updateEntryInline(root.moduleName, entry)
+  }
+
   function startScreensaver() {
     Quickshell.execDetached(["omarchy-shell", "shimmer", "screensaver"])
   }

@@ -58,17 +58,17 @@ entry under `bar.layout`, or `plugins[]` if you run it without the glyph):
 | Field | Default | |
 | --- | --- | --- |
 | `layerEnabled` | `true` | the wallpaper layer |
-| `layerIntensity` | `0.35` | 0 to 1 |
-| `layerSpeed` | `1` | how fast the Shimmer evolves, 0.1 to 4 times its natural pace (the popup's slider covers 0.25 to 3) |
+| `layerIntensity` | `0.44` | 0 to 1 |
+| `layerSpeed` | `1.29` | how fast the Shimmer evolves, 0.1 to 4 times its natural pace (the popup's slider covers 0.25 to 3) |
 | `windowGlow` | `true` | the light on window edges; `false` turns just that off |
-| `windowGlowSpan` | `1` | in cursor mode, how much length of edge the pool covers, 0.5 to 2.5 times the default (also a slider in the popup) |
-| `windowGlowDepth` | `1` | how far into a window the glow reaches, 0.02 to 2.5 times the default (the popup slider starts at 0.05); the bright spot at the base of the cursor glow is a streak along the edge, as thick as the depth and as long as the span (also a slider in the popup) |
-| `windowGlowCenter` | `1` | in cursor mode, the brightness of the glow's bright centre (its core and point), 0 to 2.5 times the default (the "Glow brightness" slider in the popup) |
+| `windowGlowSpan` | `1.98` | in cursor mode, how much length of edge the pool covers, 0.5 to 2.5 times the default (also a slider in the popup) |
+| `windowGlowDepth` | `0.21` | how far into a window the glow reaches, 0.02 to 2.5 times the default (the popup slider starts at 0.05); the bright spot at the base of the cursor glow is a streak along the edge, as thick as the depth and as long as the span (also a slider in the popup) |
+| `windowGlowCenter` | `0.98` | in cursor mode, the brightness of the glow's bright centre (its core and point), 0 to 2.5 times the default (the "Glow brightness" slider in the popup) |
 | `windowGlowMode` | `"all"` | `"all"`: every window glows evenly. `"cursor"`: only the active window, faintly, with the span of its edge nearest the pointer wider and brighter (also a toggle in the bar popup) |
 | `layerAdditive` | `true` | add the light to the wallpaper; `false` blends it as an ordinary translucent layer if your compositor mishandles that |
 | `notifyGlow` | `true` | the ring of light when a notification arrives |
 | `notifyGlowStrength` | `1` | 0.1 to 2 (the "Arrival glow" slider in the popup) |
-| `notifySound` | `false` | a soft tone when a notification arrives; not for Omarchy's own screenshot and recording toasts unless critical, at most one a second, never under the screensaver |
+| `notifySound` | `true` | a soft tone when a notification arrives; not for Omarchy's own screenshot and recording toasts unless critical, at most one a second, never under the screensaver |
 | `notifySoundVolume` | `0.5` | 0.05 to 1 |
 | `motes` | `true` | the spores |
 | `fpsCap` | `30` | 5 to 60 |
@@ -77,6 +77,8 @@ entry under `bar.layout`, or `plugins[]` if you run it without the glyph):
 | `screensaverBrightness` | `0.08` | how much of the photo shows, 0.02 to 1 |
 | `crawlSpeed` | `2.5` | type-sizes per second, 0.5 to 8 |
 | `passageFont` | `"jost"` | `"jost"`, `"cinzel"`, or the name of any installed font |
+
+The popup's "Reset to defaults" button removes the popup's own fields (the sliders and switches) from the entry, so the defaults above apply again. It leaves `windowGlow`, `layerAdditive`, `fpsCap` and the screensaver and passage fields alone.
 
 ### Commands
 

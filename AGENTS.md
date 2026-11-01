@@ -655,7 +655,7 @@ status`; `omarchy-shell shimmer pulse`; `omarchy-shell shimmer screensaver`.
 
 ## Plugin reference
 
-Settings (inline on the plugin entry): `layerEnabled`, `layerIntensity` (0.35), `layerSpeed` (1),
+Settings (inline on the plugin entry): `layerEnabled`, `layerIntensity` (0.44), `layerSpeed` (1.29),
 `motes`, `fpsCap` (30), `screensaver`, `screensaverSeconds` (0 follows
 `idle.screensaver`), `screensaverBrightness` (0.08), `passageFont` (`jost`,
 `cinzel`, or an installed family).
@@ -663,7 +663,8 @@ Settings (inline on the plugin entry): `layerEnabled`, `layerIntensity` (0.35), 
 IPC (`omarchy-shell shimmer ...`): `toggleLayer`, `pulse`, `screensaver`,
 `dismiss`, `status`, `notify <0|1|2>` (fake an arrival, to see its effects), `sound <arrive|low|urgent>` (hear a tone), `seen` (mark missed notifications seen).
 Settings added for notifications: `notifyGlow` (true), `notifyGlowStrength` (0.1 to 2, 1),
-`notifySound` (false), `notifySoundVolume` (0.05 to 1, 0.5).
+`notifySound` (true), `notifySoundVolume` (0.05 to 1, 0.5).
+The defaults of the popup's sliders and switches were set to the author's own values (intensity 0.44, speed 1.29, glow span 1.98, depth 0.21, brightness 0.98, sound on), kept in two places that must agree: `Service.qml` (property and `applyConfig`) and `Panel.qml` (the `setting(key, default)` reads). The popup's "Reset to defaults" button removes `Panel.resettable` from the entry (`BarWidget.resetSettings`; `updateEntryInline` replaces the entry, it does not merge), so a new popup setting must be added to that list. Design numbers in this file quoted "at the default" were measured at the old defaults (1.0).
 
 Also a setting: `crawlSpeed` (0.5 to 8).
 
