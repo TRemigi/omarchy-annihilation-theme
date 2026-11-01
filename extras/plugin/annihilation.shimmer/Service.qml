@@ -362,6 +362,27 @@ Scope {
     }
   }
 
+  // The glow's clock and settings, published for the notification fork (omarchy-annihilation-notifications, look=glow), so a toast
+  // can be lit by the same light as the windows: the fans are a field over the screen that drifts with shimmerClock from shimmerSeed,
+  // so the fork needs both. It extrapolates the clock at `speed` while `running`, so this is written on a change of any of them and
+  // every half minute to correct drift, not every frame. Nothing here reads it back.
+  readonly property string glowStatePath: home + "/.local/state/annihilation-theme/glow.json"
+  function publishGlowState() {
+    if (!themeActive) return
+    Quickshell.execDetached(["bash", "-c",
+      "mkdir -p \"$(dirname \"$1\")\" && printf '%s\\n' \"$2\" > \"$1\" || true",
+      "--", glowStatePath, JSON.stringify({
+        seed: shimmerSeed, clock: shimmerClock, at: Date.now(), speed: layerSpeed,
+        running: running, intensity: layerIntensity, depth: windowGlowDepth
+      })])
+  }
+  Timer { id: glowStateSoon; interval: 400; onTriggered: root.publishGlowState() }
+  Timer { interval: 30000; running: root.themeActive; repeat: true; triggeredOnStart: true; onTriggered: root.publishGlowState() }
+  onLayerSpeedChanged: glowStateSoon.restart()
+  onLayerIntensityChanged: glowStateSoon.restart()
+  onWindowGlowDepthChanged: glowStateSoon.restart()
+  onRunningChanged: glowStateSoon.restart()
+
   SequentialAnimation {
     id: pulseAnimation
     NumberAnimation { target: root; property: "pulseBoost"; to: 0.4; duration: 2000; easing.type: Easing.InOutSine }
