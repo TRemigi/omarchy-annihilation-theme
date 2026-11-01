@@ -8,7 +8,7 @@
 #   bash extras/dev/notifications-fork-test.sh
 #
 # This tests our logic, not Omarchy's: whether `omarchy plugin disable` really restores the stock daemon
-# was confirmed by the user on a real session (docs/notifications-fork.md). Each check was also confirmed
+# was confirmed by the user on a real session (docs/theme-integration.md in the fork repo (omarchy-annihilation-notifications)). Each check was also confirmed
 # to fail when the code under test was broken on purpose.
 set -u
 

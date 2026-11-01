@@ -413,33 +413,15 @@ The brief: **subdued psychedelic horror mixed with the beauty of nature.**
 `docs/notifications.md` (status table, constraints, per-item design, open
 questions). Read it before touching anything notification-related, and update its
 Status section as you go.
-The optional themed notification daemon (a separate repo, installed as a registered
-clone of the built-in so that disabling it restores stock) is planned in
-`docs/notifications-fork.md`; read that before starting it. P0 is done and live-verified: a public repo,
-`github.com/TRemigi/omarchy-annihilation-notifications` (checked out at `~/dev/omarchy-annihilation-notifications`,
-with its own `AGENTS.md`, `CONTRACT.md` and runbooks). This repo's side of it is built (P1): `extras/notifications-fork`,
-the `extras/install notifications <command>` wrapper, the `post-update` and `post-boot` guard hooks that `extras/install
-link` installs, and a README section.
-
-How the guard works, so it is not re-derived. The fork vendors Omarchy's plugin, so an Omarchy update can leave it
-broken, and while it is enabled the stock plugin is off: a fork that fails to load means *no notification daemon*. The
-fork repo's `tools/check-upstream --quiet` (run from the installed plugin dir) exits 0 or 3 when the installed Omarchy
-still matches what the fork was merged against; 1 or 2 when not; anything else means it could not tell. `guard` runs
-after `omarchy-update` and at login (the login hook also covers plain `pacman` updates). If the fork is enabled (read
-from `shell.json`: it is enabled exactly when its id is in `plugins[]`, as a string or an `{id}` object) and the check
-exits 1 or 2, it runs `omarchy plugin disable annihilation.notifications`, waits until shell.json shows the fork off
-**and** `omarchy.notifications` out of `disabledPlugins[]` (the second is the one that matters), writes
-`~/.local/state/annihilation-theme/notifications-fork-held` (`kind=auto`), and notifies once stock is back. It
-never edits shell.json itself, never acts when the check could not run, and always exits 0. `update` brings back an
-*auto* hold once the check passes; a *manual* hold (`fallback`) stays until `enable`. `auto off` (a line in
-`~/.config/omarchy/annihilation-notifications.conf`) makes it tell instead of acting. It is tested with fake
-`omarchy`, `omarchy-shell` and `busctl` that emulate the registry's shell.json edits
-(`bash extras/dev/notifications-fork-test.sh`, 141 checks, 22 deliberate breaks caught); **not yet seen on a real
-update or boot**, because that needs a real Omarchy update.
-
-One thing found by running `status` on the real machine: the user installed the fork before its history was
-rewritten (to remove an email), so their checkout is on the old commits and `omarchy plugin update` would fail with
-"cannot fast-forward". `update` says to `remove` then `add`.
+The optional themed notification daemon is **a separate project with its own repo**, `github.com/TRemigi/omarchy-annihilation-notifications`
+(checked out at `~/dev/omarchy-annihilation-notifications`, with its own `AGENTS.md`, `CONTRACT.md`, plan and runbooks). Its plan, status,
+design and releases live there and are **not mirrored or tracked in this repo**; do not copy them back. What this repo has for it is
+code and its user-facing instructions: `extras/notifications-fork` (the controller), the `extras/install notifications <command>` wrapper,
+the `post-update` and `post-boot` guard hooks that `extras/install link` installs, `extras/dev/notifications-fork-test.sh`, and the README
+section "Notification fork (optional)". How the guard works (what it checks, when it switches to the stock daemon, the held marker, the
+log, `auto off`) is written up in the fork repo's `docs/theme-integration.md`; read that before changing the controller or the hooks.
+The fork reads nothing from this repo, but this repo's shimmer plugin reads the fork's state files (`docs/notifications.md`), so a change
+to their format in the fork has to be mirrored here.
 
 Inspiration and context: the film and novel; Swamp Dark base16
 (`tinted-theming.github.io/tinted-gallery/#base16-swamp-dark`); thin-film

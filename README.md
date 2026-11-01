@@ -95,8 +95,8 @@ The notification features above need nothing but this theme. Separately, there i
 notification *daemon*: [omarchy-annihilation-notifications](https://github.com/TRemigi/omarchy-annihilation-notifications),
 a fork of Omarchy's own notifications plugin, installed as a registered clone of it, so that the bar's
 Do Not Disturb button, the key bindings and `omarchy-notification-send` keep working and **disabling it
-brings the stock daemon back**. At present it is functionally identical to stock (the visual work
-comes later), so there is no reason to install it yet unless you want to follow along.
+brings the stock daemon back**. It is its own project, with its own README, features and releases;
+this section only covers installing and guarding it from here.
 
 > Plugins run as unsandboxed code inside `omarchy-shell`, and this one *is* your notification daemon.
 > While it is enabled it replaces the stock daemon on every theme, and if an Omarchy update breaks it

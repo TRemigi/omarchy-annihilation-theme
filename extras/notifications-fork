@@ -2,7 +2,7 @@
 
 # Install, update, fall back from and guard the optional themed notification daemon: the
 # omarchy-annihilation-notifications repo, a registered clone of Omarchy's own notifications plugin
-# (plan: docs/notifications-fork.md). `extras/install notifications <command>` runs this.
+# (design: docs/theme-integration.md in the fork repo, omarchy-annihilation-notifications). `extras/install notifications <command>` runs this.
 #
 #   status [--short]   whether it is installed and enabled, and in step with the installed Omarchy
 #   add [--restart]    install it with `omarchy plugin add`, and switch it on if it is in step

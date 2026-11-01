@@ -13,7 +13,7 @@ gotchas; this file is only about notifications.
 | 1 | Arrival glow (light spreads from the toast corner) | **built; user: "looks great"** |
 | 2 | Sound (synthesized, opt-in) | **built; user confirmed working** (no feedback yet on how the tones sound) |
 | 4 | Missed notifications on the bar prism | **built; user confirmed working**, expired and silenced paths |
-| 6 | Themed fork of the notification daemon | **released as fork 0.5.0** (separate public repo `TRemigi/omarchy-annihilation-notifications`): motion (0.2.0), the look and the countdown (0.3.0), spores (0.4.0), and the **Growth look (0.5.0)**, an opt-in alternative (`look=growth` in the fork's conf file: a living outline, lichen, roots that hang from the left and bottom edges and grow over the toast's life, the countdown as the card's own bottom border), all live-verified; a master switch remains; see `docs/notifications-fork.md` |
+| 6 | Themed fork of the notification daemon | **a separate project**, with its own repo, plan, status and releases: [omarchy-annihilation-notifications](https://github.com/TRemigi/omarchy-annihilation-notifications). Not tracked here |
 
 Items 0, 1, 2 and 4 are done and confirmed live by the user; what is left is item 6 and
 the optional items under "Not chosen". Numbers match the numbered list in the conversation that produced this plan.
@@ -263,31 +263,13 @@ Design:
   Do not add copyrighted text; any flavour text is original, in the manner of
   `journal.txt`.
 
-## Item 6: themed fork of the daemon (follow-up)
+## Item 6: themed fork of the daemon
 
-**Now planned in `docs/notifications-fork.md`.** The key finding: Omarchy has a built-in
-"clone" mechanism, so the fork is a standalone repo registered as a clone of
-`omarchy.notifications`, installed with `omarchy plugin add`, and disabling it restores
-the stock daemon. The text below is the earlier sketch, kept for reference; where it
-disagrees with the plan file, the plan file wins.
-
-The only route to real per-card motion: cards that bloom in like windows, a border
-that traces the countdown, an exit that dissolves into spores, per-app glyphs.
-Not started, and not recommended until 0, 1, 2 and 4 have been lived with.
-
-What it would cost, so a later session can decide:
-- Forking about 1,700 lines (`Service.qml` 1063, `NotificationLogic.js` 479,
-  `NotificationCard.qml` 196) and keeping the `notifications` IPC target working
-  (other Omarchy tools call it), plus DND, history, replay and restore.
-- It drifts from upstream with each Omarchy update; someone has to re-merge.
-- It must be active only on this theme. The upstream service has `keepLoaded:
-  true` and owns the D-Bus name, so swapping needs disable/enable through shell
-  IPC with no window where both run. Needs a careful hand-over design before any
-  code.
-- `omarchy plugin validate` and the dormant-elsewhere rule still apply.
-
-First step if picked up: ask the user whether it is wanted, then write a short
-design note here (hand-over, IPC surface, what stays identical) before coding.
+This became its own project and lives in its own repo, `github.com/TRemigi/omarchy-annihilation-notifications` (checked out at
+`~/dev/omarchy-annihilation-notifications`): its plan, status, design and releases are documented there, and this repo does not mirror
+them. What this repo has for it is the optional installer and the guard (`extras/notifications-fork`, `extras/install notifications`,
+the `post-update` and `post-boot` hooks, and a README section), described in that repo's `docs/theme-integration.md`. The earliest
+sketch that used to be here is kept in that repo's `docs/plan.md`.
 
 ## Not chosen (kept so they are not re-derived)
 
