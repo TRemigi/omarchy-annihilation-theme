@@ -120,12 +120,19 @@ Scope {
   property bool stayAwake: false
   property bool stayAwakeLoaded: false
 
+  // Omarchy's own screensaver is on unless the flag `screensaver-off` exists
+  // (the theme-set hook sets it while this theme is active; the menu's
+  // "Toggle Screensaver" flips it). When the user turns the stock one back on,
+  // ours stands down for idle starts so the two never run together.
+  readonly property string togglesDir: home + "/.local/state/omarchy/toggles"
+  property bool stockScreensaverOn: false
+
   // The screensaver may idle-start only when the lock is not already up and
   // not due at the same moment (the idle service locks at idle.lock seconds
   // after the last input, so a screensaver that long is pointless and would
   // race the lock surface).
   readonly property bool idleAllowed: themeActive && screensaverEnabled
-    && stayAwakeLoaded && !stayAwake && screensaverSeconds < idleLockSeconds
+    && stayAwakeLoaded && !stayAwake && !stockScreensaverOn && screensaverSeconds < idleLockSeconds
   // Set once the monitor reports idle and a check found no session lock;
   // cleared when input returns or the lock is seen.
   property bool idleShowing: false
@@ -423,14 +430,32 @@ Scope {
 
   Process {
     id: stayAwakeProbe
-    command: ["bash", "-c", "mkdir -p \"$HOME/.local/state/omarchy/indicators\"; [[ -f $HOME/.local/state/omarchy/indicators/stay-awake ]] && echo yes || echo no"]
+    command: ["bash", "-c", "mkdir -p \"$HOME/.local/state/omarchy/indicators\" \"$HOME/.local/state/omarchy/toggles\";"
+      + " [[ -f $HOME/.local/state/omarchy/indicators/stay-awake ]] && echo awake || echo idle;"
+      + " [[ -f $HOME/.local/state/omarchy/toggles/screensaver-off ]] && echo stock-off || echo stock-on"]
     stdout: SplitParser {
       onRead: function(line) {
-        root.stayAwake = String(line).trim() === "yes"
-        root.stayAwakeLoaded = true
+        var v = String(line).trim()
+        if (v === "awake" || v === "idle") {
+          root.stayAwake = v === "awake"
+          root.stayAwakeLoaded = true
+        } else if (v === "stock-on" || v === "stock-off") {
+          root.stockScreensaverOn = v === "stock-on"
+        }
       }
     }
-    onExited: stayAwakeWatcher.reload()
+    onExited: {
+      stayAwakeWatcher.reload()
+      togglesWatcher.reload()
+    }
+  }
+
+  FileView {
+    id: togglesWatcher
+    path: root.togglesDir
+    watchChanges: true
+    printErrors: false
+    onFileChanged: if (!stayAwakeProbe.running) stayAwakeProbe.running = true
   }
 
   FileView {
@@ -526,6 +551,7 @@ Scope {
         fpsCap: root.fpsCap,
         screensaverEnabled: root.screensaverEnabled,
         stayAwake: root.stayAwake,
+        stockScreensaverOn: root.stockScreensaverOn,
         idleAllowed: root.idleAllowed,
         idleLockSeconds: root.idleLockSeconds,
         screensaverSeconds: root.screensaverSeconds,

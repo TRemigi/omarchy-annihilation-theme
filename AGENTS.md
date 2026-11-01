@@ -542,6 +542,10 @@ iridescence (oil on water); bioluminescent fungi.
   at the lock screen, which is the suspected (UNCONFIRMED, never reproduced here) cause of
   a Hyprland crash seen on a second machine when locking. (3) It does not idle-start when
   `screensaverSeconds >= idle.lock`, since the lock would arrive at once.
+  (4) It does not idle-start while Omarchy's own screensaver is enabled, i.e. the flag
+  `~/.local/state/omarchy/toggles/screensaver-off` is absent (the theme-set hook sets it; the
+  menu's Toggle Screensaver flips it), so the two never run together. A forced one still runs.
+  Corollary: if the hook never ran, ours stays quiet and the stock one plays.
   Get `~/.cache/hyprland/hyprlandCrashReport*.txt` or `coredumpctl info Hyprland` from the
   machine that crashed before claiming the cause.
 - `Screensaver` is driven by `IdleMonitor` (respects inhibitors), so idle-driven
