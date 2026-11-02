@@ -1,10 +1,11 @@
-// Developer tool, not part of the theme. Runs shaders/alive.frag on Mesa's software GL (headless
+// Developer tool, not part of the theme. Runs shaders/alive.frag (or bloom.frag) on Mesa's software GL (headless
 // EGL) with a text texture bound as `source`, and writes the frame as a PAM image (premultiplied
 // RGBA), so the creatures and spores can be looked at without a GPU or a compositor.
 //
 //   qsb -x "glsl,100 es" -o $T/alive.es.frag extras/plugin/annihilation.shimmer/shaders/alive.frag.qsb
 //   gcc -O2 extras/dev/alive-harness.c -o $T/alive-harness -lEGL -lGLESv2
-// An optional fourth argument is a second PAM, a blurred copy of the text, bound as `glowTex`.
+// An optional fourth argument is a second PAM (any size), bound under the sampler name in TEX2
+// (default `glowTex`: a blurred copy of the text; for bloom.frag, `veins`).
 //   EGL_PLATFORM=surfaceless LIBGL_ALWAYS_SOFTWARE=1 UNI="time=12;unit=38;seed=3;sporeAge=4;cell=7.6;\
 //     bounds=171,171,1600,230;tint=0.5,0.8,0.8,1" $T/alive-harness $T/alive.es.frag text.pam out.pam
 //
@@ -48,6 +49,9 @@ int main(int argc, char **argv) {
   glUniformMatrix4fv(glGetUniformLocation(prog, "ubuf.qt_Matrix"), 1, GL_FALSE, I4);
   glUniform1f(glGetUniformLocation(prog, "ubuf.qt_Opacity"), 1.f);
   glUniform2f(glGetUniformLocation(prog, "ubuf.dims"), (float)W, (float)H);
+  // OUT=WxH sets the frame's size when it should differ from the first texture's (bloom.frag).
+  int OW = W, OH = H; if (getenv("OUT")) sscanf(getenv("OUT"), "%dx%d", &OW, &OH);
+  glUniform2f(glGetUniformLocation(prog, "ubuf.resolution"), (float)OW, (float)OH);
   if (getenv("UNI")) {
     char *copy = strdup(getenv("UNI")), *save = NULL;
     for (char *tok = strtok_r(copy, ";", &save); tok; tok = strtok_r(NULL, ";", &save)) {
@@ -66,17 +70,18 @@ int main(int argc, char **argv) {
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
   glUniform1i(glGetUniformLocation(prog, "source"), 0);
   if (argc > 4) {   // glowTex: the same size as the text texture
-    char *g = slurp(argv[4], NULL); char *gb = strstr(g, "ENDHDR\n"); if (!gb) { fprintf(stderr, "bad glow PAM\n"); return 1; }
+    char *g = slurp(argv[4], NULL); char *gb = strstr(g, "ENDHDR\n"); int GW = 0, GH = 0;
+    if (!gb || sscanf(strstr(g, "WIDTH"), "WIDTH %d", &GW) != 1 || sscanf(strstr(g, "HEIGHT"), "HEIGHT %d", &GH) != 1) { fprintf(stderr, "bad second PAM\n"); return 1; }
     GLuint gt; glGenTextures(1, &gt); glActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D, gt);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, W, H, 0, GL_RGBA, GL_UNSIGNED_BYTE, gb + 7);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, GW, GH, 0, GL_RGBA, GL_UNSIGNED_BYTE, gb + 7);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glUniform1i(glGetUniformLocation(prog, "glowTex"), 2);
+    glUniform1i(glGetUniformLocation(prog, getenv("TEX2") ? getenv("TEX2") : "glowTex"), 2);
   }
   GLuint fbo, tex; glGenTextures(1, &tex); glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D, tex);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, W, H, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, OW, OH, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
   glGenFramebuffers(1, &fbo); glBindFramebuffer(GL_FRAMEBUFFER, fbo); glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);
-  glActiveTexture(GL_TEXTURE0); glViewport(0, 0, W, H); glClearColor(0, 0, 0, 0); glClear(GL_COLOR_BUFFER_BIT);
+  glActiveTexture(GL_TEXTURE0); glViewport(0, 0, OW, OH); glClearColor(0, 0, 0, 0); glClear(GL_COLOR_BUFFER_BIT);
   float quad[] = { -1,-1, 1,-1, -1,1, 1,1 }; glEnableVertexAttribArray(0); glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, quad);
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); glFinish();
   if (getenv("FRAMES")) {
@@ -84,8 +89,8 @@ int main(int argc, char **argv) {
     for (int i = 0; i < N; i++) { glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); glFinish(); }
     clock_gettime(CLOCK_MONOTONIC, &b); fprintf(stderr, "DRAW_MS %.1f\n", ((b.tv_sec - a.tv_sec) * 1e3 + (b.tv_nsec - a.tv_nsec) / 1e6) / N);
   }
-  unsigned char *px = malloc((size_t)W * H * 4); glReadPixels(0, 0, W, H, GL_RGBA, GL_UNSIGNED_BYTE, px);
-  FILE *o = fopen(argv[3], "wb"); fprintf(o, "P7\nWIDTH %d\nHEIGHT %d\nDEPTH 4\nMAXVAL 255\nTUPLTYPE RGB_ALPHA\nENDHDR\n", W, H);
-  for (int y = H - 1; y >= 0; y--) fwrite(px + (size_t)y * W * 4, 1, (size_t)W * 4, o);
+  unsigned char *px = malloc((size_t)OW * OH * 4); glReadPixels(0, 0, OW, OH, GL_RGBA, GL_UNSIGNED_BYTE, px);
+  FILE *o = fopen(argv[3], "wb"); fprintf(o, "P7\nWIDTH %d\nHEIGHT %d\nDEPTH 4\nMAXVAL 255\nTUPLTYPE RGB_ALPHA\nENDHDR\n", OW, OH);
+  for (int y = OH - 1; y >= 0; y--) fwrite(px + (size_t)y * OW * 4, 1, (size_t)OW * 4, o);
   fclose(o); return 0;
 }

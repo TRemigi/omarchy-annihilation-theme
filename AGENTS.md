@@ -36,7 +36,7 @@ theme gate, IPC, idle monitor, passage parts, font loading), `ShimmerLayer.qml`
 (wallpaper overlay per screen), `Screensaver.qml` (overlay per screen),
 `Passage.qml` (the centred, fading, glowing text) and `shaders/alive.frag` (what the text is made of: creatures and spores),
 `BarWidget.qml` + `Panel.qml` (prism glyph and popup), `sounds/` (three synthesized tones, regenerate with `extras/dev/make-sounds.py`), `MissedTracker.qml` (what went unnoticed, saved to `~/.local/state/annihilation-theme/missed.json` for the widget and popup), `NotificationFeed.qml` (an `arrived`
-signal from the notification service's popup files; the arrival's light moved to the notification fork), `shaders/*.frag` and the
+signal from the notification service's popup files; the arrival's light moved to the notification fork), `veins.js` (draws the screensaver's root-like veins into a canvas), `shaders/*.frag` and the
 committed compiled `*.frag.qsb`, `fonts/` (Jost, Cinzel + OFL licences),
 `passage.txt` (screensaver text), `journal.txt` (popup daily entries).
 
@@ -400,9 +400,9 @@ The brief: **subdued psychedelic horror mixed with the beauty of nature.**
   you notice only afterwards. If a change makes something louder, it is
   probably wrong. Defaults: layer intensity 0.35, spores faint, caustics
   barely there.
-- Beauty with wrongness: oil-slick thin-film colour, spores rising, a cell
-  lattice (Lena's cells under the microscope) growing over the screensaver,
-  text that glows like the fungal writing on the tower wall.
+- Beauty with wrongness: oil-slick thin-film colour, spores rising, a fungus
+  growing in from the edges of the screensaver, text that glows like the fungal
+  writing on the tower wall.
 - **Dormant elsewhere.** Every extra gates on `theme.name == "annihilation"`
   and goes inert on other themes. Keep that property for anything new.
 - Cheap by design: layer shader renders at half resolution at 30 fps and
@@ -666,6 +666,32 @@ iridescence (oil on water); bioluminescent fungi.
 - **A layer-shell window is often zero-wide the instant it becomes visible.** `Passage`
   derives its widths from `width` in bindings (`maxWidth`, `textWidth`), so it follows the
   window as it gets its size instead of reading it once.
+- **The screensaver's background growth** (`bloom.frag`, `veins.js`, the `veinCanvas` in `Screensaver.qml`).
+  The first version was a Voronoi lattice whose seams glowed teal, and the user: it "reads as pretty
+  web-like and I don't think that's what we were going for". Now (the reference is the first background,
+  the tower wall: pale root-like veins and moulds, olive with yellow spots and a little purple; "growing
+  inwards rather than out as in the image", "in the background so as not to clash with the words"): two
+  things grow in from the screen edges and keep out of a box round the words (half 0.40 x 0.15 of the
+  screen, the edge wobbled by noise so it is not a rectangle). **Veins**: a branching tree cannot be
+  evaluated per pixel, so `veins.js` draws one into a canvas (half the screen size, drawn again with a new
+  random seed each activation, about 3,500 strokes in 25 ms) and the shader reveals it. Each stroke's
+  colour carries its path length (red), thickness (green) and a tint (blue), so growth is simply
+  `front > red`, with a faint lit tip where it has just arrived, and no state is kept. Canvas pixels are
+  premultiplied: `veinAt` divides the coverage back out. The generator is pure (only 2D-context calls) and
+  runs under node: 15 trunks round the perimeter at stratified positions, a gentle wander that cannot loop
+  (the heading is pulled back to where the vein was going), forks 0.35-0.8 rad ahead, thinning near the
+  box so veins end before it rather than at a line. **Mould**: a potential `(body - 0.5) * 2.4 +
+  min((reach - dEdge) * 2, 0.35) + proximity to grown veins * 0.8 - 0.2`, so colonies start at the edges
+  where the noise allows, leave bare wall between them, spread inward with `reach` (0.34 of the height by
+  140 s) and gather round veins; yellow spots come in clumps (a clumping noise gates two jittered grids
+  of spots of varying size), with the odd purple lump. All of it is dim (mould at half strength, veins
+  `pale * 0.42`). **What was wrong in earlier tries, seen in the harness**: noodle-like loops (the wander
+  was far too strong), one continuous olive slab along the edges (the edge term must be capped so the
+  noise decides), a rectangular clear zone, and spots on a grid (polka dots). The photo's warp and
+  channel drift are unchanged. Cost: 23 ms against 11 ms on the CPU rasteriser at 1440x900. Never seen
+  live: the Canvas, its `ShaderEffectSource` and the premultiplied read are exactly what the harness
+  stands in for (it loads the canvas as a PAM, premultiplied by hand). Test with
+  `extras/dev/alive-harness.c` (`TEX2=veins`, `OUT=WxH`, the photo as the first texture).
 - **The screensaver is one transition.** The photo fades from black with
   `smoothstep(0, 3, t)` straight to its dark level (`bloom.frag`), and the first part
   fades in from the same moment (`time` starts at 0 with the photo). Do not reintroduce a

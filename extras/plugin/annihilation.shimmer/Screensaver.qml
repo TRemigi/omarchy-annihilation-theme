@@ -9,6 +9,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import qs.Commons
+import "veins.js" as Veins
 
 PanelWindow {
   id: win
@@ -41,6 +42,7 @@ PanelWindow {
     if (visible) {
       startedAt = Date.now()
       elapsed = 0
+      veinCanvas.regrow()
     }
   }
 
@@ -61,6 +63,40 @@ PanelWindow {
     sourceSize.width: Math.min(3840, win.width)
   }
 
+  // The veins that grow in from the edges (the shader reveals them over time; see veins.js
+  // and bloom.frag). A new tree each time the screensaver starts, drawn at half size: the
+  // shader's smoothing is what a half-size line wants. The window is often zero-wide the
+  // instant it is shown, so it paints again once it has a size.
+  Canvas {
+    id: veinCanvas
+    width: Math.max(1, Math.round(win.width * 0.5))
+    height: Math.max(1, Math.round(win.height * 0.5))
+    renderTarget: Canvas.Image
+    property int seed: 1
+
+    function regrow() {
+      seed = 1 + Math.floor(Math.random() * 1000000)
+      requestPaint()
+    }
+
+    onWidthChanged: if (win.visible) requestPaint()
+    onHeightChanged: if (win.visible) requestPaint()
+    onPaint: {
+      if (width < 8 || height < 8) return
+      var ctx = getContext("2d")
+      ctx.reset()
+      ctx.lineCap = "round"
+      Veins.grow(ctx, width, height, seed, 0.43, 0.17)
+    }
+  }
+
+  // hideSource, not visible: false: an invisible item is not drawn into a texture.
+  ShaderEffectSource {
+    id: veinSource
+    sourceItem: veinCanvas
+    hideSource: true
+  }
+
   ShaderEffect {
     anchors.fill: parent
 
@@ -77,6 +113,8 @@ PanelWindow {
     property real imageAspect: wallpaper.implicitHeight > 0
       ? wallpaper.implicitWidth / wallpaper.implicitHeight : width / Math.max(1, height)
     property real brightness: win.service.screensaverBrightness
+    property real seed: (veinCanvas.seed % 997) / 7.0
+    property variant veins: veinSource
     property color tealColor: Color.accent
 
     fragmentShader: Qt.resolvedUrl("shaders/bloom.frag.qsb")

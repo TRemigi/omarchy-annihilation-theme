@@ -3,10 +3,15 @@
 // The screensaver: the wallpaper, slowly taken. `time` is seconds since the
 // screensaver appeared. The photo is dimmed to `brightness` of itself, then
 // over two minutes it warps like heat over water, its colour channels drift
-// apart, and a Voronoi lattice of cells (the refracted organism dividing)
-// glows faintly along its seams. The image is cropped to cover the screen,
-// not stretched: `imageAspect` is its width over height. Rebuild with
-// shaders/build-shaders.sh after editing.
+// apart, and a fungus grows in from the edges of the screen, keeping to the
+// background and away from the middle, where the words are:
+//   - pale root-like veins, drawn by veins.js into the `veins` texture (red: how
+//     far along its vein a pixel is, green: thickness, blue: a tint; alpha:
+//     coverage). They are revealed along their length, each with a faint lit tip.
+//   - patches of mould, olive and moss with yellow spots and a little purple,
+//     that spread inward from the edges and gather round the veins.
+// The image is cropped to cover the screen, not stretched: `imageAspect` is its
+// width over height. Rebuild with shaders/build-shaders.sh after editing.
 
 layout(location = 0) in vec2 qt_TexCoord0;
 layout(location = 0) out vec4 fragColor;
@@ -18,10 +23,12 @@ layout(std140, binding = 0) uniform buf {
     vec2 resolution;
     float imageAspect;
     float brightness;
+    float seed;
     vec4 tealColor;
 } ubuf;
 
 layout(binding = 1) uniform sampler2D source;
+layout(binding = 2) uniform sampler2D veins;
 
 float hash12(vec2 p) {
     vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -54,30 +61,18 @@ float fbm(vec2 p) {
     return s;
 }
 
-// x: distance to the nearest cell centre, y: gap to the second nearest (0 on a
-// seam), z: a per-cell random value. Centres drift slowly.
-vec3 cells(vec2 p, float t) {
-    vec2 g = floor(p);
-    vec2 f = fract(p);
-    float d1 = 8.0;
-    float d2 = 8.0;
-    float id = 0.0;
-    for (int j = -1; j <= 1; j++) {
-        for (int i = -1; i <= 1; i++) {
-            vec2 o = vec2(float(i), float(j));
-            vec2 h = hash22(g + o);
-            vec2 pt = o + 0.5 + 0.4 * sin(t * 0.05 + 6.2831853 * h);
-            float d = length(pt - f);
-            if (d < d1) {
-                d2 = d1;
-                d1 = d;
-                id = hash12(g + o);
-            } else if (d < d2) {
-                d2 = d;
-            }
-        }
-    }
-    return vec3(d1, d2 - d1, id);
+// One vein sample: x how far along its vein, y thickness, z tint, w coverage. The
+// canvas holds premultiplied colour, so divide the coverage back out.
+vec4 veinAt(vec2 uv) {
+    vec4 v = texture(veins, uv);
+    return vec4(v.rgb / max(v.a, 1e-3), v.a);
+}
+
+// Coverage of the veins that have grown by now, at uv; `front` is how far along their
+// length every vein has got (0 to 1).
+float grownAt(vec2 uv, float front) {
+    vec4 v = veinAt(uv);
+    return v.w * smoothstep(0.0, 0.012, front - v.x);
 }
 
 // Where the image sits under a screen coordinate when it is scaled to cover the
@@ -113,11 +108,75 @@ void main() {
     // image, never passing through the photo at full brightness.
     col *= ubuf.brightness;
 
-    float on = smoothstep(15.0, 100.0, t);
-    vec3 c = cells(p * 3.5, t);
-    float seam = 1.0 - smoothstep(0.0, 0.04, c.y);
-    col *= 1.0 + (c.z - 0.5) * 0.25 * on;
-    col += ubuf.tealColor.rgb * seam * 0.1 * on;
+    // How far along their length the veins have got, and how far in from the edges the mould has.
+    float front = clamp((t - 3.0) / 105.0, 0.0, 1.0) * 1.04;
+    float reach = smoothstep(8.0, 140.0, t) * 0.34;
+
+    vec2 sp = p + ubuf.seed * 3.7;
+    float body = fbm(sp * 3.0);
+    float fine = fbm(sp * 26.0);
+
+    // Where the words are: nothing grows there. The edge of that is wobbled by the noise, so
+    // it is not a rectangle.
+    vec2 bq = max(abs(uv - 0.5) - vec2(0.40, 0.15), 0.0);
+    float bd = length(bq) + (body - 0.45) * 0.14;
+    float zone = smoothstep(0.0, 0.12, bd);
+    float zoneV = smoothstep(0.0, 0.05, bd);
+
+    // Mould first, so the veins lie over it. It starts at the edges (the reach is a distance in
+    // screen heights from the nearest edge), where the noise lets it, in patches with bare wall
+    // between, and gathers round veins.
+    float dEdge = min(min(uv.x * aspect, (1.0 - uv.x) * aspect), min(uv.y, 1.0 - uv.y));
+    float prox = grownAt(uv, front);
+    for (int i = 0; i < 8; i++) {
+        float a = float(i) * 0.7853982;
+        prox += grownAt(uv + 0.03 * vec2(cos(a) / aspect, sin(a)), front);
+    }
+    prox = clamp(prox * 0.45, 0.0, 1.0);
+    float edgeTerm = min((reach - dEdge) * 2.0, 0.35);
+    float pot = (body - 0.5) * 2.4 + edgeTerm + prox * 0.8 - 0.2 + (fine - 0.45) * 0.30;
+    float mould = smoothstep(0.0, 0.10, pot) * zone;
+
+    // Olive and moss, with lichen-yellow stretches.
+    float lichen = smoothstep(0.52, 0.72, fbm(sp * 7.0 + 21.0));
+    vec3 mouldCol = mix(vec3(0.15, 0.19, 0.05), vec3(0.46, 0.50, 0.16), smoothstep(0.25, 0.65, fine));
+    mouldCol = mix(mouldCol, vec3(0.50, 0.50, 0.12), lichen * 0.55);
+
+    // Yellow spots in clumps, not on a grid: a jittered grid of two sizes, each cell's spot
+    // present only where a clumping noise says so, and different in size from its neighbours.
+    float clump = smoothstep(0.40, 0.60, fbm(sp * 9.0 + 5.0));
+    for (int k = 0; k < 2; k++) {
+        float sc = k == 0 ? 34.0 : 78.0;
+        vec2 gp = sp * sc;
+        vec2 gi = floor(gp);
+        vec2 gf = fract(gp) - 0.5 - (hash22(gi + float(k) * 17.0) - 0.5) * 0.6;
+        float roll = hash12(gi + ubuf.seed + float(k) * 3.0);
+        float rad = 0.14 + 0.24 * hash12(gi * 1.7 + 4.0);
+        float spot = (1.0 - smoothstep(rad * 0.5, rad, length(gf))) * step(0.45, roll) * clump;
+        mouldCol = mix(mouldCol, vec3(0.88, 0.76, 0.14), spot * (k == 0 ? 0.95 : 0.7));
+    }
+    // The odd purple lump.
+    {
+        vec2 gp = sp * 20.0;
+        vec2 gi = floor(gp);
+        vec2 gf = fract(gp) - 0.5 - (hash22(gi + 9.0) - 0.5) * 0.5;
+        float lump = (1.0 - smoothstep(0.15, 0.40, length(gf))) * step(hash12(gi + 2.0), 0.035);
+        mouldCol = mix(mouldCol, vec3(0.28, 0.12, 0.34), lump * 0.8);
+    }
+    col = mix(col, mouldCol * 0.50, mould * 0.85);
+
+    // Veins: pale, a little raised (lit from the upper left), their growing tips faintly lit.
+    vec4 vv = veinAt(uv);
+    float arrived = front - vv.x;
+    float vein = vv.w * smoothstep(0.0, 0.012, arrived) * zoneV;
+    float lit = grownAt(uv - vec2(2.0, 2.5) / ubuf.resolution, front);
+    float relief = clamp((vein - lit * zoneV) * 2.0, -1.0, 1.0);
+    vec3 pale = mix(vec3(0.46, 0.52, 0.46), vec3(0.78, 0.80, 0.68), clamp(vv.y * 2.0, 0.0, 1.0));
+    pale = mix(pale, vec3(0.62, 0.48, 0.56), step(0.9, vv.z) * 0.5);
+    col = mix(col, pale * 0.42, vein * 0.9);
+    col += pale * relief * 0.07;
+    float tip = vv.w * zoneV * smoothstep(0.0, 0.004, arrived) * (1.0 - smoothstep(0.0, 0.04, arrived)) * step(front, 1.0);
+    col += vec3(0.60, 0.62, 0.40) * tip * 0.20;
 
     float edge = length((uv - 0.5) * vec2(aspect * 0.6, 1.0));
     float vignette = 1.0 - smoothstep(0.35, 1.1, edge);
