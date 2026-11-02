@@ -4,16 +4,26 @@ Guide for an agent continuing work on **omarchy-annihilation-theme**. Read this
 before changing anything. `README.md` is the user-facing doc; this file is the
 why, the gotchas, and how to verify your work.
 
-## What this is
+## What this is, and the three repos
 
 An [Omarchy](https://omarchy.org/) (Arch + Hyprland + a Quickshell-based shell)
 theme themed after *Annihilation* (Alex Garland's 2018 film, from Jeff
-VanderMeer's novel). It has two tiers:
+VanderMeer's novel). The project is three repos:
+
+| Repo | What it is |
+| --- | --- |
+| `omarchy-annihilation-theme` (this repo, `~/dev/omarchy-annihilation-theme`) | The theme, and `extras/`: the Hyprland Lua, the theme-set hook and the installer: what neither a theme nor a plugin can carry. |
+| `omarchy-area-x` (`~/dev/omarchy-area-x`) | The shell plugin (id `annihilation.shimmer`): the Shimmer layer, window glow, screensaver, bar glyph, notification marks and sound. Installed with `omarchy plugin add`. Its design, gotchas and verification are in **its** `AGENTS.md`; they are not mirrored here. It was `extras/plugin/` in this repo until 2026-11-02 (its history was split out with `git subtree split`). |
+| `omarchy-annihilation-notifications` (`~/dev/omarchy-annihilation-notifications`) | A separate plugin: the themed notification daemon and the arrival light. Optional. |
+
+This repo has two tiers:
 
 1. **Portable theme**, at the repo root. Installs with `omarchy theme install`.
-2. **Extras**, in `extras/`. Hyprland Lua plus a Quickshell plugin, symlinked
-   into `~/.config` by `extras/install link`. Omarchy cannot carry these inside
-   a repo-installed theme (see Gotchas).
+2. **Extras**, in `extras/`. The Hyprland Lua and the hooks, symlinked into `~/.config` by
+   `extras/install link`, which also adds the plugin from its repo. Omarchy cannot carry these inside a
+   repo-installed theme (see Gotchas). Run the installer from the clone Omarchy keeps updated,
+   `~/.config/omarchy/themes/annihilation` (what "Extra Themes" in the update menu pulls), so the
+   symlinks follow updates.
 
 ```
 colors.toml            palette (Swamp Dark base16) + hyprland_{active,inactive}_border
@@ -22,428 +32,33 @@ btop.theme             hand-tuned
 unlock.png             the Omarchy wordmark recolored #61A0A8 (disk-unlock screen)
 preview-unlock.png     composed mock of the above
 backgrounds/           film stills and art (1-, 3- to 5-; 2- and 6- to 9- were dropped), and annihilation-NNN.jpg (20 Blu-ray frames, NNN = frame number): Real-ESRGAN 4x, then downscaled to height 1200 for the 1920x1200 display. Digit-prefixed names sort first, so 1- stays the default
-extras/install         link | unlink | status (idempotent bash)
+extras/install         link | unlink | status (idempotent bash); adds the plugin with `omarchy plugin add`
 extras/hypr/annihilation.lua        border/shadow/blur/dim/animation tweaks
-extras/hooks/theme-set.sh           loads the Lua; toggles the stock screensaver
+extras/hooks/theme-set.sh           loads the Lua; turns the stock screensaver off (the plugin stands down while it is on)
 extras/hooks/post-update.sh, post-boot.sh   run the notification fork's guard (inert unless it is installed and enabled)
+extras/dev/notifications-fork-test.sh   tests of the installer and the fork controller
 extras/notifications-fork           the fork's controller: status | add | update | enable | fallback | remove | auto | guard
                                     (`extras/install notifications <cmd>` runs it)
-extras/plugin/annihilation.shimmer/ the Quickshell plugin (see below)
 ```
 
-Plugin files: `manifest.json` (service + bar-widget), `Service.qml` (settings,
-theme gate, IPC, idle monitor, passage parts, font loading), `ShimmerLayer.qml`
-(wallpaper overlay per screen), `Screensaver.qml` (overlay per screen),
-`Passage.qml` (the centred, fading, glowing text) and `shaders/alive.frag` (what the text is made of: creatures and spores),
-`BarWidget.qml` + `Panel.qml` (prism glyph and popup), `sounds/` (three synthesized tones, regenerate with `extras/dev/make-sounds.py`), `MissedTracker.qml` (what went unnoticed, saved to `~/.local/state/annihilation-theme/missed.json` for the widget and popup), `NotificationFeed.qml` (an `arrived`
-signal from the notification service's popup files; the arrival's light moved to the notification fork), `veins.js` (draws the screensaver's root-like veins into a canvas), `shaders/*.frag` and the
-committed compiled `*.frag.qsb`, `fonts/` (Jost, Cinzel + OFL licences),
-`passage.txt` (screensaver text), `journal.txt` (popup daily entries).
+The Lua's layer rules name the plugin's namespaces (`annihilation-shimmer`, `annihilation-windowglow`); if the plugin
+renames one, change `extras/hypr/annihilation.lua` too. The plugin stands down for idle screensaver starts while
+Omarchy's own is enabled, and `extras/hooks/theme-set.sh` is what turns Omarchy's off, so keep that hook and the
+plugin's check (`stockScreensaverOn` in its `Service.qml`) in step.
 
-## Design approach and inspiration
-
-The brief: **subdued psychedelic horror mixed with the beauty of nature.**
-
-- The palette is the brown marsh. The Shimmer (teal `#61A0A8`, bruised magenta
-  `#91506C`, amber `#DB930D`, moss `#7A7653`) shows up only at edges: borders,
-  halos, a faint band, spores. Never a rainbow, never saturated fill.
-- **What the Shimmer actually looks like** (from the user's reference stills and
-  a trailer recording in `~/Videos`, studied with `ffmpeg` frame extraction, and
-  with saturation boosted to see structure). The user's words: the air itself
-  seems to *refract light like a prism*. In the reference photo the effect is a
-  broad sweep of hue (blue, violet, magenta, orange, olive) that shifts the
-  colour of the foliage while keeping its brightness and detail: only 0.24
-  saturated against 0.42 for clean foliage, no glow, no streaks. In the trailer
-  it is also light: a narrow curtain with a warm core made of thin straight
-  columns, its colour separating across the width.
-- **The current design** (`shimmer.frag`) is a continuous *tint* plus gentle
-  *light*:
-  - The **tint** has no mask and so no shape. It covers the screen, its strength
-    varies smoothly (the floor is 10% of its peak), and its hue is *one smooth
-    value* that runs once through the spectrum, from a noise field that is warped
-    so that it swirls, plus a finer second field for irregularity. It is blended,
-    so the scene keeps its detail.
-  - The **light** is a few additive curtains with faint straight columns and a
-    weak warm core, as before.
-- **Lessons from the versions that were wrong** (each rejected by the user for
-  the stated reason): a band crossing on a 90 s schedule (scripted); big pale
-  translucent veils (large, pale, a flat layer on the wallpaper); additive
-  columns with a domain warp (wavy streaks, no pink); strong hot cores (glowing
-  orbs, pale pink blooms); a tint whose *shape* came from thresholding noise
-  (`smoothstep` of fbm into a mask), which gave "splotchy, like the goo in a lava
-  lamp" (thresholded noise always makes blobs); and **prism fans** from point
-  sources beyond the screen edges, with colour by angle, rays and RGB-split
-  fringes: physically more literal, but "too spotlight-y, too uniform, very
-  artificial" (a single source reads as a spotlight, and every fan has the same
-  structure). The user preferred the tint-plus-curtains version, so the final
-  design keeps that and removes only what made it blobby. The lesson: for this
-  effect, organic irregularity matters more than optical accuracy. Do not use a
-  noise threshold as a shape, and do not use a point source.
-- **Never make hue cyclic.** If hue wraps through the spectrum repeatedly as a
-  function of a noise field (`sin(2*pi*field*k)`), its contours close into
-  concentric rings around the peaks (they look like soap bubbles). Adding a
-  steady linear ramp to open the rings makes the bands parallel, which reads as
-  stripes ("the bands definitely read as stripes"). Both were tried and rejected.
-  What works is a single smooth value, mapped once from one end of the spectrum to
-  the other, from a warped noise field.
-- The colour scale (`washSpectrum`, `lightSpectrum`) has teal, blue, violet,
-  magenta, pink, orange and amber, with stops spaced so magenta and pink get the
-  widest share. The user asked for "pinkish hues in addition to the ones it has".
-  Measured over 15 minutes and four seeds, brightness-weighted: pink and magenta
-  about 31%, blue 22%, violet 19%, orange and amber 15%, teal and green 14%
-  (`extras/dev/hue-shares.py`, on the real shader). Measure hue shares over
-  time rather than trusting a stop list; a mapping's centre and slope decide
-  which colours dominate.
-- The colour scale (`washSpectrum`, `lightSpectrum`) has teal, blue, violet,
-  magenta, pink, orange and amber, with stops spaced so magenta and pink get the
-  widest share. The user asked for "pinkish hues in addition to the ones it has".
-  Measure hue shares over time rather than trusting a stop list.
-- The palette lives in the shader as constants (`W_*` mid-tone colours for the
-  tint, `L_*` lighter ones for the light), not as uniforms and not from the shell
-  theme. Blend only neighbouring hues; violet with teal passes through grey. Pink
-  over a green forest mixes toward grey-mauve (near-complements), so pink reads
-  best in the additive light and looks dustier in the tint.
-- Nothing about the Shimmer may be a scheduled sweep. It is 3D value noise with
-  time as the third axis plus a random per-session `seed`. Check statistics over
-  many minutes and seeds, not at one instant. "Dynamic" is measured as the
-  overlay's mean change per second relative to its own level
-  (`extras/dev/overlay-rate.py`, on the real shader): the veil version was 0.04,
-  light curtains about 0.21 and felt alive (0.38 felt like flicker), the first
-  tint 0.10-0.14 (the user asked for a little more), and the current one 0.18-0.20.
-  Overall overlay brightness (mean of the largest colour channel) has a median of
-  about 0.11, against 0.07 for the masked version; a first draft at 0.13 looked
-  hazy, so the tint strength is 0.34, and the user can use the intensity slider.
-- **Window glow** (`WindowGlow.qml`, `shaders/windowglow.frag`): the user asked to
-  take the prism-fan version (the one rejected as a wallpaper effect: "spotlight-y,
-  uniform, artificial") and have it spill over window edges as if from behind. So
-  the fans are not drawn on the wallpaper at all; they are the light source behind
-  the windows, and a window edge lights up where a fan reaches it. It must be a
-  layer ABOVE the windows (`WlrLayer.Top`), click-through, additive, drawing only a
-  thin band along each edge (inside, plus a tighter halo outside), and hidden under
-  fullscreen. Window rectangles come from `Hyprland.toplevels` (`lastIpcObject`:
-  `at`, `size`, `workspace.id`, `monitor`, `focusHistoryID`), refreshed on
-  Hyprland raw events plus a 1.5 s poll, because an interactive resize raises no
-  event; stacking order is approximated by focus history. Outside a window the
-  band is clipped to the monitor's `reserved` strips so the halo never paints over
-  a bar. Limits: six windows per screen, and the glow lags during a resize or
-  drag until it ends. Not seen against a live Hyprland by the agent.
-  First live feedback (screenshots from the user): the glow "projected way too far
-  into the windows", its colours were "too distinct/separated", and it was "not
-  respecting the window corner radius". Causes and fixes: (1) the reach was a
-  fraction of screen height tuned on a 540 px preview (about 90 px at 1190 px high,
-  and the glow ran to 2.6 times that); it is now `clamp(0.026 * height, 16, 44)`
-  with a steeper falloff, so it hugs the edge like a window shadow; judge reach in
-  pixels at the user's real resolution, not in a scaled preview. (2) The fans'
-  spectrum was as wide as on the wallpaper, and a second hue sweep ran across the
-  band's depth, so colour changed quickly along and across every edge. The glow now
-  uses a narrow slice of the spectrum (0.20 of the angle, not 0.45) and almost no
-  depth sweep (0.06), so neighbouring colours blend. (3) I had given the glow its
-  own 40 px corner radius to hide creases, so it drew rounded windows round square
-  ones (the user's real radius is 4 px, set in `extras/hypr/annihilation.lua`).
-  `WindowGlow.qml` now reads `decoration:rounding` and `general:border_size` with
-  `hyprctl getoption ... -j | jq` (failure keeps 4 and 2), inflates each rectangle
-  by the border (the border is drawn outside `at`/`size`), and the shader keeps the
-  true radius at the edge while a smooth max rounds off the inside diagonal creases.
-  Second round of feedback (from a screen recording): the user likes the soft
-  shimmering band around the edges, but its inner edge needed to be softer, and the
-  bright spots "still need a lot of work": they should look like bright spots,
-  "without the spotlighty projecting effect". The spots had come from the fan's
-  rays, so they streaked across the edge like beams. They are now `glints()` in
-  `windowglow.frag`: plain isotropic Gaussian blobs on a coarse hashed grid (about
-  one cell in seven, so a few at a time), drifting and twinkling slowly, with a
-  colour from the pink-violet-blue part of the spectrum mixed with a little aqua,
-  shown only near an edge and faded to nothing before the shader's cut-offs. The
-  band's falloff is now a mix of an exponential and a Gaussian with a long smooth
-  tail (no kink, and its end is faded to zero). Rule: anything that should read as a
-  *spot* must be radially symmetric; any structure borrowed from the fans (rays,
-  angle) reads as a projected beam. Judge counts at the user's size: a few per large
-  window, not a string of lights, and keep the peak below white.
-  Third round (two screen recordings): it still looked spotlit sometimes, the inner
-  edge could be softer still, and "the colours move around and glob with these very
-  hard edges". Causes: (1) `fanField` *chose* the stronger of the two fans at each
-  pixel, so hue and strength jumped along a line wherever the fans cross, and that
-  line drifts as they wander: the hard-edged globs. It now blends them, with a
-  strength-weighted mean hue. Never pick between fields with `if (a > b)`; blend.
-  (2) The rays were still in the strength (a 50% modulation), which is where the
-  residual spotlight came from; they are down to 15%. (3) The brightness was
-  hard-clipped with `clamp`, so the brightest patches were flat discs with an edge
-  where they dropped below the clip (2.4% of glow pixels after a gain increase). It
-  now rolls off with `1 - exp(-x)`, 0% clipped. (4) The inner tail is longer and
-  more Gaussian, and the bright line at the edge is fainter. Measured on the real
-  shader over a synthetic desktop: clipped 0.5% to 0.0%; colour change along an edge
-  0.0010 to 0.0007 per pixel. A "sharpest gradient" metric did NOT show the
-  improvement (0.056 to 0.063) because the glints dominate it; metrics must match the
-  complaint, and the clipping count did. The glow's rate of change in time is about
-  0.05 of its level per second, calmer than the main layer's 0.2, and the user has
-  not asked for more.
-  Fourth round (a screen recording): "you can still see the sharp edges between
-  colors sometimes; whenever that isn't happening it looks great; the colors
-  shifting in the soft glowy areas looks awesome". Found by measuring the real
-  shader at the user's window size (`edgehunt`-style scan: largest colour step
-  between neighbouring pixels where both are bright, skipping 16 px around window
-  edges), not by looking at the recording, whose compression hides it. Three causes,
-  each a discontinuity: (1) `fanField` defaulted the hue to a constant 0.5 where no
-  fan reaches, but a strength-weighted mean over even a trace of a fan takes that
-  fan's full hue, and the ambient floor makes the glow visible everywhere, so the
-  colour changed in a straight line along every fan's edge (teal to pink, over about
-  2 px, 0.87 per pixel). It now has a prior (weight 0.08) pulling toward a base hue
-  that drifts smoothly in space and time. A mean needs a prior, or its weights can go
-  to zero. (2) Each fan's source orbited on an ellipse 1.38 times the half-extents,
-  which at the diagonals passes just inside the screen corner (up to 63 px inside; within
-  0.10 screen heights of the screen 38% of the time), so the source showed as the
-  sharp tip of a thin wedge lit inside a window: the "spotlight". It is now a circle
-  of radius 0.5 * |(aspect, 1)| * (1.28 +- 0.10): at least 0.12 screen heights away,
-  always (checked over 60 seeds and 3000 s). (3) The bend noise sampled the raw
-  `atan` angle, which jumps a full turn along one ray from the source, so the noise
-  jumped there; it is sampled by position now. Also `strength` used sqrt of the fan
-  strength, whose slope is infinite at zero (a faint line at each fan's edge); it is
-  `1 - exp(-4x)`. Result: worst colour step 0.87 to 0.14, typical 0.36 to 0.07.
-  The first fix flattened the colour variety the user likes (hue spread 0.55 to 0.31,
-  orange 12% to 2%), so the base hue's gain was raised until the spread came back
-  (2.6: spread 0.50, orange 12%). Lesson: when removing a discontinuity, re-measure
-  what the user liked, because the discontinuity was carrying some of it. Method
-  that worked: scan for the worst step, print the profile across it, trace its
-  position row by row (a constant slope means a ray from a source), then fix the
-  cause. Rule: any `if (x > 0) mean else default` must be blended, any selection
-  between fields must be a blend, and nothing may sample `atan` directly.
-  **Cursor mode** (`windowGlowMode: "cursor"`; the user asked for it, and for a
-  performance estimate first). Only the active window (`focusHistoryID` 0, if it is on
-  this screen) is passed to the shader; the glow is faint and narrow everywhere on it
-  (20% gain, 0.8 of the band width) except along the span of edge nearest the pointer
-  (full gain, 1.6 of the width, and a bright core). The shader gets the pointer position
-  and its SIGNED distance to the nearest edge (`cursor` = x, y, d, on; negative inside).
-  "Nearest" is relative: the closest part of the edge pools light even with the pointer
-  mid-window, more strongly the closer the pointer is (`peak`, 0.35 to 1 over 22 band
-  widths). Cursor off (`cursor.w` = 0) is byte-identical to the old shader, checked at
-  several moments each time.
-  **The pool is a function of position along the edge, not of distance from the pointer.**
-  The first formulation used `exp(-(max(|px - pointer| - d, 0) / R)^2)`, which has a
-  plateau inside a circle around the pointer and a crease where it ends: it drew a bright
-  crescent when the pointer was mid-window, and bulged into the window as a half-disc dome
-  (the spotlight look). Now the shader gets, from `WindowGlow.nearestEdge`, the exact point of
-  the window's edge nearest the pointer and the edge's unit direction (`nearest` = x, y, tx, ty),
-  and measures `lat = dot(px - nearest.xy, nearest.zw)`. The pool is `exp(-lat^2 / R^2)`, the core
-  the same with `0.25 R^2`, a tighter `hotter` with `0.05 R^2`, and the small bright **point**
-  is `(1 / (1 + u))^1.3 * exp(-u / 6.76)` with `u = |px - nearest.xy|^2 / (0.44 w0)^2`, about
-  25 px across at half height whatever the span, with a warm white added after the gain. It has
-  long soft shoulders (a power law cut off by a wide Gaussian) on purpose: the glow behind it is
-  already nearly saturated at the centre (0.94 without the point), so a plain Gaussian read as a
-  flat white disc with a rim where it dropped away (0.95 to 0.65 over 16 px). Judge such an edge
-  by the width of the point's own fall-off (90% to 10% of the added light, found by differencing
-  against a copy with the point off): 18 px inward and 21 px along the edge with the Gaussian,
-  28 and 28 with this, at the same centre brightness and an 11% smaller half-height radius.
-  Do not judge it by the steepest slope of the picture: that is dominated by the rim line. Everything is tone-mapped with `1 - exp(-x)`.
-  **Do not derive geometry from `field()`.** It is a *shaped* distance, not a true one: the
-  smooth max that rounds off the diagonal creases inside a window (see the first round of
-  window-glow feedback) shifts it by about half a band width, 15 px, inward everywhere along
-  a straight edge, so `sd` is 0 about 15 px *outside* the true edge, and has slope 2 for the
-  first few pixels outside. An earlier version recovered the along-edge distance as
-  `|px - pointer|^2 - (d_pointer - sd)^2`, which assumes true perpendicular distances; it
-  was wrong by about 30 px along the edge, which went unnoticed in the soft pool, and made the
-  small point (radius 17 px) land at 1.6% of its strength at the nearest edge point and peak at
-  the screen's border instead. The cure is to hand the shader exact geometry from the rectangle.
-  A debug trick that found it: output intermediate values as the pixel colour, and print them
-  at known pixels. `cursor.z` (signed distance, negative inside) is now used only for the
-  proximity boost `peak` (0.35 to 1 over 22 band widths).
-  **Only the nearest edge may pool light.** Distance along the edge says nothing about *which*
-  edge, so the first along-the-edge version lit the opposite edge at the same position along
-  its length almost as brightly (0.92 against 0.07 on a full-screen window; the user's screenshot
-  showed a white pool on the top edge with the pointer near the bottom). The pool, core and hot
-  centre are multiplied by `edgeOnly = exp(-(across / 7 w0)^4)`, `across` being the distance from
-  the nearest edge's line: flat through the band's depth (nearest edge's own glow changes by at
-  most 0.02), gone by 1.5x that. Opposite edge now 0.05 to 0.16 (the faint baseline) on windows
-  1152, 600 and 300 px tall. The hard-edge scan did not catch this and neither did my crops,
-  which only showed the near edge: after any change to the pool, measure ALL FOUR edges.
-  Known limit: with the pointer on a window's middle line the lit edge flips between the two
-  nearest sides instantly (the nearest point jumps); not smoothed.
-  **The pool animates in.** The user: it "just snaps into view immediately when the cursor gets
-  close enough. It should spill in like light. quickly, but animated realistically." What
-  snapped was the choice of which edge holds the pool: when the pointer crosses the line where
-  another edge becomes nearest, the pool vanished from one edge and appeared at full strength on
-  the other. So the pool is *state* in `WindowGlow.qml` (`trackPointer`, called whenever the
-  pointer, window or mode changes), not a function of the pointer. On a change of edge: the new
-  pool's `spill` runs 0 to 1 over 320 ms (OutCubic), and the old pool is kept (`prevV`,
-  `prevDist`) while `prevAmount` drains 1 to 0 over 220 ms (InOutSine). The shader draws two
-  pools (`pool()` in `windowglow.frag`; `nearestPrev`, `pools` = spill, prevAmount, prevDist).
-  Spilling is: reach `R * (0.25 + 0.75 spill)` so the light grows outward along the edge from the
-  nearest point; brightness `rise = smoothstep(0, 0.6, spill)`; the bright point appears first
-  (`smoothstep(0, 0.35, spill)`); and a flare `bloom = 1 + 1.2 s (1 - s)` (1.3 at the middle, 1
-  at both ends) on the core and the point, like a lamp throwing a front of light before it
-  settles. Lesson: without `rise`, the first frames were a thin tall pillar (narrow along the
-  edge, full depth), the beam shape again. The finished state (spill 1, nothing draining) is
-  byte-identical to the shader before the animation, checked every time, because every term
-  is exactly 1 at spill 1 (this is why `bloom` is a polynomial, not a sine, whose value at pi
-  is not exactly zero in float). A new window (`activeKey` changes) starts a fresh pool with
-  nothing draining, and also keeps the layer's existing 350 ms fade. Hysteresis: with the
-  pointer inside, the held edge stays until another is nearer by 24 px, so resting on the middle
-  line does not flip it. Known limits: returning to an edge that is mid-drain re-spills it from
-  zero, and the other edge starts draining at full, so repeated crossing shows a pop; the
-  state is one current and one previous pool, not four per-edge levels. Cost: one pool 48 ms,
-  two 52 ms (CPU rasteriser). The state machine is tested in `extras/dev/window-glow-test.js`
-  (39 checks, six deliberate breaks each caught); the animation was judged from a filmstrip
-  rendered by the harness with `POOLS` and `NEAREST_PREV`, and cannot be seen without a live
-  Hyprland. The durations are the two `duration:` values next to `spillAnim` and `drainAnim`.
-  **Span** (`windowGlowSpan`, a slider in the popup): `R = span * 8 * w0`. The default was
-  chosen by measuring the pool's length (where the glow is above half way between baseline
-  and peak) with the core switched off, because a core makes any such measure read its own
-  narrow width: the old shader 521 px, R = 7.5 w0 368 px, R = 8 w0 395 px (24% shorter, the
-  "bit smaller" the user asked for), R = 9 w0 433 px. Range 0.5 to 2.5: below about 0.5 the
-  band's depth changes faster along the edge than the glow can follow, and the pool turns
-  into a boxy arrowhead. Measured again after the geometry fix: 200 / 386 / 697 px at spans
-  0.5 / 1 / 2.5, against 521 px for the old shader (the default is 26% shorter). The centre is
-  nearly white (whiteness 0.9) and the brightest pixel of the frame sits within 25 px of the
-  pointer's nearest edge point with the pointer mid-window, near an edge, and outside.
-  Cost (CPU rasteriser, 1880x1190, ratios only): all mode with three windows 92 ms; cursor
-  mode, one window, 47 to 54 ms. Pitfall: the first early exit must allow for the widest
-  possible band, so it needs a second, tight one once the local width is known. Hard-edge
-  scan with the pointer in five places and the span at 0.5, 1 and 2.5: worst colour step
-  0.08 to 0.10, as with it off.
-  **Depth** (`windowGlowDepth`, a slider in the popup, 0.5 to 2.5, default 1): how far into the
-  window the light reaches, in both modes. It is the `depth` uniform, a multiple of `rimWidth`:
-  `wd = w0 * depth` is the band's depth, the core's depth profile, the `edgeOnly` gate and the crease
-  rounding in `winSd`. The span (`R0`), the proximity boost and the glints stay on the base `w0`, so
-  depth and span are independent.
-  **The bright point is a streak along the edge, not a disc** (user: with a low depth it "remains
-  perfectly circular and looks unrealistic"). Light escaping over an edge from behind is thin across
-  and long along. Its radius along the edge is `0.44 w0 * span`, across it `sqrt((0.44 wd)^2 + 1)`
-  (the +1 keeps a hairline of about a pixel at tiny depths), and outside the window it is tighter
-  (across-distance scaled by 1/0.65, as the band's halo is). Equal radii at the defaults (about 25 px
-  across), so the default is still a round point, now slightly tighter on the outside (mean change
-  0.003, max 0.13 around the pointer). The across distance is the true one from the nearest edge's
-  line (`acr`), as before; `sd` only picks the side, through `smoothstep(-1, 1, sd / rd)` so the
-  radius changes without a line (`sd` is offset from the true edge by about half the crease
-  rounding, so a hard `sd < 0` test would draw one). Do not take the across distance from `sd`:
-  at small windows the opposite edge would light up. This is not the beam look the older rule warns
-  about: the rule is about rays and angle structure; an ellipse lying along the edge and centred on
-  the nearest point is still a blob. The early exits must not cut the point off: they use
-  `max(w, 2.4 * rd)`. Measured: the point's excess on the first lit row stays at or under 2/255 for
-  depth 0.02 to 2.5 and span 0.5 to 2.5. At low depth the pool's core already saturates the line
-  itself, so what the streak removes is the round halo that used to sit off the line.
-  Seen on a contact sheet of depth (2.5, 1, 0.25, 0.05) by span (0.5, 1, 2.5), composited over a
-  dark backdrop: render both versions and look, because the numbers do not show roundness.
-  Known and not touched: the band's profile steps from 0.65 (outside) to 1.0 (inside) at `sd = 0`,
-  which is about half the crease rounding outside the true edge, so at depth 2.5 it shows as a
-  faint strip with a hard top edge (about 0.04 in luminance, 14 px above the edge). It predates
-  depth; the fix would be to make `prof` continuous there.
-  Depth was first limited to 0.5-2.5, and the user found 0.5 still too deep, so the setting goes
-  down to 0.02 (the popup slider from 0.05; the shader floors it at 0.02). Measured inward reach at
-  the 10% level: 175 px at 2.5, 51 at 1, 25 at 0.5, 12 at 0.25, 5 at 0.1, 3 at 0.05 (2 px of halo
-  outside). The bright point shrinks with it (10% extent 14 px at 0.05, span 1).
-  **Centre brightness** (`windowGlowCenter`, slider "Glow brightness", 0-2.5, default 1, cursor mode
-  only): the `centerGain` uniform multiplies the pool's `hot`, `hotter` and `spot` terms right
-  after `pool()` returns, which scales both the white core and the point, but not the broad pool
-  (`g`). Exactly 1 at the default, so output is byte-identical. The centre sits in the tone-map's
-  shoulder, so the slider is not linear in what you see: peak luminance is 0.60 at 0, 0.91 at 0.25,
-  0.98 at 0.5, 1.0 above that, while the mean over 60 px of the pointer keeps rising (0.30, 0.44,
-  0.53, 0.65, 0.72, 0.80 at 0, 0.25, 0.5, 1, 1.5, 2.5). Most of the visible change is below 1.
-  **The pointer feed** (`CursorTracker.qml`) is the part with real cost and the part that
-  could NOT be tested here (the sandbox forbids creating sockets). Hyprland has no pointer
-  event and a click-through layer cannot receive hover, so it polls: first over Quickshell's
-  `Socket` to `Hyprland.requestSocketPath` (what hyprctl does; no process; sends `cursorpos`;
-  Hyprland replies "x, y" and closes the connection), and after six consecutive misses it
-  falls back to spawning `hyprctl cursorpos` (about 7 ms of CPU a spawn, so 6 polls a
-  second, about 4% of a core), and after six more to "none" (the glow goes uniform).
-  `omarchy-shell shimmer status` reports `cursorSource` ("socket", "hyprctl" or "none"),
-  `cursorKnown` and `cursor`: **check that first** if cursor mode does nothing. It polls
-  only while the glow is visible and in cursor mode, at 60 Hz (16 ms) while the pointer moves and
-  about 7 Hz once it has rested. Unverified assumptions, in order of doubt: that
-  `SplitParser { splitMarker: "" }` delivers an unterminated reply (the fallback covers
-  it failing); that the `connected` property goes false when Hyprland closes the
-  connection; that `Socket` is allowed for a third-party plugin (no first-party code uses
-  it). A fourth route, not built because it runs user code on the compositor's main
-  thread (a bug there stalls the desktop): a Hyprland Lua `hl.timer` calling
-  `hl.get_cursor_pos()` and writing to a file the plugin watches. Logic tests (reply parsing,
-  the miss and fallback state machine, active-window choice, edge distance, the shader
-  uniform) are in `extras/dev/cursor-tracker-test.js` and `extras/dev/window-glow-test.js`,
-  which run the real functions from the QML files in node; every check was confirmed to
-  fail when its code is broken on purpose. `extras/dev/edge-scan.py` is the hard-edge scan
-  that found the colour edges (run it on any change to the glow).
-  **Following the pointer** (user: "it doesn't seem to move smoothly along the edge of the window").
-  Three stages could have caused it; the culprit was the smoothing. `smoothX/Y` used to be a
-  `Behavior` with a 110 ms OutQuad `NumberAnimation`, restarted by every reading. An ease-out starts
-  at full speed and slows down, so each restart was a surge: simulated on a steady 1200 px/s sweep
-  (`extras/dev/pointer-smoothing-sim.js`), the drawn speed had a spread of 100% of its mean at a
-  60 Hz display and 52% at 144 Hz, with half the frames (60 Hz) or one in six (144 Hz) below half speed. It is now a critically
-  damped spring (`springStep`, the exact solution, so any frame time is stable), stepped by a
-  `FrameAnimation` (`stepPointer`) that runs only while the glow is catching up and is off in all
-  mode, with no window to light, and for the first three readings (which jump, as before). Its speed
-  is continuous from frame to frame: spread 3 to 11%, worst frame-to-frame change 5 to 21%, at
-  `followRate` 32 (rad/s; lag behind a steady pointer about 2 / 32 s, 60 ms, against 78 to 118 ms
-  before at 30 Hz polling; 25 is smoother and 15 ms slower). The polling went from 33 ms to 16 ms (60 Hz) while the
-  pointer moves: that halves the readings' own spacing, worth about 3 percentage points of spread
-  and 8 ms of lag. The hyprctl fallback stays at 160 ms, where nothing can make it smooth, and
-  **if the user is on that route the glow will still step**: `cursorSource` in `shimmer status`
-  tells. The 60 Hz cost of the socket route is unmeasured (the sandbox cannot make sockets); the
-  rate is the `16` in `CursorTracker.pollInterval`. Not changed: the shader clock, which ticks at
-  `fpsCap` (30) and so redraws at most that often when the pointer is still; while the glow follows
-  the pointer the frame clock redraws it every display frame. The state machine is tested in
-  `window-glow-test.js` (13 checks on the spring, 5 deliberate breaks each caught).
-  Other lessons: (a) a "which way does the edge face" term made diagonal
-  picture-frame seams at corners, because the nearest edge switches along the
-  diagonal; it was removed. (b) A glow cut off at a fixed depth while still bright
-  shows as a dark inner rectangle, so fade it to zero. (c) `half` is a reserved
-  word in GLSL. Test with `RECTS="x,y,w,h;..." RIM=18 ROUNDING=4 harness ...` (see
-  `extras/dev/shader-harness.c`) over a synthetic desktop.
-- **The shader's clock is accumulated, not read from the wall clock**
-  (`Service.shimmerClock`, advanced by a service timer by elapsed time times
-  `layerSpeed`, with a stall clamped to 0.25 s). Multiplying wall time by a speed
-  would make every pattern lurch when the slider moves. All screens share it. If
-  you add another time-based control, keep it integrated the same way.
-- **Additive blending.** In the default mode the light part of the shader outputs
-  colour larger than its alpha, which a premultiplied "over" blend turns into added light.
-  That is outside what the Wayland spec promises, so the `layerAdditive` setting
-  (and the `additive` uniform) falls back to an ordinary translucent layer. If
-  the light ever shows up black or washed out on another compositor, turn it off
-  first. `intensity` is multiplied by 2 inside the shader so that the default
-  0.35 is the strength the look was designed at.
-- **Everything is slow and low-alpha.** Periods of 20 to 90 s, intensities that
-  you notice only afterwards. If a change makes something louder, it is
-  probably wrong. Defaults: layer intensity 0.35, spores faint, caustics
-  barely there.
-- Beauty with wrongness: oil-slick thin-film colour, spores rising, a fungus
-  growing in from the edges of the screensaver, text that glows like the fungal
-  writing on the tower wall.
-- **Dormant elsewhere.** Every extra gates on `theme.name == "annihilation"`
-  and goes inert on other themes. Keep that property for anything new.
-- Cheap by design: layer shader renders at half resolution at 30 fps and
-  pauses under fullscreen windows. The glow layers are static textures.
-
-**Notifications** are planned work, tracked across sessions in
-`docs/notifications.md` (status table, constraints, per-item design, open
-questions). Read it before touching anything notification-related, and update its
-Status section as you go.
-The optional themed notification daemon is **a separate project with its own repo**, `github.com/TRemigi/omarchy-annihilation-notifications`
+**The optional notification daemon** is **a separate project with its own repo**, `github.com/TRemigi/omarchy-annihilation-notifications`
 (checked out at `~/dev/omarchy-annihilation-notifications`, with its own `AGENTS.md`, `CONTRACT.md`, plan and runbooks). Its plan, status,
 design and releases live there and are **not mirrored or tracked in this repo**; do not copy them back. What this repo has for it is
 code and its user-facing instructions: `extras/notifications-fork` (the controller), the `extras/install notifications <command>` wrapper,
 the `post-update` and `post-boot` guard hooks that `extras/install link` installs, `extras/dev/notifications-fork-test.sh`, and the README
 section "Notification fork (optional)". How the guard works (what it checks, when it switches to the stock daemon, the held marker, the
 log, `auto off`) is written up in the fork repo's `docs/theme-integration.md`; read that before changing the controller or the hooks.
-The fork reads nothing from this repo, but this repo's shimmer plugin reads the fork's state files (`docs/notifications.md`), so a change
-to their format in the fork has to be mirrored here.
+The fork reads nothing from this repo. The area-x plugin reads the notification service's state files, so a change to their format in the
+fork has to be mirrored there.
 
 Inspiration and context: the film and novel; Swamp Dark base16
-(`tinted-theming.github.io/tinted-gallery/#base16-swamp-dark`); thin-film
-iridescence (oil on water); bioluminescent fungi.
-
-## Copyright and content rules
-
-- The screensaver text in `passage.txt` and the entries in `journal.txt` are
-  **original** writing in the manner of the book. Do not paste the novel's
-  tower-wall passage (or other long passages) into the repo.
-- The user can drop the real text in `~/.config/omarchy/annihilation-passage.txt`
-  (local, not tracked); the service prefers it automatically.
-  The user has done this with the book's opening passage. That file lives
-  outside the repo and must stay out of it: never copy it into the tree, the
-  tests or a commit message.
-- `Service.partsFrom` splits that file into screensaver parts. Ellipsis dots
-  (`. . .`) must stay attached to the preceding word and are never a break
-  point; without that rule each ellipsis became a stray part of its own.
-- The film's logotype is custom and unconfirmed. Jost is the nearest free look,
-  not a match; say so rather than claiming otherwise.
-- Only bundle fonts with clear licences (SIL OFL here). Expedition Annihilation
-  and Kiona have unclear licences, so they are not bundled; users can install
-  them and set `passageFont` to the family name.
+(`tinted-theming.github.io/tinted-gallery/#base16-swamp-dark`); the brown marsh with the Shimmer's colours only
+at the edges.
 
 ## Gotchas (each of these cost real time)
 
@@ -493,271 +108,44 @@ iridescence (oil on water); bioluminescent fungi.
   `-polkit`, `-reminders`, `-clipboard`, `-emojis`, `-image-selector`,
   `-background`; ours are `annihilation-shimmer` and `annihilation-screensaver`.
 
-### Quickshell plugin
 
-- **`keepLoaded: true` blocks hot reload of a service.** It was removed from the
-  manifest. If you ever see old behaviour after `rescanPlugins`, check this,
-  then fall back to `omarchy restart shell`.
-- The plugin dir is **symlinked**. The shell's watcher (`inotifywait -r`) does
-  not follow symlinks, so after editing run `omarchy-shell shell rescanPlugins`.
-  Discovery (`for sub in "$dir"/*/`) does follow them.
-- **A new QML file or a new layer needs `omarchy restart shell`**, not just
-  `rescanPlugins` and `hyprctl reload`. The user hit this when a new layer file
-  (instantiated from `Service.qml`) was added: the rescan did not pick
-  it up. Edits to existing files may hot-reload; the cause is unverified. When you
-  add a file, new layer or new IPC function, tell the user to restart the shell.
-- `omarchy plugin validate` rejects a symlinked plugin folder; validate the real
-  path (`omarchy plugin validate extras/plugin/annihilation.shimmer`).
-  `plugin add/update` are the only callers; symlinks are otherwise supported.
-- `omarchy plugin enable/disable` go through shell IPC, so the shell must be
-  running. The installer tolerates it not running and prints what to run later.
-- Third-party services are created with a null parent and get `shell` as a
-  scoped facade. `shell.idleConfig` is `{}` for anything that is not an idle
-  clone, so the service reads `idle.screensaver` from `shell.json` itself.
-  Settings live on the plugin's entry in `plugins[]` **or** in its
-  `bar.layout.*` entry once the widget is placed. `Service.applyConfig` reads both.
-- `shell.updateEntryInline(id, patch)` persists settings (the clock widget uses
-  `root.bar.shell.updateEntryInline`).
-- A file named `BarWidget.qml` that extends `BarWidget` (and `Panel.qml` extends
-  `Panel`) works because the first-party clock does the same. `qmllint` calls it
-  an inheritance cycle; ignore that.
-- `FileView`: use `onLoaded: x(text())` plus `onFileChanged: reload()`;
-  `text()` is stale inside the change signal.
-- `/proc` files and `FileView` are untested; the popup uses `cat /proc/uptime`
-  through `Process`.
-- Do not use a running `ColorAnimation`/`NumberAnimation` for something that
-  just changes slowly in the bar; it forces a repaint every frame. The glyph
-  uses a 1 s `Timer` instead.
-- **The screensaver must follow Omarchy's idle rules; our `IdleMonitor` is separate from
-  `omarchy.idle`'s, and third-party plugins cannot reach that service.** So `Service.qml`
-  re-implements the three rules that matter: (1) the "Stay Awake" bar button is the file
-  `~/.local/state/omarchy/indicators/stay-awake` (watched the way the idle service does it:
-  watch the directory, re-probe on change); while it exists the idle screensaver is off, a
-  forced one (IPC, middle click) still works. (2) Like `omarchy-launch-screensaver`, ask
-  `omarchy-shell lock isLocked` before showing (`checkLock("start")`), and poll it every
-  second while showing (`"poll"`) so the overlay is unmapped once the lock covers the
-  screen, as `omarchy-system-lock` does to the stock one. Without this the overlay stayed
-  mapped across the session lock and the idle monitor tore it down on the first keypress
-  at the lock screen, which is the suspected (UNCONFIRMED, never reproduced here) cause of
-  a Hyprland crash seen on a second machine when locking. (3) It does not idle-start when
-  `screensaverSeconds >= idle.lock`, since the lock would arrive at once.
-  (4) It does not idle-start while Omarchy's own screensaver is enabled, i.e. the flag
-  `~/.local/state/omarchy/toggles/screensaver-off` is absent (the theme-set hook sets it; the
-  menu's Toggle Screensaver flips it), so the two never run together. A forced one still runs.
-  Corollary: if the hook never ran, ours stays quiet and the stock one plays.
-  Get `~/.cache/hyprland/hyprlandCrashReport*.txt` or `coredumpctl info Hyprland` from the
-  machine that crashed before claiming the cause.
-- `Screensaver` is driven by `IdleMonitor` (respects inhibitors), so idle-driven
-  instances end on any input. IPC-summoned ones set `screensaverForced`, take
-  keyboard focus and end on key or click.
-- The cursor is hidden through `hyprctl eval 'hl.config({ cursor = { invisible
-  = true } })'`, falling back to `hyprctl keyword`. `Component.onDestruction`
-  restores it, so a reload mid-screensaver does not strand a hidden cursor.
+## How to verify (this sandbox has no GPU or compositor)
 
-### Shaders and rendering
+What the agent environment could not do: run Hyprland or Quickshell. The user is the only one who can
+confirm anything live. What works:
 
-- `ShaderEffect` needs compiled `.qsb`. Edit `shaders/*.frag`, then run
-  `extras/plugin/annihilation.shimmer/build-shaders.sh` (needs
-  `qt6-shadertools`, at `/usr/lib/qt6/bin/qsb`). **Commit the `.qsb`** so
-  installs do not need it.
-- GLSL: `smoothstep(e0, e1, x)` needs `e0 < e1`. The vignette is written as
-  `1.0 - smoothstep(0.35, 1.1, d)` for that reason.
-- **A shader sampling an `Image` gets the whole texture and ignores
-  `fillMode`.** That is why the screensaver stretched. `bloom.frag` does its own
-  cover crop from the `imageAspect` uniform. Do not "fix" it back to `fillMode`.
-- Output is premultiplied alpha. Qt `property color` becomes `vec4`;
-  `property size` becomes `vec2`.
-- `MultiEffect` as `layer.effect` makes the blurred glow layers; `blurMax` is
-  the radius.
-- **Glow strength** is the layer list `Passage.glowLayers`: staggered blur radii
-  (blurMax is pixels, keep it at or under 64) rather than one big blur, because
-  thin letters carry little light once blurred. The wide and mid layers use
-  `Text.Outline` (1 px) for roughly double the ink. Do not get the same effect
-  with a heavier font weight on the halo copies: Jost's letter widths change
-  with weight, so the halos drift off the real letters along a long line. Each
-  blurred layer is a GPU texture the size of the text block (at most 0.78 of the
-  screen width), so add layers sparingly.
-- **Do not use `MultiEffect`'s mask for a soft fade.** With a gradient mask and
-  default thresholds it produced a hard straight edge where the gradient starts
-  (text looked "revealed from under a line"). That was for the old crawl's edge
-  fade (a shader of our own then; the crawl and its shader are gone, the text now
-  fades by opacity). Anything involving layers, blur or masks is invisible to the
-  offscreen tests, so screenshots from the user are the only real check; ask for
-  one (`~/Pictures/screenshot-*.png`) after changing them.
-- Variable fonts: set the weight with `font.variableAxes: ({ "wght": 250 })`
-  (Qt >= 6.7). `FontLoader.name` is the family to use.
-- **The passage is one part at a time, centred** (it was a right-to-left crawl until the
-  user asked for fade in and out in the centre, starting from the first part every
-  activation). `Passage.qml` shows `moment = locate(time)`: which part and how strongly,
-  a pure function of `time` (`Screensaver.elapsed`, reset on each activation), so there is
-  no saved position and every screen agrees. Per part: fade in, hold (`3 s + 0.045 s per
-  character`), fade out (`fadeSeconds` 2.5, was 4: "a bit faster"), then a 1.5 s pause. **The text only changes in
-  the pause**, where the strength is 0 and the item is `visible: false`, so the eight blurred
-  layers are never re-rendered where it shows. Strength is a smoothstep squared (opacity is
-  linear light; a plain ramp looked like it popped in, see below). Parts longer than 0.78 of
-  the width wrap, and the width is narrowed to balance the lines (`textWidth`); the layers
-  must wrap identically, so they share one width and one font (do not vary the font weight
-  per layer). Each layer adds `leftPadding: letterSpacing` so wrapped lines are centred on
-  their ink, as the trailing letter-spacing otherwise shifts them left. Timing is a first
-  guess, never seen live: the constants are `Passage.fadeSeconds`, `pauseSeconds`,
-  `holdBase`, `holdPerChar`.
-- **The words are alive** (`shaders/alive.frag`; the user: "more realistic and alive", and the
-  book's words are made of large numbers of tiny hand-shaped creatures that release a tiny number
-  of spores at one point). `Passage` draws the text once, white, into a texture padded by 22 cells
-  (`aliveText`, taken by a `ShaderEffectSource` with `hideSource`, because an invisible item is
-  not drawn into a texture), and the shader grows the rest. **Second round** (the user liked the hand
-  shape: "make the words bigger/thicker while keeping the hands the same size, then fill the letters
-  densely with the hands so it looks like the words are made of them; abandoning the font is fine"):
-  the hands are sized by `Passage.cellSize` (7.7 px at 1200p, `Screensaver` passes `height * 0.0064`),
-  independent of `pixelSize`, and the type is Jost at wght 700, tracking 0.14, 0.062 of the height
-  (74 px at 1200p, three lines of a 70 character part). Two overlapping layers of hands (`creatures()`,
-  grids tilted 0.38 and -0.55 rad, the second offset and drawn at 0.72 behind the first so overlaps
-  read), a cell holding one wherever it lies on or near a stroke, so strokes fill and the hands spill
-  a little over the edge. Each points away from the nearest edge (the gradient of a nine-tap local
-  coverage; inside a thick stroke any way) and waves its fingers on its own phase (`hand()`: palm and
-  five capsule fingers). A dim body (`0.16 tint`) fills behind them. Light is bioluminescent: slow
-  drifting `swell()` noise, plus a rare per-creature flash (`pow(sin, 5)`); 4% of creatures lean
-  magenta. The old blurred halo layers stay under it (the plain `core` layer is replaced,
-  `Passage.creatures`). **Brightness was the trap**: the first dense version summed two layers of
-  pale hands into flat white, losing the hand shapes (lum 0.20 + 0.55 swell, body 0.30, x1.15); the
-  look needs dim teal with a few bright hands, so keep the base low and let the swells and flashes carry
-  the brightness. **The opposite trap, seen live** ("some of the words appear quite blurred"): in a dim
-  swell (lum 0.12) the hands fell to the brightness of what sat between them (the body, 0.16, plus a
-  coverage glow `around()` that added up to 0.5 inside strokes) and the blurred halo layers, left at full
-  strength from the thin-text days, were as bright as the words, so dim words read as soft glowing blobs
-  while bright ones were crisp. First fix: hands never dimmer than the gaps (lum 0.36 + 0.40 swell; body
-  0.10) and the halos at half strength. **That was not enough** ("the glow around them remains the same,
-  so even when the hands dim, the glow doesn't change, so it looks blurred"): any glow made of blurred
-  copies of the text is constant whatever the hands do. So in alive mode the blurred halo layers are gone
-  (only the dark `shadow` layer stays, `Passage.shadowLayers`) and the glow is made in the shader: a second
-  texture, `glowTex`, a blurred copy of the white words (`glowItem`: a `WordsText` with a `MultiEffect`,
-  `blurMax` 64, taken by a `ShaderEffectSource`), is multiplied by `0.10 + 0.95 swell^2`, the same swell
-  that lights the hands, so glow and hands rise and fall together. A glow computed in the shader from
-  ring taps of the mask looked like a plaid on 15 px strokes (eight taps alias): use the blurred texture.
-  Check this on a screenshot, not the harness (which takes the blur as a PAM made with ImageMagick,
-  `-blur 0x16`, forced to RGBA). **More dynamic** ("the dimmest they get is a bit too dim, and there isn't as much
-  dynamism to the brightness as I'd like"): the floor went up and the range and the speed with it. Hand
-  light is `0.46 + 0.30 swell + 0.36 shimmer + 0.55 flash * (0.40 + 0.60 swell)`; `swell()` is the broad
-  one (a few words across, now drifting about 1.5 times faster, contrast `smoothstep(0.30, 0.70)`),
-  `shimmer()` is new, a faster and finer noise (clusters of four or five hands, a second or two each),
-  and the single-creature flash runs faster (`pow(sin, 4)`). The glow is lit by `swell + 0.5 shimmer`,
-  floor 0.22 (was 0.10). Measured on the real shader over 15 s at the test size
-  (`dyn.sh`-style: 25 frames 0.6 s apart, in-stroke brightness of 48 px tiles): dimmest tile-moment 0.23 to
-  0.32; one tile over time 0.33-0.52 to 0.38-0.74; across tiles at a moment 0.24-0.56 to 0.35-0.75; relative
-  change per second 0.17 to 0.23 (the Shimmer layer felt alive at 0.2 and flickered at 0.38). The numbers to
-  move are the 0.46 floor and the speeds in `swell()` and `shimmer()`; the sparkle is under-measured at a
-  0.6 s step. The rule is that
-  contrast between a hand and its surroundings must hold at the dimmest point of the swell. **One spore release per part**: `sporeAge` is the time since `releaseAt`
-  (`fadeSeconds + 0.3 hold`); the origin is the first of up to 64 hashed points in `bounds` that lands
-  on a stroke (every pixel finds the same one, so it breaks early; no stroke hit, no release, 39 of 40
-  seeds release), the creatures within about a type size flare, and seven warm motes rise (about 3.4
-  type sizes over nine seconds, which is why the padding is 4.5), wander and go out. `unit` (cell x 5) scales the spores' motion and the swells, so they do not grow with the type; `seed` is the part
-  index plus 37 per pass, so each part releases somewhere else. `passageAlive: false` in the entry draws
-  plain glowing text. **Scale:** the hands are 7.7 px at 1200p and the cell is a fixed fraction of the screen height, so
-  at 4K they are twice that. Numbers measured on the real shader
-  (`extras/dev/alive-harness.c`, run on a texture of the real text rendered by Qt offscreen): the picture
-  changes by 0.18 of its level per second (the Shimmer layer is 0.2 and "felt alive", 0.38 flickers);
-  27 ms a frame on the CPU rasteriser (1836x657, two layers). **Cost** per pixel: about 40 taps, 64 more during a
-  release search; the texture is the text block plus padding, not the screen. Never seen live; the ShaderEffect,
-  its source and the compositing are exactly the parts the offscreen tests cannot show.
-  Method for changes: render the shader on a real text texture and look at it enlarged (hands are only
-  recognisable at 3x), and keep checking for strays: a cell with nothing near it that still held a hand
-  was `step(h.x, 0)` firing when the hash was exactly 0.
-- **A layer-shell window is often zero-wide the instant it becomes visible.** `Passage`
-  derives its widths from `width` in bindings (`maxWidth`, `textWidth`), so it follows the
-  window as it gets its size instead of reading it once.
-- **The screensaver's background growth** (`bloom.frag`, `veins.js`, the `veinCanvas` in `Screensaver.qml`).
-  The first version was a Voronoi lattice whose seams glowed teal, and the user: it "reads as pretty
-  web-like and I don't think that's what we were going for". Now (the reference is the first background,
-  the tower wall: pale root-like veins and moulds, olive with yellow spots and a little purple; "growing
-  inwards rather than out as in the image", "in the background so as not to clash with the words"): two
-  things grow in from the screen edges and keep out of a box round the words (half 0.40 x 0.15 of the
-  screen, the edge wobbled by noise so it is not a rectangle). **Veins**: a branching tree cannot be
-  evaluated per pixel, so `veins.js` draws one into a canvas (half the screen size, drawn again with a new
-  random seed each activation, about 3,500 strokes in 25 ms) and the shader reveals it. Each stroke's
-  colour carries its path length (red), thickness (green) and a tint (blue), so growth is simply
-  `front > red`, with a faint lit tip where it has just arrived, and no state is kept. Canvas pixels are
-  premultiplied: `veinAt` divides the coverage back out. The generator is pure (only 2D-context calls) and
-  runs under node: 15 trunks round the perimeter at stratified positions, a gentle wander that cannot loop
-  (the heading is pulled back to where the vein was going), forks 0.35-0.8 rad ahead, thinning near the
-  box so veins end before it rather than at a line. **Mould**: a potential `(body - 0.5) * 2.4 +
-  min((reach - dEdge) * 2, 0.35) + proximity to grown veins * 0.8 - 0.2`, so colonies start at the edges
-  where the noise allows, leave bare wall between them, spread inward with `reach` (0.34 of the height by
-  140 s) and gather round veins; yellow spots come in clumps (a clumping noise gates two jittered grids
-  of spots of varying size), with the odd purple lump. All of it is dim (mould at half strength, veins
-  `pale * 0.42`). **What was wrong in earlier tries, seen in the harness**: noodle-like loops (the wander
-  was far too strong), one continuous olive slab along the edges (the edge term must be capped so the
-  noise decides), a rectangular clear zone, and spots on a grid (polka dots). The photo's warp and
-  channel drift are unchanged. Cost: 23 ms against 11 ms on the CPU rasteriser at 1440x900. Never seen
-  live: the Canvas, its `ShaderEffectSource` and the premultiplied read are exactly what the harness
-  stands in for (it loads the canvas as a PAM, premultiplied by hand). Test with
-  `extras/dev/alive-harness.c` (`TEX2=veins`, `OUT=WxH`, the photo as the first texture).
-- **The screensaver is one transition.** The photo fades from black with
-  `smoothstep(0, 3, t)` straight to its dark level (`bloom.frag`), and the first part
-  fades in from the same moment (`time` starts at 0 with the photo). Do not reintroduce a
-  delay or a separate dimming ramp: that showed up as a double fade. Matching the
-  photo's *curve* was not enough, though: the photo only reaches a dim level
-  (`screensaverBrightness`, now 0.08) while the text goes to full, and opacity is linear
-  light, so the text looked like it popped in; the squared smoothstep over 2.5 s (4 s before, 6 s in
-  the crawl) keeps pace with the photo perceptually. Judge fades by perceived brightness
-  (about `x^(1/2.2)`), not by the number.
-- **`console.log` prints nothing in this sandbox** unless you set
-  `QT_LOGGING_TO_CONSOLE=1 QT_FORCE_STDERR_LOGGING=1`. Without them a test looks
-  like it silently did nothing. Reading a file from QML also needs
-  `QML_XHR_ALLOW_FILE_READ=1`.
-- `Passage.qml` has a `glow` switch for tests (it also turns the creatures off, which the software renderer cannot draw), and its schedule is driven by the `time`
-  property: set `glow: false`, set `time` from a `Timer`, and read `moment`, `lineCount` and
-  `textWidth`, and `grabToImage` for the layout (centring, wrapping, balance via an
-  ImageMagick `-trim` bounding box). `grabToImage` lags one frame behind a property change,
-  so wait a tick after setting `time`. A frame grabbed right after a change shows the old state.
-- Screenshots land in `~/Pictures/screenshot-*.png`; the user can point you at
-  one. The first one showed old code still running (the `keepLoaded` problem),
-  so confirm the version with `omarchy-shell shimmer status` (new fields appear
-  there) before debugging visuals.
-
-Live checks for the user: `hyprctl configerrors`; `omarchy-shell shimmer
-status`; `omarchy-shell shimmer pulse`; `omarchy-shell shimmer screensaver`.
-
-## Plugin reference
-
-Settings (inline on the plugin entry): `layerEnabled`, `layerIntensity` (0.44), `layerSpeed` (1.29),
-`motes`, `fpsCap` (30), `screensaver`, `screensaverSeconds` (0 follows
-`idle.screensaver`), `screensaverBrightness` (0.08), `passageFont` (`jost`,
-`cinzel`, or an installed family).
-
-IPC (`omarchy-shell shimmer ...`): `toggleLayer`, `pulse`, `screensaver`,
-`dismiss`, `status`, `notify <0|1|2>` (fake an arrival, to see its effects), `sound <arrive|low|urgent>` (hear a tone), `seen` (mark missed notifications seen).
-Settings added for notifications: `notifySound` (true), `notifySoundVolume` (0.05 to 1, 0.5).
-The defaults of the popup's sliders and switches were set to the author's own values (intensity 0.44, speed 1.29, glow span 1.98, depth 0.21, brightness 0.98, sound on), kept in two places that must agree: `Service.qml` (property and `applyConfig`) and `Panel.qml` (the `setting(key, default)` reads). The popup's "Reset to defaults" button removes `Panel.resettable` from the entry (`BarWidget.resetSettings`; `updateEntryInline` replaces the entry, it does not merge), so a new popup setting must be added to that list. Design numbers in this file quoted "at the default" were measured at the old defaults (1.0).
-
-The passage is shown one part at a time in the centre (`Passage.qml`): each fades in, holds
-while it is read, fades out, and the next follows; after the last the first returns. Every
-activation starts at the first part. There is no `crawlSpeed` any more (a leftover value in
-`shell.json` is ignored). The glow layer model is `Passage.glowLayers`; its colours are set
-from `Screensaver.qml`. Typography (family, weight axis, caps, tracking, size as a fraction
-of height) is `Service.passageStyle`.
+- Syntax and validation:
+  `bash -n extras/install extras/notifications-fork extras/hooks/*.sh`,
+  `bash extras/dev/notifications-fork-test.sh` (the fork controller, the guard, the installer's hooks, and how
+  it installs, leaves alone and replaces the plugin; every check was confirmed to fail when its code was broken on
+  purpose),
+  `luac -p extras/hypr/annihilation.lua`,
+  `python3 -c 'import tomllib; ...'` for the TOML files.
+- Installer and hook: run them with `HOME=$TMPDIR/fakehome` and a copied
+  `~/.local/state/omarchy/current/theme/hyprland.lua`. This is how idempotency,
+  conflicts and the screensaver marker were tested. The test above stubs `omarchy`, `omarchy-shell` and
+  friends, so nothing touches the real shell or plugins.
+- The plugin has its own checks (`omarchy plugin validate .`, node logic tests, shader harnesses); see the
+  area-x `AGENTS.md`.
+- Live checks for the user: `hyprctl configerrors`; `extras/install status`; `omarchy-shell shimmer status`.
 
 ## Conventions
 
 - **Do not `git add -A`.** The working tree contains sandbox mounts
   (`.bashrc`, `.gitconfig`, `.idea`, `.zshrc`, ... are character devices) and
-  `.claude/`. Add explicit paths.
+  `.claude/`. Add explicit paths, and check `git diff --cached --stat` before committing.
+- **When replacing a range of a document, check what the range contains.** A docs edit that cut a
+  slice between two markers once deleted a whole section ("How to verify") along with it.
 - Small, step-sized commits with a message that says why. Follow whatever
   attribution trailers the session instructions require.
 - Preferred voice with the user: concise, honest about what is unverified, no
   repeated permission questions once a direction is agreed.
 - Match surrounding code style: terse comments that explain why, no tutorials.
 
-## State at the end of the first session
 
-Confirmed by the user by sight: the portable theme, the Hyprland extras, plugin
-loading, the bar glyph and popup including the **Speed slider**, the screensaver
-(fade-in from black, the crawling passage (since replaced by the centred fade) and its timing, the **stronger text
-glow**, and the **darkness at `screensaverBrightness` 0.08**), and the **final
-Shimmer layer** ("looking quite good now, keep it"). The Shimmer took seven rounds
-of feedback to reach (see the lessons above); do not redesign it without a new
-complaint from the user, and if you must change it, change one thing and measure
-with `extras/dev/overlay-rate.py` and `extras/dev/hue-shares.py`.
+## State
+
+Confirmed by the user by sight: the portable theme and the Hyprland extras.
 
 Open items:
 
@@ -767,32 +155,16 @@ Open items:
   prefer it static or slower (a slower version would need the plugin to drive
   the angle itself).
 - A themed `[lock]` placeholder phrase was in the original plan and never done.
-- The `shell.toml` gradient strings and `updateEntryInline` from a bar widget
-  were assumed to work and appeared to, but were never inspected in the source.
-- Additive blending (`layerAdditive`) is assumed to work on the user's
-  compositor; it did, as far as the user has said, but it is outside what the
-  Wayland spec promises.
-- The film's effect also seems to bend the picture behind it. Doing that would
-  mean the layer samples the wallpaper and displaces it: a bigger change that
-  risks mismatching the real wallpaper during theme transitions. Only worth
-  trying if the user says the Shimmer feels flat.
-- The user's wallpaper already contains baked-in iridescence, so the layer is
-  hardest to see on that still; the darker stills show it best.
+- The `shell.toml` gradient strings were assumed to work and appeared to, but were never inspected in the source.
+- The installer's plugin step (`omarchy plugin add` from the area-x repo) is tested against stubs only; it has
+  not been run on a second machine. Until the area-x repo is published, `extras/install link` cannot add the plugin.
 
 ## Resources
 
 - Omarchy source (read-only): `/usr/share/omarchy/` (`shell/README.md` for the
-  plugin contract and IPC, `shell/plugins/README.md`, `default/themed/*.tpl`,
-  `themes/*` for examples, `bin/omarchy-theme-set`). Skill: `omarchy` (Claude
+  plugin contract and IPC, `default/themed/*.tpl`, `themes/*` for examples,
+  `bin/omarchy-theme-set`, `bin/omarchy-theme-update`, `bin/omarchy-plugin-*`). Skill: `omarchy` (Claude
   Code), with `theming.md`, `plugins.md`, `hooks.md`, `hyprland.md`.
-- Quickshell QML types:
-  `/usr/lib/qt6/qml/Quickshell/**/**.qmltypes` and `https://quickshell.org/docs`.
-  Hyprland module types are under `Quickshell/Hyprland/_Ipc`; idle under
-  `Quickshell/Wayland/_IdleNotify`.
 - Hyprland: `https://wiki.hypr.land/` (animations, variables) and
   `/usr/share/hypr/stubs/hl.meta.lua`.
-- Fonts: Google Fonts repo, raw files at
-  `https://raw.githubusercontent.com/google/fonts/main/ofl/<family>/`
-  (remember to fetch and keep the `OFL.txt`). Download into a fresh directory
-  and treat as untrusted.
 - Base16 palette: `https://tinted-theming.github.io/tinted-gallery/#base16-swamp-dark`.

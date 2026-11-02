@@ -21,79 +21,49 @@ the Shimmer gradient from `colors.toml`.
 
 ## Extras
 
-Omarchy drops `*.lua` and shell plugins from themes installed out of a git
-repo, so the live parts ship separately. Clone the repo somewhere permanent
-(they are symlinked, not copied) and run:
+Omarchy drops `*.lua`, shell plugins and hooks from themes installed out of a git repo, so the live parts
+ship separately, in two places.
 
-    extras/install link
+**The shell plugin** (the Shimmer layer, light on window edges, the screensaver, the bar glyph and the
+notification marks) is its own repo,
+[omarchy-area-x](https://github.com/TRemigi/omarchy-area-x), installed and updated with Omarchy's own
+plugin commands. Its README has what it does, its settings and its commands.
+
+    omarchy plugin add https://github.com/TRemigi/omarchy-area-x.git --enable
+    omarchy restart shell
+
+    omarchy plugin update annihilation.shimmer      # to update; then omarchy restart shell
+
+**The Hyprland tweaks and the hooks** are in this repo's `extras/`. Run the installer from the copy Omarchy
+keeps up to date (`~/.config/omarchy/themes/annihilation`, which "Extra Themes" in the update menu pulls), so
+the symlinks it makes always point at current files:
+
+    ~/.config/omarchy/themes/annihilation/extras/install link
 
 | Part | What it does |
 | --- | --- |
 | Hyprland | A border gradient that slowly turns, a faint teal shadow on the focused window, blur on shell surfaces, 6% dimming of inactive windows, slower open/close and workspace motion. |
-| Shimmer layer | A click-through layer between wallpaper and windows, modelled on how the film shows it: the air seems to bend light. A translucent film of spectral colour (teal, blue, violet, magenta, pink, orange) drifts over the whole scene, its colour flowing and swirling into other colour and shifting the hue of whatever is behind it while keeping its detail, with the occasional faint curtain of light and warm glows drifting in from the edges. Its strength and colour vary from place to place and from moment to moment, nothing is scripted, and every session is different. Pauses under fullscreen windows. |
-| Window glow | Light spilling over the edges of your windows, as if it came from behind them. Two fans of prism light enter from beyond the screen edges and wander slowly around them; a window edge lights up where a fan's light reaches it, in a soft blended band a few dozen pixels deep that dissolves smoothly inward and follows the window's real corner radius, with a faint halo just outside and a few soft bright glints drifting along the edges. In cursor mode only the active window glows, faintly, and the part of its edge nearest your pointer pools the light, spilling in outward from the pointer when it takes over from another edge. It lives in a click-through layer above the windows, hides under fullscreen windows, and follows windows as they open, close, move and change workspace (an interactive resize catches up when you let go). |
-| Screensaver | After `idle.screensaver` seconds the wallpaper slowly warps, its colour channels drift apart, and a fungus grows in from the edges of the screen, keeping to the background: pale root-like veins branching inward, and patches of olive mould with yellow spots gathering round them. A passage appears one part at a time in the middle of the screen, each fading in and out in turn, always starting from the first part. The words are alive: made of tiny hand-shaped creatures that wave their fingers and glow in slow swells, which now and then release a few spores from one point. Replaces Omarchy's text screensaver while this theme is active. |
-| Notifications | Optionally, a quiet synthesized tone (off by default, silent for screenshot and recording toasts). Notifications that went by unnoticed (silenced by Do Not Disturb, or left on screen until they expired) leave one to three small motes on the bar prism and a list in its popup until you open it. All of it reads the notification service's own files, so it works with Omarchy's stock daemon. |
-| Bar glyph | A prism whose edge shifts teal, magenta, amber. Click for "Day N inside Area X" (uptime), the day's log entry and the controls; right click toggles the layer; middle click starts the screensaver. |
+| Screensaver switch | While this theme is active, turns off Omarchy's own screensaver so the plugin's takes its place (the plugin stands down whenever Omarchy's is on, so without this you get the stock one). It is turned back on for any other theme. |
 
-`extras/install link` also installs the theme-set hook and two hooks for the optional notification
-fork (below), which do nothing unless that is installed.
+`extras/install link` also adds the plugin if it is missing (and replaces the symlink an older version of
+this installer made), installs the theme-set hook, and installs two hooks for the optional notification fork
+(below), which do nothing unless that is installed.
 
-Everything is tied to the theme: switch to another theme and the extras go
-dormant, and Omarchy's own screensaver is restored if this theme turned it off.
+Everything is tied to the theme: switch to another theme and the extras go dormant, and Omarchy's own
+screensaver is restored if this theme turned it off.
 
-    extras/install status     # what is installed
-    extras/install unlink     # remove everything, restore the stock screensaver
+    extras/install status     # what is installed, and how the plugin is installed
+    extras/install unlink     # remove the Lua and the hooks, restore the stock screensaver
 
-If the shell is not running when you link, run
-`omarchy plugin enable annihilation.shimmer` after login. After editing the
-plugin in the repo, run `omarchy-shell shell rescanPlugins`; the shell's file
-watcher does not follow symlinks.
+`unlink` leaves the plugin installed (it is its own project and works without these extras); remove it with
+`omarchy plugin remove annihilation.shimmer`.
 
-### Settings
-
-Fields on the plugin's entry in `~/.config/omarchy/shell.json` (the bar glyph's
-entry under `bar.layout`, or `plugins[]` if you run it without the glyph):
-
-| Field | Default | |
-| --- | --- | --- |
-| `layerEnabled` | `true` | the wallpaper layer |
-| `layerIntensity` | `0.44` | 0 to 1 |
-| `layerSpeed` | `1.29` | how fast the Shimmer evolves, 0.1 to 4 times its natural pace (the popup's slider covers 0.25 to 3) |
-| `windowGlow` | `true` | the light on window edges; `false` turns just that off |
-| `windowGlowSpan` | `1.98` | in cursor mode, how much length of edge the pool covers, 0.5 to 2.5 times the default (also a slider in the popup) |
-| `windowGlowDepth` | `0.21` | how far into a window the glow reaches, 0.02 to 2.5 times the default (the popup slider starts at 0.05); the bright spot at the base of the cursor glow is a streak along the edge, as thick as the depth and as long as the span (also a slider in the popup) |
-| `windowGlowCenter` | `0.98` | in cursor mode, the brightness of the glow's bright centre (its core and point), 0 to 2.5 times the default (the "Glow brightness" slider in the popup) |
-| `windowGlowMode` | `"all"` | `"all"`: every window glows evenly. `"cursor"`: only the active window, faintly, with the span of its edge nearest the pointer wider and brighter (also a toggle in the bar popup) |
-| `layerAdditive` | `true` | add the light to the wallpaper; `false` blends it as an ordinary translucent layer if your compositor mishandles that |
-| `notifySound` | `true` | a soft tone when a notification arrives; not for Omarchy's own screenshot and recording toasts unless critical, at most one a second, never under the screensaver |
-| `notifySoundVolume` | `0.5` | 0.05 to 1 |
-| `motes` | `true` | the spores |
-| `fpsCap` | `30` | 5 to 60 |
-| `screensaver` | `true` | set `false` to keep Omarchy's idle behavior without it |
-| `screensaverSeconds` | `0` | `0` follows `idle.screensaver`; it does not start on idle if this is not shorter than `idle.lock`, and it is off while the bar's Stay Awake is on, and while Omarchy's own screensaver is enabled (Toggle Screensaver in the menu) |
-| `passageAlive` | `true` | the passage is grown from tiny hand-shaped creatures that wave and glow, and releases a few spores once a part; `false` is plain glowing text |
-| `screensaverBrightness` | `0.08` | how much of the photo shows, 0.02 to 1 |
-| `passageFont` | `"jost"` | `"jost"`, `"cinzel"`, or the name of any installed font |
-
-The popup's "Reset to defaults" button removes the popup's own fields (the sliders and switches) from the entry, so the defaults above apply again. It leaves `windowGlow`, `layerAdditive`, `fpsCap` and the screensaver and passage fields alone.
-
-### Commands
-
-    omarchy-shell shimmer pulse          # a slow swell of intensity
-    omarchy-shell shimmer toggleLayer
-    omarchy-shell shimmer screensaver    # start it now; any key or click ends it
-    omarchy-shell shimmer dismiss
-    omarchy-shell shimmer status
-    omarchy-shell shimmer notify 1       # pretend a notification arrived (0 low, 1 normal, 2 critical)
-    omarchy-shell shimmer sound arrive   # hear a tone: arrive, low or urgent
-    omarchy-shell shimmer seen           # mark missed notifications seen (the popup does this itself)
 
 ### Notification fork (optional)
 
-The arrival of a toast (a front of light that leaves its icon, crosses the card and goes on as a ring that hugs it) lives in the fork, not here: this theme used to draw a ring from the corner of the screen, which could not know where the card was. Without the fork there is no arrival light, and the stock daemon's toasts appear as usual.
+The arrival of a toast (a front of light that leaves its icon, crosses the card and goes on as a ring that hugs it) lives in the fork, not in the plugin: the plugin used to draw a ring from the corner of the screen, which could not know where the card was. Without the fork there is no arrival light, and the stock daemon's toasts appear as usual.
 
-The notification features above need nothing but this theme. Separately, there is a themed
+The plugin's notification features (the quiet tone, the missed marks on the bar) work with Omarchy's stock daemon. Separately, there is a themed
 notification *daemon*: [omarchy-annihilation-notifications](https://github.com/TRemigi/omarchy-annihilation-notifications),
 a fork of Omarchy's own notifications plugin, installed as a registered clone of it, so that the bar's
 Do Not Disturb button, the key bindings and `omarchy-notification-send` keep working and **disabling it
@@ -128,28 +98,3 @@ If you are ever left with no notifications and the commands do not work, the man
 [fallback runbook](https://github.com/TRemigi/omarchy-annihilation-notifications/blob/main/docs/runbooks/fallback.md):
 `omarchy plugin disable annihilation.notifications`, or edit `~/.config/omarchy/shell.json` by hand. Do not
 just delete the plugin folder.
-
-### The screensaver passage
-
-`passage.txt` ships original text in the manner of the tower wall writing. To
-spell out something else, such as the passage from the book, put it in
-`~/.config/omarchy/annihilation-passage.txt`, one part per line. That file
-replaces the shipped one and is picked up as soon as you save it. Lines too
-long for the screen are broken at word boundaries, preferably after
-punctuation, so a pasted paragraph still reads in turn.
-
-### Fonts
-
-The film's logotype is custom and no free font matches it exactly. The passage
-is set in thin, widely tracked capitals in Jost (a Futura-like geometric sans),
-the nearest freely licensed look. `"cinzel"` gives classical Roman capitals
-instead. Any other value is taken as the name of an installed font, so a
-lookalike you install yourself, such as Kiona, works too. Jost and Cinzel are
-bundled under the SIL Open Font License; the licences are in
-`extras/plugin/annihilation.shimmer/fonts/`.
-
-### Editing the shaders
-
-`extras/plugin/annihilation.shimmer/shaders/*.frag` are compiled to the
-committed `.qsb` files with `build-shaders.sh` (needs `qt6-shadertools`).
-`journal.txt` holds the bar popup's daily entries, one per line.

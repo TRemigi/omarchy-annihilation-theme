@@ -31,6 +31,11 @@ FORK=annihilation.notifications; DIR=$HOME/.config/omarchy/plugins/$FORK
 edit() { jq "$1" "$J" >"$J.tmp" && mv "$J.tmp" "$J"; }
 case "${1:-} ${2:-}" in
   "plugin add")
+    if [[ ${3:-} == *area-x* ]]; then   # the shimmer plugin, from its own repo
+      [[ ${FAKE_PLUGIN_ADD_FAIL:-0} == 0 ]] || exit 1
+      mkdir -p "$HOME/.config/omarchy/plugins/annihilation.shimmer/.git"
+      echo '{"id":"annihilation.shimmer"}' >"$HOME/.config/omarchy/plugins/annihilation.shimmer/manifest.json"; exit 0
+    fi
     [[ ${FAKE_ADD_RC:-0} == 0 ]] || exit "$FAKE_ADD_RC"
     mkdir -p "$DIR/tools"; echo '{"id":"annihilation.notifications","version":"0.1.0"}' >"$DIR/manifest.json"
     if [[ ${FAKE_NO_TOOLS:-0} != 1 ]]; then printf '#!/bin/bash\nexit $(cat "$HOME/.check-rc")\n' >"$DIR/tools/check-upstream"; chmod +x "$DIR/tools/check-upstream"; fi ;;
@@ -310,6 +315,24 @@ has "install status: shows the guard hooks" "post-update linked (notification fo
 run "$REPO/extras/install" link; check "install link: idempotent" 0 "$rc"
 run "$REPO/extras/install" unlink
 for h in theme-set post-update post-boot; do check "install unlink: $h hook removed" no "$([[ -e $HOME/.config/omarchy/hooks/$h.d/annihilation.sh || -L $HOME/.config/omarchy/hooks/$h.d/annihilation.sh ]] && echo yes || echo no)"; done
+# The plugin is its own repo, added with `omarchy plugin add`, never symlinked from here.
+plug() { echo "$HOME/.config/omarchy/plugins/annihilation.shimmer"; }
+new_env; run "$REPO/extras/install" link
+check "install link: adds the plugin from its own repo" 1 "$(grep -c 'omarchy plugin add https://github.com/TRemigi/omarchy-area-x.git' "$HOME/.calls")"
+check "install link: and it is a clone, not a link" clone "$([[ -d $(plug)/.git && ! -L $(plug) ]] && echo clone || echo other)"
+has "install link: places a new widget after the workspaces" "plugin enable annihilation.shimmer --after omarchy.workspaces" "$(cat "$HOME/.calls")"
+run "$REPO/extras/install" status; has "install status: says how the plugin is installed" "plugin    installed (git clone" "$out"
+: >"$HOME/.calls"; run "$REPO/extras/install" link
+check "install link: an installed plugin is not added again" 0 "$(grep -c 'plugin' "$HOME/.calls")"
+run "$REPO/extras/install" unlink; check "install unlink: leaves the plugin installed" yes "$([[ -d $(plug)/.git ]] && echo yes || echo no)"; has "install unlink: and says how to remove it" "omarchy plugin remove annihilation.shimmer" "$out"
+new_env; mkdir -p "$HOME/.config/omarchy/plugins"; ln -s "$tmp/gone/extras/plugin/annihilation.shimmer" "$(plug)"
+run "$REPO/extras/install" status; has "install status: flags the old dangling link" "BROKEN" "$out"
+run "$REPO/extras/install" link; has "install link: replaces the old dangling link" "removing the old link" "$out"; check "install link: with a clone" clone "$([[ -d $(plug)/.git && ! -L $(plug) ]] && echo clone || echo other)"
+new_env; mkdir -p "$HOME/.config/omarchy/plugins" "$tmp/checkout"; ln -s "$tmp/checkout" "$(plug)"; : >"$HOME/.calls"
+run "$REPO/extras/install" link; check "install link: leaves a development link alone" 0 "$(grep -c 'plugin' "$HOME/.calls")"; has "install status: names the development checkout" "development checkout" "$(run "$REPO/extras/install" status; echo "$out")"
+new_env; FAKE_PLUGIN_ADD_FAIL=1 run "$REPO/extras/install" link
+check "install link: a failed plugin add does not fail the extras" 0 "$rc"; has "install link: says how to retry" "omarchy plugin add https://github.com/TRemigi/omarchy-area-x.git" "$out"
+check "install link: and the hooks are still linked" yes "$([[ -L $HOME/.config/omarchy/hooks/theme-set.d/annihilation.sh ]] && echo yes || echo no)"
 new_env; mkdir -p "$HOME/.config/omarchy/hooks/post-boot.d"; echo "# someone else's" >"$HOME/.config/omarchy/hooks/post-boot.d/annihilation.sh"
 run "$REPO/extras/install" link
 has "install link: refuses to replace a foreign hook" "refusing to replace" "$out"; check "install link: and leaves it alone" "# someone else's" "$(cat "$HOME/.config/omarchy/hooks/post-boot.d/annihilation.sh")"

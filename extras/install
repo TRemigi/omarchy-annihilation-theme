@@ -1,11 +1,13 @@
 #!/bin/bash
 
 # Opt-in installer for the parts of Annihilation that `omarchy theme install`
-# cannot carry (Hyprland Lua, Quickshell plugin). Everything is a symlink into
-# this repo, nothing is copied, and nothing under /usr/share/omarchy is touched.
+# cannot carry: the Hyprland Lua and the hooks (symlinked into ~/.config, never
+# copied), and the shell plugin, which is its own repo (omarchy-area-x) and is
+# installed with Omarchy's own `omarchy plugin add`. Nothing under
+# /usr/share/omarchy is touched.
 #
-#   extras/install link      install the extras
-#   extras/install unlink    remove them
+#   extras/install link      install the extras, and add the plugin if it is missing
+#   extras/install unlink    remove the extras (the plugin stays; see below)
 #   extras/install status    show what is installed
 #
 #   extras/install notifications <command>   the optional themed notification daemon (a separate
@@ -19,7 +21,7 @@ CONFIG=$HOME/.config/omarchy
 STATE=$HOME/.local/state/omarchy/current
 
 PLUGIN_ID=annihilation.shimmer
-PLUGIN_SRC=$REPO/extras/plugin/$PLUGIN_ID
+PLUGIN_URL=${PLUGIN_URL:-https://github.com/TRemigi/omarchy-area-x.git}
 PLUGIN_DST=$CONFIG/plugins/$PLUGIN_ID
 
 HOOK_SRC=$REPO/extras/hooks/theme-set.sh
@@ -72,21 +74,23 @@ unlink_guard_hooks() {
   for h in "${GUARD_HOOKS[@]}"; do unlink_hook "$REPO/extras/hooks/$h.sh" "$CONFIG/hooks/$h.d/annihilation.sh"; done
 }
 
-# Plugin discovery follows the symlink, but the shell's file watcher does not,
-# so edits made in the repo need `omarchy-shell shell rescanPlugins`.
-link_plugin() {
-  mkdir -p "$(dirname "$PLUGIN_DST")"
-  if [[ -e $PLUGIN_DST || -L $PLUGIN_DST ]] && ! links_to "$PLUGIN_DST" "$PLUGIN_SRC"; then
-    echo "refusing to replace $PLUGIN_DST (not ours); move it aside and rerun" >&2
-    return 1
+# How the plugin is installed: none; clone (`omarchy plugin add`); link (a symlink to a
+# checkout, for development); dangling (a symlink whose target is gone: the one this
+# installer used to make into extras/plugin, which became its own repo); other.
+plugin_kind() {
+  if [[ -L $PLUGIN_DST ]]; then
+    if [[ -e $PLUGIN_DST ]]; then echo link; else echo dangling; fi
+  elif [[ -d $PLUGIN_DST/.git ]]; then echo clone
+  elif [[ -e $PLUGIN_DST ]]; then echo other
+  else echo none
   fi
-  ln -nsf "$PLUGIN_SRC" "$PLUGIN_DST"
-  echo "plugin    linked $PLUGIN_DST"
+}
 
+# Place the new plugin after the workspaces, falling back to its manifest's default
+# section if that widget is not in the bar. Only for a fresh add: enabling an existing
+# one with a placement would move its bar widget.
+enable_plugin() {
   if shell_running; then
-    omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
-    # The bar glyph goes after the workspaces; fall back to the manifest's
-    # default section if that widget is not in the bar.
     if omarchy plugin enable "$PLUGIN_ID" --after omarchy.workspaces >/dev/null 2>&1 \
       || omarchy plugin enable "$PLUGIN_ID" >/dev/null 2>&1; then
       echo "plugin    enabled"
@@ -98,15 +102,34 @@ link_plugin() {
   fi
 }
 
-unlink_plugin() {
-  if shell_running; then omarchy plugin disable "$PLUGIN_ID" >/dev/null 2>&1 || true; fi
-  if links_to "$PLUGIN_DST" "$PLUGIN_SRC"; then
-    rm "$PLUGIN_DST"
-    echo "plugin    removed"
-    if shell_running; then omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true; fi
-  elif [[ -e $PLUGIN_DST || -L $PLUGIN_DST ]]; then
-    echo "plugin    left $PLUGIN_DST alone (not ours)"
+link_plugin() {
+  case $(plugin_kind) in
+    clone|link) echo "plugin    already installed ($(plugin_kind))"; return 0 ;;
+    other) echo "plugin    $PLUGIN_DST is not a git clone; leaving it alone" >&2; return 1 ;;
+    dangling)
+      echo "plugin    removing the old link to $(readlink "$PLUGIN_DST") (the plugin has its own repo now)"
+      rm "$PLUGIN_DST" ;;
+  esac
+  # `plugin add` places the clone and then asks the shell to rescan; if the shell is not
+  # running that last step fails, but the plugin is in place, so judge by the folder.
+  omarchy plugin add "$PLUGIN_URL" --yes >/dev/null 2>&1 || true
+  if [[ $(plugin_kind) != clone ]]; then
+    echo "plugin    could not add; run: omarchy plugin add $PLUGIN_URL" >&2
+    return 1
   fi
+  echo "plugin    added from $PLUGIN_URL"
+  enable_plugin
+}
+
+# The plugin is not ours to remove: it is its own repo, installed with Omarchy's flow, and
+# it works without the rest of these extras (it only stands down for Omarchy's own
+# screensaver, which is back once the hook is gone).
+unlink_plugin() {
+  case $(plugin_kind) in
+    none) ;;
+    dangling) rm "$PLUGIN_DST"; echo "plugin    removed the old link (its target is gone)" ;;
+    *) echo "plugin    left installed; to remove it: omarchy plugin remove $PLUGIN_ID" ;;
+  esac
 }
 
 # Put Omarchy's text screensaver back if the hook is what turned it off.
@@ -131,7 +154,13 @@ strip_staged() {
 }
 
 status() {
-  if links_to "$PLUGIN_DST" "$PLUGIN_SRC"; then echo "plugin    linked"; else echo "plugin    not installed"; fi
+  case $(plugin_kind) in
+    clone) echo "plugin    installed (git clone at $(git -C "$PLUGIN_DST" log -1 --format=%h 2>/dev/null || echo '?'); update: omarchy plugin update $PLUGIN_ID, then omarchy restart shell)" ;;
+    link) echo "plugin    linked to $(readlink -f "$PLUGIN_DST") (a development checkout)" ;;
+    dangling) echo "plugin    BROKEN: a link to $(readlink "$PLUGIN_DST"), which no longer exists; fix: rm $PLUGIN_DST, then extras/install link" ;;
+    other) echo "plugin    $PLUGIN_DST exists but is not a git clone" ;;
+    none) echo "plugin    not installed (extras/install link adds it)" ;;
+  esac
   if links_to "$HOOK_DST" "$HOOK_SRC"; then echo "hook      linked"; else echo "hook      not installed"; fi
   local h
   for h in "${GUARD_HOOKS[@]}"; do
@@ -148,7 +177,8 @@ status() {
 }
 
 case ${1:-} in
-  link) link_hook; link_guard_hooks; link_plugin; apply_now ;;
+  # The plugin is the one step that needs the network; if it fails, the hooks and the Lua still apply.
+  link) link_hook; link_guard_hooks; link_plugin || true; apply_now ;;
   unlink) strip_staged; unlink_plugin; restore_screensaver; unlink_hook; unlink_guard_hooks ;;
   status) status ;;
   notifications) shift; exec "$REPO/extras/notifications-fork" "$@" ;;
