@@ -36,11 +36,20 @@ hl.config({
 })
 
 -- Frost the shell surfaces so the translucent backgrounds in shell.toml read as
--- marsh mist. omarchy-background is deliberately absent.
+-- marsh mist. omarchy-background is deliberately absent, and so is omarchy-notifications (below).
 hl.layer_rule({
-  match = { namespace = "^(omarchy-bar|omarchy-menu|omarchy-notifications|omarchy-osd|omarchy-polkit|omarchy-reminders|omarchy-clipboard|omarchy-emojis|omarchy-image-selector)$" },
+  match = { namespace = "^(omarchy-bar|omarchy-menu|omarchy-osd|omarchy-polkit|omarchy-reminders|omarchy-clipboard|omarchy-emojis|omarchy-image-selector)$" },
   blur = true,
   ignore_alpha = 0.3,
+})
+
+-- Toasts: the notifications fork draws each toast as an oval that fades out over about 80 px (annihilation.notifications, ToastBody). The compositor's blur mask is a hard
+-- threshold on the surface's alpha, with no ramp: at 0.3 it frosted the backdrop out to a contour just outside the oval and cut it there, a hard edge (blurred text inside, sharp text
+-- outside) however soft the toast's own alpha was. Raised to 0.9, only the nearly opaque core is frosted, where the fill hides the difference, and the fade is the toast's own.
+hl.layer_rule({
+  match = { namespace = "^omarchy-notifications$" },
+  blur = true,
+  ignore_alpha = 0.9,
 })
 
 -- The shimmer wallpaper layer and the window glow should appear and vanish without a fade.
