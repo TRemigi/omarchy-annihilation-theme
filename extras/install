@@ -20,9 +20,13 @@ REPO=$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")
 CONFIG=$HOME/.config/omarchy
 STATE=$HOME/.local/state/omarchy/current
 
-PLUGIN_ID=annihilation.shimmer
+PLUGIN_ID=annihilation.area-x
+# The plugin's first id, from when it lived in this repo's extras/plugin.
+LEGACY_ID=annihilation.shimmer
 PLUGIN_URL=${PLUGIN_URL:-https://github.com/TRemigi/omarchy-area-x.git}
 PLUGIN_DST=$CONFIG/plugins/$PLUGIN_ID
+LEGACY_DST=$CONFIG/plugins/$LEGACY_ID
+SHELL_JSON=$CONFIG/shell.json
 
 HOOK_SRC=$REPO/extras/hooks/theme-set.sh
 HOOK_DST=$CONFIG/hooks/theme-set.d/annihilation.sh
@@ -75,8 +79,7 @@ unlink_guard_hooks() {
 }
 
 # How the plugin is installed: none; clone (`omarchy plugin add`); link (a symlink to a
-# checkout, for development); dangling (a symlink whose target is gone: the one this
-# installer used to make into extras/plugin, which became its own repo); other.
+# checkout, for development); dangling (a link whose target is gone); other.
 plugin_kind() {
   if [[ -L $PLUGIN_DST ]]; then
     if [[ -e $PLUGIN_DST ]]; then echo link; else echo dangling; fi
@@ -102,13 +105,31 @@ enable_plugin() {
   fi
 }
 
+# What the plugin's first id (annihilation.shimmer) left behind. The link this installer used to
+# make into extras/plugin is dangling now that the plugin has its own repo, and shell.json may
+# still list the old id, which keeps the bar glyph and the settings from reaching the new
+# plugin. The link is ours to remove; shell.json is not ours to edit, so say how.
+legacy_cleanup() {
+  if [[ -L $LEGACY_DST && ! -e $LEGACY_DST ]]; then
+    rm "$LEGACY_DST"
+    echo "plugin    removed the old link $LEGACY_DST (its target is gone)"
+  fi
+}
+
+legacy_config_note() {
+  [[ -f $SHELL_JSON ]] && grep -qF "\"$LEGACY_ID\"" "$SHELL_JSON" || return 0
+  echo "plugin    shell.json still lists the old id $LEGACY_ID; the plugin is now $PLUGIN_ID. To keep the bar glyph and" >&2
+  echo "          your settings (they sit inline on that entry), rename it, then run omarchy restart shell:" >&2
+  echo "            sed -i 's/\"$LEGACY_ID\"/\"$PLUGIN_ID\"/g' $SHELL_JSON" >&2
+}
+
 link_plugin() {
+  legacy_cleanup
+  legacy_config_note
   case $(plugin_kind) in
     clone|link) echo "plugin    already installed ($(plugin_kind))"; return 0 ;;
     other) echo "plugin    $PLUGIN_DST is not a git clone; leaving it alone" >&2; return 1 ;;
-    dangling)
-      echo "plugin    removing the old link to $(readlink "$PLUGIN_DST") (the plugin has its own repo now)"
-      rm "$PLUGIN_DST" ;;
+    dangling) rm "$PLUGIN_DST" ;;
   esac
   # `plugin add` places the clone and then asks the shell to rescan; if the shell is not
   # running that last step fails, but the plugin is in place, so judge by the folder.
@@ -125,6 +146,7 @@ link_plugin() {
 # it works without the rest of these extras (it only stands down for Omarchy's own
 # screensaver, which is back once the hook is gone).
 unlink_plugin() {
+  legacy_cleanup
   case $(plugin_kind) in
     none) ;;
     dangling) rm "$PLUGIN_DST"; echo "plugin    removed the old link (its target is gone)" ;;
@@ -161,6 +183,8 @@ status() {
     other) echo "plugin    $PLUGIN_DST exists but is not a git clone" ;;
     none) echo "plugin    not installed (extras/install link adds it)" ;;
   esac
+  if [[ -L $LEGACY_DST && ! -e $LEGACY_DST ]]; then echo "plugin    old link $LEGACY_DST is dangling; extras/install link removes it"; fi
+  legacy_config_note
   if links_to "$HOOK_DST" "$HOOK_SRC"; then echo "hook      linked"; else echo "hook      not installed"; fi
   local h
   for h in "${GUARD_HOOKS[@]}"; do

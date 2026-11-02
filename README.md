@@ -32,7 +32,7 @@ plugin commands. Its README has what it does, its settings and its commands.
     omarchy plugin add https://github.com/TRemigi/omarchy-area-x.git --enable
     omarchy restart shell
 
-    omarchy plugin update annihilation.shimmer      # to update; then omarchy restart shell
+    omarchy plugin update annihilation.area-x      # to update; then omarchy restart shell
 
 **The Hyprland tweaks and the hooks** are in this repo's `extras/`. Run the installer from the copy Omarchy
 keeps up to date (`~/.config/omarchy/themes/annihilation`, which "Extra Themes" in the update menu pulls), so
@@ -45,8 +45,8 @@ the symlinks it makes always point at current files:
 | Hyprland | A border gradient that slowly turns, a faint teal shadow on the focused window, blur on shell surfaces, 6% dimming of inactive windows, slower open/close and workspace motion. |
 | Screensaver switch | While this theme is active, turns off Omarchy's own screensaver so the plugin's takes its place (the plugin stands down whenever Omarchy's is on, so without this you get the stock one). It is turned back on for any other theme. |
 
-`extras/install link` also adds the plugin if it is missing (and replaces the symlink an older version of
-this installer made), installs the theme-set hook, and installs two hooks for the optional notification fork
+`extras/install link` also adds the plugin if it is missing (and removes the dangling symlink an older version of
+this installer made, under the plugin's first id, `annihilation.shimmer`), installs the theme-set hook, and installs two hooks for the optional notification fork
 (below), which do nothing unless that is installed.
 
 Everything is tied to the theme: switch to another theme and the extras go dormant, and Omarchy's own
@@ -55,8 +55,14 @@ screensaver is restored if this theme turned it off.
     extras/install status     # what is installed, and how the plugin is installed
     extras/install unlink     # remove the Lua and the hooks, restore the stock screensaver
 
+If you had the plugin from an earlier version, your `shell.json` still names it `annihilation.shimmer`, which the
+installer will tell you; the bar glyph and your settings carry over once you rename that id (`status` shows the
+command):
+
+    sed -i 's/"annihilation.shimmer"/"annihilation.area-x"/g' ~/.config/omarchy/shell.json
+
 `unlink` leaves the plugin installed (it is its own project and works without these extras); remove it with
-`omarchy plugin remove annihilation.shimmer`.
+`omarchy plugin remove annihilation.area-x`.
 
 
 ### Notification fork (optional)

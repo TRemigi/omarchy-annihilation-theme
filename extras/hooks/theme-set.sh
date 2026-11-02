@@ -7,7 +7,7 @@
 # For the annihilation theme it
 #   - loads the Hyprland extras (Omarchy reloads Hyprland before it runs theme
 #     hooks, so this reloads again after adding the line), and
-#   - turns off Omarchy's text screensaver, which the shimmer plugin replaces.
+#   - turns off Omarchy's text screensaver, which the Area X plugin replaces.
 # For any other theme it puts the stock screensaver back, but only if this hook
 # is the one that turned it off.
 #
@@ -21,7 +21,7 @@ EXTRAS=$REPO/extras/hypr/annihilation.lua
 STAGED=$HOME/.local/state/omarchy/current/theme/hyprland.lua
 MARK="-- annihilation-extras"
 
-PLUGIN=$HOME/.config/omarchy/plugins/annihilation.shimmer
+PLUGIN=$HOME/.config/omarchy/plugins/annihilation.area-x
 MARKER=$HOME/.local/state/annihilation-theme/screensaver-off-by-us
 
 stock_screensaver_off() {

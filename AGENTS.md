@@ -13,7 +13,7 @@ VanderMeer's novel). The project is three repos:
 | Repo | What it is |
 | --- | --- |
 | `omarchy-annihilation-theme` (this repo, `~/dev/omarchy-annihilation-theme`) | The theme, and `extras/`: the Hyprland Lua, the theme-set hook and the installer: what neither a theme nor a plugin can carry. |
-| `omarchy-area-x` (`~/dev/omarchy-area-x`) | The shell plugin (id `annihilation.shimmer`): the Shimmer layer, window glow, screensaver, bar glyph, notification marks and sound. Installed with `omarchy plugin add`. Its design, gotchas and verification are in **its** `AGENTS.md`; they are not mirrored here. It was `extras/plugin/` in this repo until 2026-11-02 (its history was split out with `git subtree split`). |
+| `omarchy-area-x` (`~/dev/omarchy-area-x`) | The shell plugin (id `annihilation.area-x`; `annihilation.shimmer` until 2026-11-02, so a `shell.json` or a link under that name is a leftover): the Shimmer layer, window glow, screensaver, bar glyph, notification marks and sound. Installed with `omarchy plugin add`. Its design, gotchas and verification are in **its** `AGENTS.md`; they are not mirrored here. It was `extras/plugin/` in this repo until 2026-11-02 (its history was split out with `git subtree split`). |
 | `omarchy-annihilation-notifications` (`~/dev/omarchy-annihilation-notifications`) | A separate plugin: the themed notification daemon and the arrival light. Optional. |
 
 This repo has two tiers:
