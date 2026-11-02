@@ -16,7 +16,8 @@
 //   fpsCap (5-60, 30), screensaver (bool, true),
 //   screensaverSeconds (0 = follow idle.screensaver in shell.json),
 //   screensaverBrightness (0.02-1, 0.08: how much of the photo shows),
-//   passageFont ("jost", "cinzel", or any installed family name).
+//   passageFont ("jost", "cinzel", or any installed family name),
+//   passageAlive (bool, true: the passage is grown from tiny hand-shaped creatures, with spores; false is plain glowing text).
 
 import QtQuick
 import Quickshell
@@ -71,6 +72,7 @@ Scope {
   property int idleScreensaverSeconds: 150
   property int idleLockSeconds: 300
   property string passageFont: "jost"
+  property bool passageAlive: true
   property real screensaverBrightness: 0.08
 
   // Typography for the passage. The bundled fonts load from fonts/ (SIL OFL,
@@ -81,7 +83,7 @@ Scope {
     if (passageFont === "jost") {
       return {
         family: jostFont.status === FontLoader.Ready ? jostFont.name : "sans-serif",
-        axes: { "wght": 250 }, caps: true, tracking: 0.22, scale: 0.032
+        axes: { "wght": 700 }, caps: true, tracking: 0.14, scale: 0.062
       }
     }
     if (passageFont === "cinzel") {
@@ -183,6 +185,7 @@ Scope {
     layerSpeed = typeof entry.layerSpeed === "number" ? clamp(entry.layerSpeed, 0.1, 4) : 1.29
     fpsCap = typeof entry.fpsCap === "number" ? Math.round(clamp(entry.fpsCap, 5, 60)) : 30
     screensaverEnabled = entry.screensaver !== false
+    passageAlive = entry.passageAlive !== false
     passageFont = typeof entry.passageFont === "string" && entry.passageFont.length > 0 ? entry.passageFont : "jost"
     screensaverBrightness = typeof entry.screensaverBrightness === "number" ? clamp(entry.screensaverBrightness, 0.02, 1) : 0.08
     screensaverSecondsSetting = typeof entry.screensaverSeconds === "number"
@@ -543,6 +546,7 @@ Scope {
         idleLockSeconds: root.idleLockSeconds,
         screensaverSeconds: root.screensaverSeconds,
         passageFont: root.passageStyle.family,
+        passageAlive: root.passageAlive,
         screensaverBrightness: root.screensaverBrightness,
         screensaverActive: root.screensaverActive,
         passageParts: root.passageParts.length,

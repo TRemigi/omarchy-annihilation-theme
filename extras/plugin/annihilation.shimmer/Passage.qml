@@ -9,6 +9,12 @@
 //
 // A part too long for one line is wrapped inside maxWidth and its width is
 // narrowed to balance the lines, rather than leaving a short last one.
+//
+// The words are alive (shaders/alive.frag): every stroke is packed with tiny
+// hand-shaped creatures, which wave their fingers and glow in slow swells; once
+// per part a few spores are released from one point. Under that, the same blurred glow layers as before. The text is
+// drawn once, white, into a texture padded enough for the spores to rise into, and
+// the shader does the rest. With `alive` off, or `glow` off, the core is plain text.
 
 import QtQuick
 import QtQuick.Effects
@@ -20,7 +26,7 @@ Item {
   property real time: 0
 
   // Seconds. A part holds for holdBase plus holdPerChar for each character.
-  property real fadeSeconds: 4
+  property real fadeSeconds: 2.5
   property real pauseSeconds: 1.5
   property real holdBase: 3
   property real holdPerChar: 0.045
@@ -31,6 +37,9 @@ Item {
   property var fontAxes: ({})
   property bool capitals: false
   property real pixelSize: 24
+  // The size of a creature, in pixels: a hand is about this across. Independent of the
+  // type size, so the words can grow without the hands growing with them.
+  property real cellSize: pixelSize * 0.2
   property real letterSpacing: 0
 
   property color shadowColor: "#131109"
@@ -41,6 +50,8 @@ Item {
 
   property bool running: false
   property bool glow: true   // false lets a test render the plain text
+  property bool alive: true  // the creatures and spores; false draws the plain core
+  property color sporeColor: "#e2c981"
 
   // Slow swell of the halos and an occasional gutter of the core.
   property real breath: 0.85
@@ -63,6 +74,11 @@ Item {
     { kind: "core", blur: 0, tint: coreColor, alpha: 0.95, outline: false }
   ]
   readonly property var plainLayers: [{ kind: "core", blur: 0, tint: coreColor, alpha: 0.95 }]
+  // The creatures take the place of the plain core layer.
+  readonly property bool creatures: glow && alive
+  // The creatures make their own glow (alive.frag), which follows how bright they are; blurred
+  // copies of the text cannot, so only the dark shadow behind the words is kept.
+  readonly property var shadowLayers: glowLayers.filter(function(l) { return l.kind === "shadow" })
 
   function holdFor(line) {
     return holdBase + String(line).length * holdPerChar
@@ -83,12 +99,17 @@ Item {
     return { starts: starts, total: t }
   }
 
+  // The spores leave a little after the part has come up, while it is read.
+  function releaseAt(line) {
+    return fadeSeconds + 0.3 * holdFor(line)
+  }
+
   // Which part is showing at t, and how strongly (0 to 1). Opacity is linear
   // light and bright text on near-black looks far stronger than its number, so
   // a smoothstep ramp is squared to keep pace with the dim photo behind it.
   function locate(t) {
     var s = schedule
-    if (parts.length === 0 || s.total <= 0) return { index: 0, strength: 0 }
+    if (parts.length === 0 || s.total <= 0) return { index: 0, strength: 0, local: 0, cycle: 0 }
     var u = Math.max(0, t) % s.total
     var i = 0
     while (i + 1 < s.starts.length && s.starts[i + 1] <= u) i++
@@ -99,7 +120,7 @@ Item {
     else if (local < fadeSeconds + hold) a = 1
     else if (local < 2 * fadeSeconds + hold) a = 1 - (local - fadeSeconds - hold) / fadeSeconds
     a = a * a * (3 - 2 * a)
-    return { index: i, strength: a * a }
+    return { index: i, strength: a * a, local: local, cycle: Math.floor(Math.max(0, t) / s.total) }
   }
 
   readonly property var schedule: buildSchedule(parts)
@@ -112,6 +133,14 @@ Item {
   readonly property int lineCount: maxWidth > 0 ? Math.max(1, Math.ceil(measure.implicitWidth / maxWidth)) : 1
   readonly property real textWidth: lineCount <= 1 ? maxWidth
     : Math.min(maxWidth, measure.implicitWidth / lineCount * 1.12 + pixelSize * 3)
+
+  // Seconds since the spores left (negative before), and a number that makes each
+  // part, and each pass through the passage, release them somewhere else.
+  readonly property real sporeAge: moment.local - releaseAt(currentLine)
+  readonly property real sporeSeed: moment.index + 1 + 37 * moment.cycle
+
+  // Room round the text for the spores to rise into (they climb about 17 cells).
+  readonly property real pad: cellSize * 22
 
   visible: moment.strength > 0.001
   opacity: moment.strength
@@ -148,7 +177,7 @@ Item {
   PartText { id: measure; passage: root; visible: false; wrapMode: Text.NoWrap }
 
   Repeater {
-    model: root.glow ? root.glowLayers : root.plainLayers
+    model: root.creatures ? root.shadowLayers : (root.glow ? root.glowLayers : root.plainLayers)
 
     PartText {
       id: layerText
@@ -175,5 +204,78 @@ Item {
         blurMax: layerText.modelData.blur
       }
     }
+  }
+
+  // The words laid out exactly as the layers above (the same wrap width, and the
+  // letter-spacing put back on the left), in white, inside padding that is the room for
+  // the spores to rise into and the glow to spread into.
+  component WordsText: PartText {
+    width: passage.textWidth + 2 * passage.pad
+    wrapMode: Text.WordWrap
+    horizontalAlignment: Text.AlignHCenter
+    leftPadding: passage.pad + font.letterSpacing
+    rightPadding: passage.pad
+    topPadding: passage.pad
+    bottomPadding: passage.pad
+    color: "white"
+  }
+
+  // The words, drawn once; alive.frag reads where the strokes are. hideSource, not
+  // visible: false: an invisible item is not drawn into a texture.
+  WordsText { id: aliveText; passage: root }
+
+  ShaderEffectSource {
+    id: aliveSource
+    sourceItem: aliveText
+    hideSource: true
+    live: root.creatures
+  }
+
+  // A blurred copy, which the shader lights by the same swell that lights the creatures, so
+  // the glow dims where they dim. Blurred copies drawn on their own cannot do that, and a
+  // word whose hands had dimmed inside an unchanged glow looked blurred.
+  Item {
+    id: glowItem
+    width: aliveText.width
+    height: aliveText.height
+
+    WordsText {
+      passage: root
+      layer.enabled: true
+      layer.effect: MultiEffect {
+        blurEnabled: true
+        blur: 1.0
+        blurMax: 64
+      }
+    }
+  }
+
+  ShaderEffectSource {
+    id: glowSource
+    sourceItem: glowItem
+    hideSource: true
+    live: root.creatures
+  }
+
+  ShaderEffect {
+    visible: root.creatures
+    anchors.centerIn: parent
+    width: aliveText.width
+    height: aliveText.height
+
+    property variant source: aliveSource
+    property variant glowTex: glowSource
+    property real time: root.time
+    property size dims: Qt.size(width, height)
+    property real unit: root.cellSize * 5
+    property real seed: root.sporeSeed
+    property real sporeAge: root.sporeAge
+    property real cell: root.cellSize
+    property vector4d bounds: Qt.vector4d(root.pad, root.pad, width - root.pad, height - root.pad)
+    property color tint: root.nearColor
+    property color coreTint: root.coreColor
+    property color sporeTint: root.sporeColor
+
+    fragmentShader: Qt.resolvedUrl("shaders/alive.frag.qsb")
   }
 }

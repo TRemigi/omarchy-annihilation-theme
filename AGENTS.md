@@ -34,7 +34,7 @@ extras/plugin/annihilation.shimmer/ the Quickshell plugin (see below)
 Plugin files: `manifest.json` (service + bar-widget), `Service.qml` (settings,
 theme gate, IPC, idle monitor, passage parts, font loading), `ShimmerLayer.qml`
 (wallpaper overlay per screen), `Screensaver.qml` (overlay per screen),
-`Passage.qml` (the centred, fading, glowing text),
+`Passage.qml` (the centred, fading, glowing text) and `shaders/alive.frag` (what the text is made of: creatures and spores),
 `BarWidget.qml` + `Panel.qml` (prism glyph and popup), `sounds/` (three synthesized tones, regenerate with `extras/dev/make-sounds.py`), `MissedTracker.qml` (what went unnoticed, saved to `~/.local/state/annihilation-theme/missed.json` for the widget and popup), `NotificationFeed.qml` (an `arrived`
 signal from the notification service's popup files; the arrival's light moved to the notification fork), `shaders/*.frag` and the
 committed compiled `*.frag.qsb`, `fonts/` (Jost, Cinzel + OFL licences),
@@ -591,7 +591,7 @@ iridescence (oil on water); bioluminescent fungi.
   activation). `Passage.qml` shows `moment = locate(time)`: which part and how strongly,
   a pure function of `time` (`Screensaver.elapsed`, reset on each activation), so there is
   no saved position and every screen agrees. Per part: fade in, hold (`3 s + 0.045 s per
-  character`), fade out (`fadeSeconds` 4), then a 1.5 s pause. **The text only changes in
+  character`), fade out (`fadeSeconds` 2.5, was 4: "a bit faster"), then a 1.5 s pause. **The text only changes in
   the pause**, where the strength is 0 and the item is `visible: false`, so the eight blurred
   layers are never re-rendered where it shows. Strength is a smoothstep squared (opacity is
   linear light; a plain ramp looked like it popped in, see below). Parts longer than 0.78 of
@@ -601,6 +601,68 @@ iridescence (oil on water); bioluminescent fungi.
   their ink, as the trailing letter-spacing otherwise shifts them left. Timing is a first
   guess, never seen live: the constants are `Passage.fadeSeconds`, `pauseSeconds`,
   `holdBase`, `holdPerChar`.
+- **The words are alive** (`shaders/alive.frag`; the user: "more realistic and alive", and the
+  book's words are made of large numbers of tiny hand-shaped creatures that release a tiny number
+  of spores at one point). `Passage` draws the text once, white, into a texture padded by 22 cells
+  (`aliveText`, taken by a `ShaderEffectSource` with `hideSource`, because an invisible item is
+  not drawn into a texture), and the shader grows the rest. **Second round** (the user liked the hand
+  shape: "make the words bigger/thicker while keeping the hands the same size, then fill the letters
+  densely with the hands so it looks like the words are made of them; abandoning the font is fine"):
+  the hands are sized by `Passage.cellSize` (7.7 px at 1200p, `Screensaver` passes `height * 0.0064`),
+  independent of `pixelSize`, and the type is Jost at wght 700, tracking 0.14, 0.062 of the height
+  (74 px at 1200p, three lines of a 70 character part). Two overlapping layers of hands (`creatures()`,
+  grids tilted 0.38 and -0.55 rad, the second offset and drawn at 0.72 behind the first so overlaps
+  read), a cell holding one wherever it lies on or near a stroke, so strokes fill and the hands spill
+  a little over the edge. Each points away from the nearest edge (the gradient of a nine-tap local
+  coverage; inside a thick stroke any way) and waves its fingers on its own phase (`hand()`: palm and
+  five capsule fingers). A dim body (`0.16 tint`) fills behind them. Light is bioluminescent: slow
+  drifting `swell()` noise, plus a rare per-creature flash (`pow(sin, 5)`); 4% of creatures lean
+  magenta. The old blurred halo layers stay under it (the plain `core` layer is replaced,
+  `Passage.creatures`). **Brightness was the trap**: the first dense version summed two layers of
+  pale hands into flat white, losing the hand shapes (lum 0.20 + 0.55 swell, body 0.30, x1.15); the
+  look needs dim teal with a few bright hands, so keep the base low and let the swells and flashes carry
+  the brightness. **The opposite trap, seen live** ("some of the words appear quite blurred"): in a dim
+  swell (lum 0.12) the hands fell to the brightness of what sat between them (the body, 0.16, plus a
+  coverage glow `around()` that added up to 0.5 inside strokes) and the blurred halo layers, left at full
+  strength from the thin-text days, were as bright as the words, so dim words read as soft glowing blobs
+  while bright ones were crisp. First fix: hands never dimmer than the gaps (lum 0.36 + 0.40 swell; body
+  0.10) and the halos at half strength. **That was not enough** ("the glow around them remains the same,
+  so even when the hands dim, the glow doesn't change, so it looks blurred"): any glow made of blurred
+  copies of the text is constant whatever the hands do. So in alive mode the blurred halo layers are gone
+  (only the dark `shadow` layer stays, `Passage.shadowLayers`) and the glow is made in the shader: a second
+  texture, `glowTex`, a blurred copy of the white words (`glowItem`: a `WordsText` with a `MultiEffect`,
+  `blurMax` 64, taken by a `ShaderEffectSource`), is multiplied by `0.10 + 0.95 swell^2`, the same swell
+  that lights the hands, so glow and hands rise and fall together. A glow computed in the shader from
+  ring taps of the mask looked like a plaid on 15 px strokes (eight taps alias): use the blurred texture.
+  Check this on a screenshot, not the harness (which takes the blur as a PAM made with ImageMagick,
+  `-blur 0x16`, forced to RGBA). **More dynamic** ("the dimmest they get is a bit too dim, and there isn't as much
+  dynamism to the brightness as I'd like"): the floor went up and the range and the speed with it. Hand
+  light is `0.46 + 0.30 swell + 0.36 shimmer + 0.55 flash * (0.40 + 0.60 swell)`; `swell()` is the broad
+  one (a few words across, now drifting about 1.5 times faster, contrast `smoothstep(0.30, 0.70)`),
+  `shimmer()` is new, a faster and finer noise (clusters of four or five hands, a second or two each),
+  and the single-creature flash runs faster (`pow(sin, 4)`). The glow is lit by `swell + 0.5 shimmer`,
+  floor 0.22 (was 0.10). Measured on the real shader over 15 s at the test size
+  (`dyn.sh`-style: 25 frames 0.6 s apart, in-stroke brightness of 48 px tiles): dimmest tile-moment 0.23 to
+  0.32; one tile over time 0.33-0.52 to 0.38-0.74; across tiles at a moment 0.24-0.56 to 0.35-0.75; relative
+  change per second 0.17 to 0.23 (the Shimmer layer felt alive at 0.2 and flickered at 0.38). The numbers to
+  move are the 0.46 floor and the speeds in `swell()` and `shimmer()`; the sparkle is under-measured at a
+  0.6 s step. The rule is that
+  contrast between a hand and its surroundings must hold at the dimmest point of the swell. **One spore release per part**: `sporeAge` is the time since `releaseAt`
+  (`fadeSeconds + 0.3 hold`); the origin is the first of up to 64 hashed points in `bounds` that lands
+  on a stroke (every pixel finds the same one, so it breaks early; no stroke hit, no release, 39 of 40
+  seeds release), the creatures within about a type size flare, and seven warm motes rise (about 3.4
+  type sizes over nine seconds, which is why the padding is 4.5), wander and go out. `unit` (cell x 5) scales the spores' motion and the swells, so they do not grow with the type; `seed` is the part
+  index plus 37 per pass, so each part releases somewhere else. `passageAlive: false` in the entry draws
+  plain glowing text. **Scale:** the hands are 7.7 px at 1200p and the cell is a fixed fraction of the screen height, so
+  at 4K they are twice that. Numbers measured on the real shader
+  (`extras/dev/alive-harness.c`, run on a texture of the real text rendered by Qt offscreen): the picture
+  changes by 0.18 of its level per second (the Shimmer layer is 0.2 and "felt alive", 0.38 flickers);
+  27 ms a frame on the CPU rasteriser (1836x657, two layers). **Cost** per pixel: about 40 taps, 64 more during a
+  release search; the texture is the text block plus padding, not the screen. Never seen live; the ShaderEffect,
+  its source and the compositing are exactly the parts the offscreen tests cannot show.
+  Method for changes: render the shader on a real text texture and look at it enlarged (hands are only
+  recognisable at 3x), and keep checking for strays: a cell with nothing near it that still held a hand
+  was `step(h.x, 0)` firing when the hash was exactly 0.
 - **A layer-shell window is often zero-wide the instant it becomes visible.** `Passage`
   derives its widths from `width` in bindings (`maxWidth`, `textWidth`), so it follows the
   window as it gets its size instead of reading it once.
@@ -610,14 +672,14 @@ iridescence (oil on water); bioluminescent fungi.
   delay or a separate dimming ramp: that showed up as a double fade. Matching the
   photo's *curve* was not enough, though: the photo only reaches a dim level
   (`screensaverBrightness`, now 0.08) while the text goes to full, and opacity is linear
-  light, so the text looked like it popped in; the squared smoothstep over 4 s (6 s in
+  light, so the text looked like it popped in; the squared smoothstep over 2.5 s (4 s before, 6 s in
   the crawl) keeps pace with the photo perceptually. Judge fades by perceived brightness
   (about `x^(1/2.2)`), not by the number.
 - **`console.log` prints nothing in this sandbox** unless you set
   `QT_LOGGING_TO_CONSOLE=1 QT_FORCE_STDERR_LOGGING=1`. Without them a test looks
   like it silently did nothing. Reading a file from QML also needs
   `QML_XHR_ALLOW_FILE_READ=1`.
-- `Passage.qml` has a `glow` switch for tests, and its schedule is driven by the `time`
+- `Passage.qml` has a `glow` switch for tests (it also turns the creatures off, which the software renderer cannot draw), and its schedule is driven by the `time`
   property: set `glow: false`, set `time` from a `Timer`, and read `moment`, `lineCount` and
   `textWidth`, and `grabToImage` for the layout (centring, wrapping, balance via an
   ImageMagick `-trim` bounding box). `grabToImage` lags one frame behind a property change,

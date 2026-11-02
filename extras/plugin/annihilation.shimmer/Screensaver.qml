@@ -95,11 +95,13 @@ PanelWindow {
     parts: win.service.passageParts
     time: win.elapsed
     running: win.visible
+    alive: win.service.passageAlive
 
     fontFamily: win.passageStyle.family
     fontAxes: win.passageStyle.axes
     capitals: win.passageStyle.caps
     pixelSize: win.passageSize
+    cellSize: win.height * 0.0064
     letterSpacing: win.passageSize * win.passageStyle.tracking
 
     wideColor: Qt.lighter(Color.accent, 1.1)
