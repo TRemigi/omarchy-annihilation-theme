@@ -141,7 +141,7 @@ border           = "hyprland.active-border-foreground"
 border-alpha     = 1.0
 
 [notifications]
-background       = "#242015"
+background       = "#0C0B06"
 background-alpha = 0.92
 text             = "#D2C3A4"
 # Conventionally matches the Hyprland active-window border. Border accepts
