@@ -34,9 +34,13 @@ preview-unlock.png     composed mock of the above
 backgrounds/           film stills and art (1-, 3- to 5-; 2- and 6- to 9- were dropped), and annihilation-NNN.jpg (20 Blu-ray frames, NNN = frame number): Real-ESRGAN 4x, then downscaled to height 1200 for the 1920x1200 display. Digit-prefixed names sort first, so 1- stays the default
 extras/install         link | unlink | status (idempotent bash); adds the plugin with `omarchy plugin add`
 extras/hypr/annihilation.lua        border/shadow/blur/dim/animation tweaks
-extras/hooks/theme-set.sh           loads the Lua; turns the stock screensaver off (the plugin stands down while it is on)
+extras/hooks/theme-set.sh           loads the Lua; turns the stock screensaver off (the plugin stands down while it is on);
+                                    stages the Neovim spec for extras/nvim over Omarchy's aether.nvim one
+extras/nvim/                        the Neovim colorscheme "annihilation": colors/, lua/annihilation/{palette,init,groups/*}.lua,
+                                    lua/lualine/themes/annihilation.lua. Palette is colors.toml's, name for name
 extras/hooks/post-update.sh, post-boot.sh   run the notification fork's guard (inert unless it is installed and enabled)
 extras/dev/notifications-fork-test.sh   tests of the installer and the fork controller
+extras/dev/nvim-test.sh (+ .lua)    tests of the colorscheme, and of the hook's and installer's Neovim step
 extras/notifications-fork           the fork's controller: status | add | update | enable | fallback | remove | auto | guard
                                     (`extras/install notifications <cmd>` runs it)
 ```
@@ -89,6 +93,26 @@ at the edges.
   (`~/.local/state/annihilation-theme/screensaver-off-by-us`), and restores it
   only if it set it. A flag the user set themselves is left alone.
 
+### Neovim
+
+- Omarchy's `neovim.lua` is a lazy.nvim spec loaded at startup (`~/.config/nvim/lua/plugins/theme.lua` is a symlink
+  to the staged one), so it is dropped from repo-installed themes like the other `*.lua`. The theme-set hook writes
+  ours over the staged file, after Omarchy has staged its own (`omarchy-theme-set` runs hooks last). It keeps
+  Omarchy's in `~/.local/state/annihilation-theme/neovim.lua.stock` for `unlink`, and the marker
+  (`-- annihilation-extras`) is how it knows the staged file is ours.
+- The spec is `{ "annihilation", dir = ..., name = "annihilation" }`: the user's theme hot-reload plugin finds the
+  theme plugin by `spec[1]` and unloads its modules under `plugin.dir`; a spec with `dir` alone has no `spec[1]`
+  and would skip that.
+- The colorscheme defines plain groups with backgrounds. The user strips backgrounds with
+  `~/.config/nvim/plugin/after/transparency.lua`, which reads each group back with `nvim_get_hl`, so a group
+  defined as a link still works there, and one that is missing does not.
+- Palette names are `colors.toml`'s hues under their real colours (`rose` is toml `blue`, `teal` is `cyan`/accent),
+  not the base16 roles. Raw `muted` (2:1) and the crimson `red` (2.5:1) are too dim for text; `comment`, `faint`
+  and `error` are derived lifts. `extras/dev/nvim-test.lua` holds the contrast floors.
+- Plugin groups mostly link to core groups with `default = true`; `groups/plugins.lua` holds only the overrides.
+  Unverified against a live session: how the colours look, and whether the running Neovim hot-reloads on a theme
+  switch (aether.nvim's own watcher also reads `neovim.lua` and may race the hook's rewrite).
+
 ### Hyprland (Lua config, v0.56)
 
 - `hl.animation` **speed is capped at 100** (deciseconds). `borderangle` with
@@ -120,6 +144,9 @@ confirm anything live. What works:
   it installs, leaves alone and replaces the plugin; every check was confirmed to fail when its code was broken on
   purpose),
   `luac -p extras/hypr/annihilation.lua`,
+  `bash extras/dev/nvim-test.sh` (headless Neovim: the palette equals colors.toml, every group resolves, text
+  contrast on the background, switching schemes leaves nothing behind; then the hook and `extras/install` in a
+  scratch HOME. Mutation-tested: each check failed when its code was broken on purpose),
   `python3 -c 'import tomllib; ...'` for the TOML files.
 - Installer and hook: run them with `HOME=$TMPDIR/fakehome` and a copied
   `~/.local/state/omarchy/current/theme/hyprland.lua`. This is how idempotency,
@@ -127,7 +154,7 @@ confirm anything live. What works:
   friends, so nothing touches the real shell or plugins.
 - The plugin has its own checks (`omarchy plugin validate .`, node logic tests, shader harnesses); see the
   area-x `AGENTS.md`.
-- Live checks for the user: `hyprctl configerrors`; `extras/install status`; `omarchy-shell shimmer status`.
+- Live checks for the user: open Neovim after `omarchy theme set annihilation`; `hyprctl configerrors`; `extras/install status`; `omarchy-shell shimmer status`.
 
 ## Conventions
 

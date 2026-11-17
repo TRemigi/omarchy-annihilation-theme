@@ -44,6 +44,7 @@ the symlinks it makes always point at current files:
 | Part | What it does |
 | --- | --- |
 | Hyprland | A border gradient that slowly turns, a faint teal shadow on the focused window, blur on shell surfaces, 6% dimming of inactive windows, slower open/close and workspace motion. |
+| Neovim | An `annihilation` colorscheme (`extras/nvim`) in place of the `aether.nvim` one Omarchy generates from the palette: the same colours, with syntax, diagnostics, the statusline and the LazyVim plugins (blink, snacks, noice, gitsigns, neo-tree, flash, render-markdown, mini, dap) set by hand. Teal marks only where you are (line number, search, borders of floats); keywords are mauve, functions rose, types teal, strings moss, numbers amber. Needs LazyVim as Omarchy sets it up. |
 | Screensaver switch | While this theme is active, turns off Omarchy's own screensaver so the plugin's takes its place (the plugin stands down whenever Omarchy's is on, so without this you get the stock one). It is turned back on for any other theme. |
 
 `extras/install link` also adds the plugin if it is missing (and removes the dangling symlink an older version of
@@ -51,7 +52,11 @@ this installer made, under the plugin's first id, `annihilation.shimmer`), insta
 (below), which do nothing unless that is installed.
 
 Everything is tied to the theme: switch to another theme and the extras go dormant, and Omarchy's own
-screensaver is restored if this theme turned it off.
+screensaver is restored if this theme turned it off. The Neovim colorscheme is staged by the hook on each
+`omarchy theme set annihilation` (Neovim picks the change up through the theme hot-reload that Omarchy's Neovim
+config ships; if it does not, `:Lazy reload` or restart it), and `unlink` puts Omarchy's own `neovim.lua` back.
+Outside Omarchy it is an ordinary colorscheme: add `extras/nvim` to the runtimepath (or as a lazy.nvim `dir` plugin)
+and run `:colorscheme annihilation`.
 
     extras/install status     # what is installed, and how the plugin is installed
     extras/install unlink     # remove the Lua and the hooks, restore the stock screensaver

@@ -33,6 +33,7 @@ HOOK_DST=$CONFIG/hooks/theme-set.d/annihilation.sh
 # Hooks that guard the optional notification fork; inert unless it is installed and enabled.
 GUARD_HOOKS=(post-update post-boot)
 STAGED_LUA=$STATE/theme/hyprland.lua
+STAGED_NVIM=$STATE/theme/neovim.lua
 MARK="-- annihilation-extras"
 MARKER=$HOME/.local/state/annihilation-theme/screensaver-off-by-us
 
@@ -154,11 +155,18 @@ unlink_plugin() {
   esac
 }
 
-# Put Omarchy's text screensaver back if the hook is what turned it off.
+# Put Omarchy's text screensaver back if the hook is what turned it off, and its Neovim spec
+# (aether.nvim) if the hook swapped in the colorscheme.
 restore_screensaver() {
+  local nvim_ours=no
+  nvim_is_ours && nvim_ours=yes
   [[ -x $HOOK_SRC ]] && "$HOOK_SRC" --restore
   [[ -f $MARKER ]] || echo "screensaver  stock restored (or never changed)"
+  if [[ $nvim_ours == yes ]] && ! nvim_is_ours; then echo "neovim    Omarchy's own spec restored"; fi
 }
+
+# True when the staged Neovim spec is the one the hook wrote.
+nvim_is_ours() { [[ -f $STAGED_NVIM ]] && grep -qF -- "$MARK" "$STAGED_NVIM"; }
 
 # The hook only fires on `theme set`; run it now if annihilation is already
 # the active theme so the extras show up without a theme switch.
@@ -196,6 +204,11 @@ status() {
     echo "hyprland  extras active in staged theme"
   else
     echo "hyprland  extras not loaded (theme: $(current_theme))"
+  fi
+  if nvim_is_ours; then
+    echo "neovim    annihilation colorscheme active in staged theme"
+  else
+    echo "neovim    colorscheme not loaded (theme: $(current_theme))"
   fi
   "$REPO/extras/notifications-fork" status --short
 }
