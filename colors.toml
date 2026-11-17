@@ -12,6 +12,9 @@ muted = "#5F4E41"
 background = "#242015"
 dark_background = "#1B1810"
 darker_background = "#131109"
+# base11: the near-black under darker_background. Omarchy's templates ignore it;
+# it is here so the palette and palette.base24.yaml stay one list.
+darkest_background = "#0C0B06"
 lighter_background = "#3A3124"
 
 foreground = "#D2C3A4"

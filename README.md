@@ -2,7 +2,8 @@
 
 An [Omarchy](https://omarchy.org/) theme based on the
 [Swamp Dark](https://tinted-theming.github.io/tinted-gallery/#base16-swamp-dark)
-base16 palette, themed after *Annihilation*. The teal accent is the Shimmer
+base16 palette, extended to base24 (`palette.base24.yaml`) with a near-black
+beneath the marsh, themed after *Annihilation*. The teal accent is the Shimmer
 cutting through the brown marsh: muted browns and moss, with iridescence only
 at the edges, and every motion slow enough that you only notice it afterwards.
 

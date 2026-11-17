@@ -1,0 +1,39 @@
+---
+# Annihilation: Swamp Dark (base16) extended to base24.
+# base00-base0F are Swamp Dark verbatim (Masroof Maindak,
+# https://github.com/masroof-maindak). base10-base17 are ours.
+# colors.toml is what Omarchy reads; this file is the reference it is kept in step with.
+system: "base24"
+name: "Annihilation"
+author: "omarchy-annihilation-theme"
+variant: "dark"
+palette:
+  base00: "#242015"
+  base01: "#3A3124"
+  base02: "#4D3F32"
+  base03: "#5F4E41"
+  base04: "#B8A58C"
+  base05: "#D2C3A4"
+  base06: "#EBE0BB"
+  base07: "#F1E9D0"
+  base08: "#DB930D"
+  base09: "#EBE0BB"
+  base0A: "#A82D56"
+  base0B: "#7A7653"
+  base0C: "#DB930D"
+  base0D: "#C1666B"
+  base0E: "#91506C"
+  base0F: "#61A0A8"
+  # Darker than base00: the marsh floor, and the near-black beneath it.
+  # Same hue as the base (~48 deg) with the lightness pulled down, so they read as
+  # shadow cast by the brown rather than as a neutral black.
+  base10: "#131109"
+  base11: "#0C0B06"
+  # Brights, the lifted twin of each hue (red, yellow, green, cyan, blue, magenta).
+  # These are the bright_* values colors.toml already used.
+  base12: "#C1666B"
+  base13: "#EBE0BB"
+  base14: "#9A9669"
+  base15: "#84BDC4"
+  base16: "#D98388"
+  base17: "#B06C8A"
