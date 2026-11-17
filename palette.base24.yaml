@@ -24,11 +24,11 @@ palette:
   base0D: "#C1666B"
   base0E: "#91506C"
   base0F: "#61A0A8"
-  # Darker than base00: the marsh floor, and the near-black beneath it.
-  # Same hue as the base (~48 deg) with the lightness pulled down, so they read as
-  # shadow cast by the brown rather than as a neutral black.
-  base10: "#131109"
-  base11: "#0C0B06"
+  # Darker than base00: the marsh floor, and the near-black beneath it. Each step down
+  # leaves the brown for the bruised magenta (~325 deg) of the Shimmer's edge: colors.toml's
+  # dark_background (#1E1B1D) is the greyest, base10 holds more colour, base11 the most.
+  base10: "#1A1518"
+  base11: "#1C1018"
   # Brights, the lifted twin of each hue (red, yellow, green, cyan, blue, magenta).
   # These are the bright_* values colors.toml already used.
   base12: "#C1666B"

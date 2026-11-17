@@ -141,7 +141,7 @@ border           = "hyprland.active-border-foreground"
 border-alpha     = 1.0
 
 [notifications]
-background       = "#0C0B06"
+background       = "#1C1018"
 background-alpha = 0.92
 text             = "#D2C3A4"
 # Conventionally matches the Hyprland active-window border. Border accepts
@@ -161,7 +161,7 @@ background-alpha          = 0.95
 text                      = "#D2C3A4"
 border                    = "hyprland.active-border-foreground"
 border-alpha              = 1.0
-scrim                     = "#0C0B06"
+scrim                     = "#1C1018"
 scrim-alpha               = 0.6
 selected-background       = "#D2C3A4"
 selected-background-alpha = 0.08
@@ -178,7 +178,7 @@ background-alpha          = 1.0
 text                      = "#D2C3A4"
 border                    = "hyprland.active-border-foreground"
 border-alpha              = 1.0
-scrim                     = "#0C0B06"
+scrim                     = "#1C1018"
 scrim-alpha               = 0.6
 selected-background       = "#D2C3A4"
 selected-background-alpha = 0.08
