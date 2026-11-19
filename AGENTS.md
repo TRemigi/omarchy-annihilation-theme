@@ -168,8 +168,9 @@ rejected regular scallops, small beads, rainbow colours, hard rings and crisp ri
 - Check mockup changes by rendering (`python3 scene.py ... out.svg`, then `rsvg-convert`) and looking; the build is
   deterministic, so an unchanged design should give a byte-identical `page.html`.
 - The user has only seen the mockups as a published page; nothing has run in Quickshell.
-- Hover, attention and critical states are drawn (`states.py`). Still to draw: the bar hidden or auto-peeking, a toast
-  arriving, and a top or bottom bar.
+- Decided with the user: the full layer set, and the hover, attention and critical states with their colours. The visual
+  design of the bar's left-edge form is settled; do not reopen it without being asked.
+- Not drawn yet: the bar hidden or auto-peeking, a toast arriving, and a top or bottom bar.
 
 ## Conventions
 

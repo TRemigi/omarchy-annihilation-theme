@@ -24,7 +24,8 @@ Three sections: menu + workspaces + Area X glyph, clock + weather, status icons.
 waist wherever the content changes group. Of three directions tried (Waist, Mitosis, Membrane) Membrane
 was chosen: a clean silhouette with a slow swell, the organic quality carried by light and texture.
 
-Layers, all on by default (`template.html` has the switches and presets):
+Layers. **The full set was chosen** (the page's Calm and Approved presets are the lighter alternatives that were
+rejected; `template.html` still has the switches):
 
 | Layer | From the still |
 | --- | --- |
@@ -51,7 +52,8 @@ auto-peeking, and a notification toast arriving.
 
 ## States
 
-Drawn in `states.py`, each as a close-up of the section where it happens:
+Drawn in `states.py`, each as a close-up of the section where it happens. **Approved as drawn, colours included**
+(magenta for attention, red for critical):
 
 - **Hover** on a status icon or a workspace: light pools behind it and it brightens; the tooltip is the shell's own
   card (`[tooltip]` colours).
