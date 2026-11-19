@@ -16,6 +16,15 @@ scale-with-font  = true
 size-horizontal  = 26
 size-vertical    = 28
 
+[cells]
+# The floating cells of the custom bar (omarchy-annihilation-bar), which reads this section and nothing else. The cool
+# near-black body lit teal from the rim inward is the approved look; [bar] above is the stock bar's own.
+body       = "#1A1518"
+body-alpha = 0.70
+glow       = "#61A0A8"
+rim        = "#84BDC4"
+hot        = "#C9F1F5"
+
 [hyprland]
 # Shared Hyprland-derived border tokens. Surface sections reference these so
 # lock, notifications, popups, and menu-style cards stay aligned with the
