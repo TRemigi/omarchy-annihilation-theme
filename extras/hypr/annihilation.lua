@@ -38,10 +38,16 @@ hl.config({
 -- Frost the shell surfaces so the translucent backgrounds in shell.toml read as
 -- marsh mist. omarchy-background is deliberately absent, and so is omarchy-notifications (below).
 hl.layer_rule({
-  match = { namespace = "^(omarchy-bar|omarchy-menu|omarchy-osd|omarchy-polkit|omarchy-reminders|omarchy-clipboard|omarchy-emojis|omarchy-image-selector)$" },
+  match = { namespace = "^(omarchy-menu|omarchy-osd|omarchy-polkit|omarchy-reminders|omarchy-clipboard|omarchy-emojis|omarchy-image-selector)$" },
   blur = true,
   ignore_alpha = 0.3,
 })
+
+-- The bar has its own threshold. The compositor's blur mask is a hard cut on the surface's alpha, and the cell bar's glow is
+-- translucent and reaches well past each cell: at 0.3 it blurs and tints a band of wallpaper 2 to 5 px round every cell, with a
+-- stepped edge. The cells' bodies are 70% opaque or more (the stock bar's background is 82%), so 0.5 blurs exactly them and
+-- leaves the glow clear. omarchy-annihilation-bar's test/blur-extent.py measures the band for any threshold.
+hl.layer_rule({ match = { namespace = "^omarchy-bar$" }, blur = true, ignore_alpha = 0.5 })
 
 -- Toasts are deliberately not frosted. The notifications fork draws each toast as an oval that fades out over about 80 px (annihilation.notifications, ToastBody), and the compositor's
 -- blur mask is a hard threshold on the surface's alpha, with no ramp: at 0.3 it cut the frosted backdrop off at a contour just outside the oval, and at 0.9 it still left a hairline at the
