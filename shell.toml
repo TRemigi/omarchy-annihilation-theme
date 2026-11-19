@@ -24,6 +24,7 @@ body-alpha = 0.70
 glow       = "#61A0A8"
 rim        = "#84BDC4"
 hot        = "#C9F1F5"
+scale      = 1.6   # how big the rim, glow, globs and pits are: 1 is the close-up mockups, real size wants more
 
 [hyprland]
 # Shared Hyprland-derived border tokens. Surface sections reference these so
