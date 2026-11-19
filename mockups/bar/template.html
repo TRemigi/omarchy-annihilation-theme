@@ -1,0 +1,163 @@
+<title>Cell Bar Mockups</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Spectral:ital,wght@0,400;0,600;1,400&display=swap">
+<style>
+/* Layout: ingredient column (reference still + switches) beside a stage that compares the approved Membrane
+   with the chosen layers, desktop or close-up. Palette is the theme's own (colors.toml). */
+:root{
+  --bg:#130f12; --surface:#1a1518; --raise:#211b1f; --line:#3a3124; --fg:#d2c3a4; --strong:#f1e9d0;
+  --muted:#a09178; --teal:#61a0a8; --bright:#84bdc4; --mag:#91506c;
+  --display:'Spectral',Georgia,serif; --body:'IBM Plex Sans',system-ui,sans-serif; --mono:'IBM Plex Mono',ui-monospace,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.6 var(--body);padding-inline:max(16px,env(safe-area-inset-left,0px)) max(16px,env(safe-area-inset-right,0px));padding-block:32px 72px}
+.wrap{max-width:1240px;margin-inline:auto;display:flex;flex-direction:column;gap:48px}
+header{display:flex;flex-direction:column;gap:10px;max-width:68ch}
+.eyebrow{font:500 12px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--teal)}
+h1{font:italic 400 clamp(32px,5vw,50px)/1.08 var(--display);color:var(--strong);margin:0;text-wrap:balance}
+h2{font:600 22px/1.2 var(--display);color:var(--strong);margin:0;text-wrap:balance}
+p{margin:0;max-width:68ch}
+.lede{font-size:16.5px}
+.small{font-size:13.5px;color:var(--muted)}
+.app{display:grid;grid-template-columns:minmax(0,320px) minmax(0,1fr);gap:32px;align-items:start}
+.side{display:flex;flex-direction:column;gap:20px;position:sticky;top:calc(16px + env(safe-area-inset-top,0px))}
+.shot{position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+.shot img{display:block;width:100%;height:auto}
+.pin{position:absolute;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;background:var(--bg);color:var(--strong);border:1.5px solid var(--bright);font:500 11px/17px var(--mono);text-align:center}
+.presets{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.l{font:500 11px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex-wrap:wrap}
+.seg button{font:500 13px/1 var(--body);color:var(--fg);background:transparent;border:0;padding:9px 13px;cursor:pointer;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button:hover{background:var(--raise)}
+.seg button[aria-pressed="true"]{background:color-mix(in srgb,var(--teal) 24%,var(--surface));color:var(--strong)}
+button:focus-visible{outline:2px solid var(--bright);outline-offset:-2px}
+.layers{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;counter-reset:n}
+.layers li{counter-increment:n}
+.layers button{all:unset;box-sizing:border-box;width:100%;cursor:pointer;display:grid;grid-template-columns:22px 1fr 38px;gap:12px;align-items:start;padding:12px 10px;border-radius:8px}
+.layers button:hover{background:var(--raise)}
+.layers button:focus-visible{outline:2px solid var(--bright)}
+.layers .n{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--bright);font:500 11px/17px var(--mono);text-align:center;color:var(--strong);margin-top:1px}
+.layers b{display:block;color:var(--strong);font-weight:600;line-height:1.35}
+.layers span.d{display:block;font-size:13px;color:var(--muted);line-height:1.5;margin-top:2px}
+.sw{width:38px;height:22px;border-radius:11px;background:var(--line);position:relative;margin-top:1px;transition:background .15s}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:var(--fg);transition:transform .15s}
+.layers button[aria-pressed="true"] .sw{background:var(--teal)}
+.layers button[aria-pressed="true"] .sw::after{transform:translateX(16px);background:var(--strong)}
+.main{display:flex;flex-direction:column;gap:16px;min-width:0}
+.bar{display:flex;flex-wrap:wrap;gap:12px 28px}
+.group{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.stage{display:grid;gap:20px}
+.stage[data-view="desktop"]{grid-template-columns:1fr}
+.stage[data-view="desktop"] .panel.base{display:none}
+.stage:not([data-view="desktop"]){grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.panel{margin:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;min-width:0}
+.scene{display:block;width:100%;height:auto;background:#000}
+.stage:not([data-view="desktop"]) .scene{aspect-ratio:150/270}
+figcaption{display:flex;flex-direction:column;gap:2px;padding:12px 16px 14px;font-size:13.5px;color:var(--muted)}
+figcaption strong{font:600 17px/1.2 var(--display);color:var(--strong)}
+/* layers stay hidden until the scene carries the matching class */
+.scene .L-globs,.scene .L-rimcore,.scene .L-spill,.scene .L-glow,.scene .L-spots,.scene .L-nucleus,.scene .L-iri{display:none}
+.scene.f-globs .L-globs,.scene.f-rimcore .L-rimcore,.scene.f-spill .L-spill,.scene.f-glow .L-glow,.scene.f-spots .L-spots,.scene.f-nucleus .L-nucleus,.scene.f-iri .L-iri{display:inline}
+.scene.f-rimcore .L-rimbase,.scene.f-nucleus .L-wsbase{display:none}
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:36px}
+.notes section{display:flex;flex-direction:column;gap:12px;min-width:0}
+ul{margin:0;padding-left:1.1em;display:flex;flex-direction:column;gap:8px;max-width:68ch}
+code{font:13px var(--mono);color:var(--bright);background:var(--surface);padding:1px 5px;border-radius:4px}
+@media (max-width:900px){.app{grid-template-columns:1fr}.side{position:static;order:2}}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>{{DEFS}}</defs></svg>
+
+<div class="wrap">
+<header>
+  <span class="eyebrow">Annihilation theme / custom bar</span>
+  <h1>Membrane, lit from inside</h1>
+  <p class="lede">The approved Membrane with seven layers taken from the cell still. Switch them on and off on the left; the right shows the result next to the version we agreed on.</p>
+</header>
+
+<div class="app">
+  <div class="main">
+    <div class="bar">
+      <div class="group" role="group" aria-label="View"><span class="l">View</span>
+        <div class="seg" id="views"><button data-v="desktop" aria-pressed="true">Desktop</button><button data-v="top" aria-pressed="false">Top section</button><button data-v="mid" aria-pressed="false">Clock</button><button data-v="bot" aria-pressed="false">Status</button></div></div>
+      <div class="group" role="group" aria-label="Wallpaper"><span class="l">Wallpaper</span>
+        <div class="seg" id="walls"><button data-w="1" aria-pressed="true">Tile wall</button><button data-w="2" aria-pressed="false">Forest</button><button data-w="3" aria-pressed="false">Cells</button></div></div>
+    </div>
+    <div class="stage" id="stage" data-view="desktop">{{FIGS}}</div>
+    <p class="small">Close-up views compare the approved bar with your layers at the same spot. The window is a stand-in, icons are placeholders, and the frosted look inside each cell is simulated.</p>
+  </div>
+
+  <aside class="side">
+    <div class="shot"><img src="{{REF}}" alt="Two glowing blue cells dividing, joined at a bright pinched neck">
+      <span class="pin" style="left:27%;top:42%">1</span><span class="pin" style="left:35%;top:12%">2</span><span class="pin" style="left:31%;top:24%">3</span><span class="pin" style="left:41%;top:60%">4</span><span class="pin" style="left:36%;top:36%">5</span><span class="pin" style="left:61.5%;top:50%">6</span><span class="pin" style="left:53.5%;top:33%">7</span></div>
+    <div class="presets"><span class="l">Preset</span>
+      <div class="seg" id="presets"><button data-p="none" aria-pressed="false">Approved</button><button data-p="calm" aria-pressed="false">Calm</button><button data-p="full" aria-pressed="true">Full</button></div></div>
+    <ol class="layers" id="layers">
+      <li><button data-f="rimcore" aria-pressed="true"><span class="n">1</span><span><b>Lit rim</b><span class="d">The film's rim is a white-hot band with a wide bloom, brighter in some places than others. The bar's rim now blooms the same way, as a thin, feathered band of light rather than a line.</span></span><i class="sw"></i></button></li>
+      <li><button data-f="spill" aria-pressed="true"><span class="n">2</span><span><b>Light spill</b><span class="d">The glow bleeds into the haze around the cells. Here it falls on the wallpaper, stronger where the rim is brighter.</span></span><i class="sw"></i></button></li>
+      <li><button data-f="globs" aria-pressed="true"><span class="n">3</span><span><b>Edge globs</b><span class="d">The left cell's rim is lumpy: nodules of mixed sizes, unevenly spaced, some merging, a few slightly pointed. They now grow all the way round each section, ends included, and fade out at the necks so the waists still read. The larger ones catch extra light.</span></span><i class="sw"></i></button></li>
+      <li><button data-f="glow" aria-pressed="true"><span class="n">4</span><span><b>Inner glow</b><span class="d">The cell's body is lit from the rim inward and goes dark toward the middle. The centre stays dark here so the icons keep their contrast.</span></span><i class="sw"></i></button></li>
+      <li><button data-f="spots" aria-pressed="true"><span class="n">5</span><span><b>Dark pits</b><span class="d">Soft dark pits in a ring just inside the rim: mostly small, some medium, a few large. About 25 to 40 per section, kept out of the icon column.</span></span><i class="sw"></i></button></li>
+      <li><button data-f="nucleus" aria-pressed="true"><span class="n">6</span><span><b>Nucleus</b><span class="d">The right cell's coloured centre. The active workspace has no outline: behind the number sits a small cluster of pits, mostly deep magenta with a patch of very dark blue and a few dark hollows. With this off it keeps a plain teal glow.</span></span><i class="sw"></i></button></li>
+      <li><button data-f="iri" aria-pressed="true"><span class="n">7</span><span><b>Shimmer core</b><span class="d">The same magenta and dark blue, fainter and larger, behind the two widgets that matter most: the clock and Area X.</span></span><i class="sw"></i></button></li>
+    </ol>
+    <p class="small">Tried and dropped: fibres fanning from each neck cut through the icons like scratches. Not included: bulbs that overhang the edge on a narrow neck. Pits failed the first time because the interior was too dark for them to show; the inner glow is what makes them work.</p>
+  </aside>
+</div>
+
+<section class="notes">
+  <section>
+    <h2>Where this leaves the build</h2>
+    <ul>
+      <li>The bloom and spill extend about 25px outside each section, so the bar's window needs transparent margin around the strip. It already spans the screen, so the reserved width doesn't change.</li>
+      <li>The globs change the outline itself, so each section becomes a polygon of about 1,500 points instead of a few curves. That is fine to draw, but it has to be regenerated whenever a section resizes, and the globs need the same fixed seed as the pits. The pits, and the cluster behind the active workspace, are scattered from a fixed seed, so they stay put when widgets come and go. The real version would need that too, or they'd shimmer on every resize.</li>
+      <li>The uneven rim light is a fixed gradient here. It could drift slowly along the rim, tied to the Shimmer's speed, so the bar breathes with the rest of the theme.</li>
+      <li>I haven't measured the cost of the blurs in Quickshell, and I can't run it here. If they're heavy, the bloom can be pre-rendered per section size.</li>
+    </ul>
+  </section>
+  <section>
+    <h2>Still open</h2>
+    <ul>
+      <li>Which layers stay. Calm is the lit rim, spill and inner glow; Full adds the edge globs, pits, nucleus and shimmer core.</li>
+      <li>States I haven't drawn: hover on a widget, an alert (the missed-notification mark), and a hidden or auto-peeking bar.</li>
+      <li>Motion: whether the neck pinches when you change workspace.</li>
+    </ul>
+  </section>
+</section>
+</div>
+
+<script>
+(function(){
+  var VB={desktop:"0 0 1920 1200",top:"0 0 150 270",mid:"0 465 150 270",bot:"0 930 150 270"};
+  var PRE={none:[],calm:["rimcore","spill","glow"],full:["rimcore","spill","globs","glow","spots","nucleus","iri"]};
+  var NAMES={rimcore:"lit rim",spill:"light spill",globs:"edge globs",glow:"inner glow",spots:"dark pits",nucleus:"nucleus",iri:"shimmer core"};
+  var stage=document.getElementById('stage'), mine=document.getElementById('mine'), view='desktop';
+  var on={rimcore:1,spill:1,globs:1,glow:1,spots:1,nucleus:1,iri:1};
+  function press(group,attr,val){[].forEach.call(group.querySelectorAll('button'),function(b){b.setAttribute('aria-pressed',b.getAttribute(attr)===val?'true':'false')})}
+  function applyView(){
+    stage.setAttribute('data-view',view);
+    [].forEach.call(stage.querySelectorAll('svg'),function(s){s.setAttribute('viewBox',VB[view])});
+  }
+  function applyLayers(){
+    var names=[];
+    Object.keys(NAMES).forEach(function(k){mine.classList.toggle('f-'+k,!!on[k]); if(on[k]) names.push(NAMES[k]);
+      document.querySelector('#layers [data-f="'+k+'"]').setAttribute('aria-pressed',on[k]?'true':'false')});
+    [].forEach.call(mine.querySelectorAll('path[data-d1]'),function(p){
+      if(!p.hasAttribute('data-d0')) p.setAttribute('data-d0',p.getAttribute('d'));
+      p.setAttribute('d',p.getAttribute(on.globs?'data-d1':'data-d0'));});
+    document.getElementById('mineNote').textContent=names.length?('On: '+names.join(', ')+'.'):'Nothing on, same as the approved version.';
+    var match='';Object.keys(PRE).forEach(function(p){var s=PRE[p];if(s.length===names.length&&s.every(function(k){return on[k]}))match=p});
+    press(document.getElementById('presets'),'data-p',match);
+  }
+  document.getElementById('views').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;view=b.getAttribute('data-v');press(this,'data-v',view);applyView()});
+  document.getElementById('layers').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;var k=b.getAttribute('data-f');on[k]=on[k]?0:1;applyLayers()});
+  document.getElementById('presets').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;var s=PRE[b.getAttribute('data-p')];Object.keys(NAMES).forEach(function(k){on[k]=s.indexOf(k)>-1?1:0});applyLayers()});
+  document.getElementById('walls').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;var w=b.getAttribute('data-w');press(this,'data-w',w);
+    [].forEach.call(document.querySelectorAll('use.wall'),function(u){u.setAttribute('href','#wi-'+w)});
+    [].forEach.call(document.querySelectorAll('use.wallb'),function(u){u.setAttribute('href','#wb-'+w)});});
+  applyView();applyLayers();
+})();
+</script>

@@ -43,6 +43,7 @@ extras/dev/notifications-fork-test.sh   tests of the installer and the fork cont
 extras/dev/nvim-test.sh (+ .lua)    tests of the colorscheme, and of the hook's and installer's Neovim step
 extras/notifications-fork           the fork's controller: status | add | update | enable | fallback | remove | auto | guard
                                     (`extras/install notifications <cmd>` runs it)
+mockups/bar/                        design-stage mockups of a custom floating bar (generator, page template, README); not built yet
 ```
 
 The Lua's layer rules name the plugin's namespaces (`annihilation-shimmer`, `annihilation-windowglow`); if the plugin
@@ -155,6 +156,19 @@ confirm anything live. What works:
 - The plugin has its own checks (`omarchy plugin validate .`, node logic tests, shader harnesses); see the
   area-x `AGENTS.md`.
 - Live checks for the user: open Neovim after `omarchy theme set annihilation`; `hyprctl configerrors`; `extras/install status`; `omarchy-shell shimmer status`.
+
+## Custom bar (design stage)
+
+The user wants a custom bar of floating, rounded sections shaped after `backgrounds/annihilation-119.jpg` (the blue
+cell division). It exists only as mockups in `mockups/bar/`; its README records what was chosen, what was tried and
+dropped, and how it would be built (a `kind: "bar"` plugin forking `omarchy.bar`; whether it gets its own repo, like the
+other plugins, is undecided). Read it before redoing any of the visual decisions: the user has been through several rounds and
+rejected regular scallops, small beads, rainbow colours, hard rings and crisp rim lines.
+
+- Check mockup changes by rendering (`python3 scene.py ... out.svg`, then `rsvg-convert`) and looking; the build is
+  deterministic, so an unchanged design should give a byte-identical `page.html`.
+- The user has only seen the mockups as a published page; nothing has run in Quickshell.
+- Hover and alert states, and a top or bottom bar, are the next things to draw.
 
 ## Conventions
 
