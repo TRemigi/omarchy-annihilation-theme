@@ -49,8 +49,8 @@ def solve_ov(heights, neck, p, q=3.0, rs=None):
     return (lo + hi) / 2
 
 # ---------- icons (centred on 0,0, ~14px box) -------------------------------
-def ico(name, x, y, active=False, label=""):
-    g = f'<g transform="translate({x:.1f} {y:.1f})" fill="none" stroke="{INK}" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">'
+def ico(name, x, y, active=False, label="", ink=INK, low=False):
+    g = f'<g transform="translate({x:.1f} {y:.1f})" fill="none" stroke="{ink}" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">'
     if name == "menu":
         g += f'<circle r="6" /><circle r="1.9" fill="{TEAL}" stroke="none"/>'
     elif name == "areax":
@@ -82,8 +82,22 @@ def ico(name, x, y, active=False, label=""):
     elif name == "mon":
         g += '<rect x="-6.5" y="-5" width="13" height="8.5" rx="1.4"/><path d="M-3 6.2 H3 M0 3.5 V6.2"/>'
     elif name == "power":
-        g += (f'<rect x="-4" y="-5.5" width="8" height="12.5" rx="1.8"/><path d="M-1.6 -7.6 H1.6" stroke-width="1.6"/>'
-              f'<rect x="-2.4" y="0" width="4.8" height="5.2" rx=".8" fill="{TEAL}" stroke="none"/>')
+        if low:
+            g += (f'<rect x="-4" y="-5.5" width="8" height="12.5" rx="1.8" stroke="#E58A98"/><path d="M-1.6 -7.6 H1.6" stroke-width="1.6" stroke="#E58A98"/>'
+                  f'<rect x="-2.4" y="4.6" width="4.8" height="1.6" rx=".6" fill="#E0566E" stroke="none"/>')
+        else:
+            g += (f'<rect x="-4" y="-5.5" width="8" height="12.5" rx="1.8"/><path d="M-1.6 -7.6 H1.6" stroke-width="1.6"/>'
+                  f'<rect x="-2.4" y="0" width="4.8" height="5.2" rx=".8" fill="{TEAL}" stroke="none"/>')
+    elif name == "dnd":
+        g += '<path d="M-4.4 3.4 H4.4 M-3.5 3.4 V-1 A3.5 3.5 0 0 1 3.5 -1 V3.4 M-1.4 5.8 H1.4"/><path d="M-6.4 -6 L6.4 6.2"/>'
+    elif name == "night":
+        g += '<path d="M2.5 -5.8 A6 6 0 1 0 5.8 2.6 A4.8 4.8 0 0 1 2.5 -5.8 Z"/>'
+    elif name == "rec":
+        g += '<circle r="6"/><circle r="2.5" fill="#E0709E" stroke="none"/>'
+    elif name == "awake":
+        g += '<path d="M-6.6 0 Q0 -6.8 6.6 0 Q0 6.8 -6.6 0 Z"/><circle r="1.9"/>'
+    elif name == "update":
+        g += '<circle r="6.2"/><path d="M0 3 V-3.2 M-2.6 -0.6 L0 -3.2 L2.6 -0.6"/>'
     elif name == "weather":
         g += ''.join(f'<path d="M{5.2*math.cos(a):.2f} {5.2*math.sin(a):.2f} L{7.4*math.cos(a):.2f} {7.4*math.sin(a):.2f}"/>' for a in [i*math.pi/4 for i in range(8)])
         g += '<circle r="3"/>'
@@ -96,7 +110,8 @@ def ico(name, x, y, active=False, label=""):
 
 # item heights (vertical room each takes)
 IH = {"menu": 26, "ws": 24, "areax": 28, "tray": 26, "kb": 26, "agents": 26, "bt": 26, "net": 26,
-      "audio": 26, "mon": 26, "power": 26, "weather": 26, "clock": 60}
+      "audio": 26, "mon": 26, "power": 26, "weather": 26, "clock": 60,
+      "dnd": 26, "night": 26, "rec": 26, "awake": 26, "update": 26}
 PAD = 18
 
 def lobe_height(items, end=0):

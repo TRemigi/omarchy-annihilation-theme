@@ -7,7 +7,8 @@ division still (`backgrounds/annihilation-119.jpg`). **Nothing here is implement
 ./prep-images.sh      wallpaper backdrops + the reference still -> img/ (ImageMagick)
 python3 build.py      -> page.html, one self-contained page (view it, or publish it as an artifact)
 geometry.py           section outlines (lobes joined by a smooth union), icons, palette, parameters
-scene.py              the scene: window stand-in, three sections, and every optional layer
+scene.py              the scene: window stand-in, three sections, every optional layer, and `state` (hover, buds, tints)
+states.py             the hover and alert states, one close-up each
 template.html         the page: ingredient switches, approved-vs-yours comparison, wallpaper/view controls
 ```
 
@@ -45,7 +46,24 @@ Tried and dropped, so nobody repeats it:
 - crisp rim strokes (they read as a line; the rim is blurred bands now).
 
 Not done: spikes, bulbs that overhang the edge (the outline is built by pushing a resampled path along its
-normals, which cannot overhang), a top or bottom bar (the geometry would be transposed), hover and alert states.
+normals, which cannot overhang), a top or bottom bar (the geometry would be transposed), the bar hidden or
+auto-peeking, and a notification toast arriving.
+
+## States
+
+Drawn in `states.py`, each as a close-up of the section where it happens:
+
+- **Hover** on a status icon or a workspace: light pools behind it and it brightens; the tooltip is the shell's own
+  card (`[tooltip]` colours).
+- **Hover on the bar**: the stock bar shows inactive indicators (do-not-disturb, night light, recording, stay awake) at
+  45%. Here they appear as a lobe budding off the clock cell.
+- **Unseen notifications**: the Area X glyph is drawn the way the plugin draws it (`BarWidget.qml`: filled prism, one to
+  three 3px motes, an amber spore). The cell's rim warms to the shell's attention colour.
+- **Attention** (recording, update available): the indicator's cell stays as a solid bud with a magenta rim.
+- **Critical** (low battery): the same, in red, on that cell only. Red is deliberately apart from the magenta.
+
+The rest-state Area X glyph elsewhere on the page has refraction rays the plugin does not draw; icons on the page are
+placeholders.
 
 ## Building it for real
 

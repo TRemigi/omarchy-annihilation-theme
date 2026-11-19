@@ -127,17 +127,46 @@ def globby(sec, c, seed, hw0, gap=(5.5, 14)):
         lights.append((x + nx * pr * .75, y + ny * pr * .75, rho))
     return d, lights
 
-def scene(pf, wall_ref, flags=None, alt=False, gap=(5.5, 14)):
+import re
+
+def areax_glyph(x, y, n):
+    """the Area X glyph as the plugin draws it: a filled prism, one to three motes for what was missed, a spore."""
+    gx, gy = x - 6, y - 6
+    tri = (f'<path d="M{x:.1f} {gy+.96:.1f} L{gx+11.3:.1f} {gy+10.56:.1f} L{gx+.72:.1f} {gy+10.56:.1f} Z" fill="{TEAL}" fill-opacity=".3" '
+           f'stroke="{BRIGHT}" stroke-width="1.2" stroke-linejoin="round"/>')
+    motes = "".join(f'<circle cx="{gx+12*[.78,.86,.96][j]:.1f}" cy="{gy+12*[.28,.48,.68][j]:.1f}" r="1.5" fill="{col}" opacity=".9"/>'
+                    for j, col in enumerate(("#61A0A8", "#C77A9C", AMBER)[:n]))
+    return tri + f'<circle cx="{gx+7.44:.1f}" cy="{gy+6.24:.1f}" r="1.5" fill="{AMBER}" opacity=".8"/>' + motes
+
+TINT = {"attn": dict(bloom="#B0457F", core="#F2B6D6", glow="#8A2D5E"),   # the shell's 'attention' colour: bruised magenta
+        "crit": dict(bloom="#D2433F", core="#FFA28F", glow="#B3262E")}   # red, clearly apart from the magenta
+
+def build_section(nm, c):
+    if nm == "top": return section(c["top"], c, "top", 10.0)
+    if nm == "bot": return section(c["bot"], c, "bottom", 1190.0)
+    rest = section(CONCEPTS["quiet"]["mid"], c, "center", 600.0)
+    if c["mid"] is CONCEPTS["quiet"]["mid"]: return rest
+    # buds off the clock cell: the clock lobe stays exactly where it rests, the new lobes hang off its edges
+    sec = section(c["mid"], c, "top", 0.0)
+    k = next(i for i, g in enumerate(sec["groups"]) if "clock" in g)
+    d = (rest["lobes"][0][0] + rest["lobes"][0][1]) / 2 - (sec["lobes"][k][0] + sec["lobes"][k][1]) / 2
+    sec["lobes"] = [(a + d, b + d, r) for a, b, r in sec["lobes"]]; sec["y0"] += d; sec["y1"] += d
+    return sec
+
+def scene(pf, wall_ref, flags=None, alt=False, gap=(5.5, 14), state=None):
     """flags=None: emit every layer (page toggles them with CSS). flags=set(...): static render of just those."""
-    c = CONCEPTS["quiet"]
+    st = state or {}
+    c = dict(CONCEPTS["quiet"]); c.update(st.get("specs", {}))
+    def pool(x, y): return f'<ellipse cx="{x:.1f}" cy="{y:.1f}" rx="16" ry="13.5" fill="url(#{pf}pool)"/>'
     def L(name, content, neg=False):
         if not content: return ""
         if flags is None: return f'<g class="L-{name}">{content}</g>'
         return content if ((name in flags) != neg) else ""
 
-    secs = [("top", section(c["top"], c, "top", 10.0)),
-            ("mid", section(c["mid"], c, "center", 600.0)),
-            ("bot", section(c["bot"], c, "bottom", 1190.0))]
+    SI = {"top": 0, "mid": 1, "bot": 2}          # fixed seeds per section, whichever sections are drawn
+    secs = [(nm, build_section(nm, c)) for nm in ("top", "mid", "bot") if st.get("only") is None or nm in st["only"]]
+    hov, dim, ink_of, tints = st.get("hover"), st.get("dim", ()), st.get("ink", {}), st.get("tint", {})
+    tip = None
     defs, body = [], []
     defs.append(f'''
 <linearGradient id="{pf}rim" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="1200">
@@ -160,6 +189,8 @@ def scene(pf, wall_ref, flags=None, alt=False, gap=(5.5, 14)):
 <filter id="{pf}spb" x="-20%" y="-5%" width="140%" height="110%"><feGaussianBlur stdDeviation=".5"/></filter>
 <filter id="{pf}fs" x="-200%" y="-35%" width="500%" height="170%"><feGaussianBlur stdDeviation=".8"/></filter>
 <filter id="{pf}fs2" x="-200%" y="-35%" width="500%" height="170%"><feGaussianBlur stdDeviation="1.05"/></filter>
+<radialGradient id="{pf}pool"><stop offset="0" stop-color="#E4FAFC" stop-opacity=".62"/><stop offset=".5" stop-color="#84BDC4" stop-opacity=".28"/><stop offset="1" stop-color="#61A0A8" stop-opacity="0"/></radialGradient>
+<linearGradient id="{pf}ttb" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#61a0a8" stop-opacity=".67"/><stop offset="1" stop-color="#91506c" stop-opacity=".67"/></linearGradient>
 <filter id="{pf}g3" x="-120%" y="-35%" width="340%" height="170%"><feGaussianBlur stdDeviation="2"/></filter>
 <filter id="{pf}sp" x="-200%" y="-35%" width="500%" height="170%"><feGaussianBlur stdDeviation="8"/></filter>
 <filter id="{pf}ws" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="14"/></filter>
@@ -175,8 +206,10 @@ def scene(pf, wall_ref, flags=None, alt=False, gap=(5.5, 14)):
 <text x="852" y="322">&gt; hyprctl configerrors</text>
 <text x="852" y="352" fill-opacity=".55">  (none)</text>
 <text x="852" y="382">&gt; <tspan fill="{BRIGHT}">█</tspan></text></g></g>''')
+    if not st.get("window", True): body.pop()
 
-    for si, (nm, sec) in enumerate(secs):
+    for nm, sec in secs:
+        si = SI[nm]
         d, hw0, beads = outline(sec, c, seed=si + 2)
         i = f"{pf}{nm}"
         U = lambda extra: f'<use href="#{i}p" {extra}/>'
@@ -186,6 +219,18 @@ def scene(pf, wall_ref, flags=None, alt=False, gap=(5.5, 14)):
         defs.append(f'<clipPath id="{i}c"><use href="#{i}p"/></clipPath>')
         defs.append(f'<linearGradient id="{i}hl" gradientUnits="userSpaceOnUse" x1="0" y1="{sec["y0"]:.1f}" x2="0" y2="{sec["y1"]:.1f}">{light_stops(sec, si + 2, *c["hl"])}</linearGradient>')
 
+        tint_in, tint_out = "", ""
+        for k, (a_, b_, r_) in enumerate(sec["lobes"]):
+            kind = tints.get((nm, k))
+            if not kind: continue
+            T = TINT[kind]
+            for tag, col in (("tb", T["bloom"]), ("tc", T["core"])):
+                defs.append(f'<linearGradient id="{i}{tag}{k}" gradientUnits="userSpaceOnUse" x1="0" y1="{a_-3:.1f}" x2="0" y2="{b_+3:.1f}">'
+                            f'<stop offset="0" stop-color="{col}" stop-opacity="0"/><stop offset=".22" stop-color="{col}"/><stop offset=".78" stop-color="{col}"/><stop offset="1" stop-color="{col}" stop-opacity="0"/></linearGradient>')
+            defs.append(f'<radialGradient id="{i}tg{k}"><stop offset="0" stop-color="{T["glow"]}" stop-opacity=".62"/><stop offset="1" stop-color="{T["glow"]}" stop-opacity="0"/></radialGradient>')
+            tint_in += f'<ellipse cx="{CX}" cy="{(a_+b_)/2:.1f}" rx="18" ry="{(b_-a_)*.62:.1f}" fill="url(#{i}tg{k})"/>'
+            tint_out += (U(f'fill="none" stroke="url(#{i}tb{k})" stroke-width="7" stroke-opacity=".8" filter="url(#{pf}g2)"')
+                         + U(f'fill="none" stroke="url(#{i}tc{k})" stroke-width="2" stroke-opacity=".9" filter="url(#{pf}fs2)"'))
         body.append(U('fill="#000" fill-opacity=".55" transform="translate(0 2.5)" filter="url(#%ssh)"' % pf))
         body.append(L("spill", U(f'fill="none" stroke="url(#{i}hl)" stroke-width="13" stroke-opacity=".42" filter="url(#{pf}sp)"')
                       + U(f'fill="none" stroke="{TEAL}" stroke-width="9" stroke-opacity=".10" filter="url(#{pf}sp)"')))
@@ -208,6 +253,7 @@ def scene(pf, wall_ref, flags=None, alt=False, gap=(5.5, 14)):
                 iri += (f'<ellipse cx="{CX-3}" cy="{cy:.1f}" rx="16" ry="{h*.55:.1f}" fill="url(#{pf}iM)"/>'
                         f'<ellipse cx="{CX+6}" cy="{cy+h*.14:.1f}" rx="13" ry="{h*.4:.1f}" fill="url(#{pf}iA)"/>')
         inner.append(L("iri", iri))
+        inner.append(tint_in)
         inner.append(U(f'fill="none" stroke="#070b0e" stroke-width="{c["shoulder"]}" stroke-opacity=".42" filter="url(#{pf}fs)"'))
         body.append(f'<g clip-path="url(#{i}c)">{"".join(inner)}</g>')
 
@@ -225,6 +271,7 @@ def scene(pf, wall_ref, flags=None, alt=False, gap=(5.5, 14)):
         else:
             body.append(lit if "rimcore" in flags else base)
 
+        body.append(tint_out)
         gl = ""
         grnd = random.Random(si + 70)
         for (tx, ty, rho) in glights:
@@ -254,11 +301,27 @@ def scene(pf, wall_ref, flags=None, alt=False, gap=(5.5, 14)):
                     body.append(f'<g transform="translate({x:.1f} {y:.1f})"><text y="4.4" text-anchor="middle" font-family="{FONT}" font-size="12.5" font-weight="500" fill="#F1E9D0" '
                                 f'paint-order="stroke" stroke="#130f12" stroke-opacity=".32" stroke-width="1.7" stroke-linejoin="round">2</text></g>')
                 else:
-                    body.append(ico("ws", x, y, active=False, label=str(wsn)))
+                    el = ico("ws", x, y, active=False, label=str(wsn))
+                    if hov == ("ws", wsn):
+                        el = pool(x, y) + re.sub(r'fill-opacity="[^"]+"', 'fill-opacity="1"', el).replace(INK, "#FFF6DC")
+                    body.append(el)
             elif it == "clock":
                 body.append(ico("clock", x, y, label=CLOCK_LINES))
             else:
-                body.append(ico(it, x, y))
+                hot = hov == it
+                if it == "areax" and st.get("motes"):
+                    el = areax_glyph(x, y, st["motes"])
+                else:
+                    el = ico(it, x, y, ink=("#FFF6DC" if hot else ink_of.get(it, INK)), low=bool(st.get("low") == it))
+                if hot: el = pool(x, y) + el
+                if it in dim: el = f'<g opacity=".45">{el}</g>'
+                body.append(el)
+                if st.get("tooltip") and st["tooltip"][1] == it: tip = (st["tooltip"][0], y)
+    if tip:
+        txt, ty_ = tip; w = len(txt) * 7.3 + 24; ty0 = ty_ - 13
+        body.append(f'<rect x="61" y="{ty0+2:.1f}" width="{w:.1f}" height="26" rx="7" fill="#000" fill-opacity=".4" filter="url(#{pf}sh)"/>'
+                    f'<rect x="60" y="{ty0:.1f}" width="{w:.1f}" height="26" rx="7" fill="#242015" fill-opacity=".97" stroke="url(#{pf}ttb)"/>'
+                    f'<text x="{60+w/2:.1f}" y="{ty0+17:.1f}" text-anchor="middle" font-family="{FONT}" font-size="12" fill="{INK}">{txt}</text>')
     return f'<defs>{"".join(defs)}</defs>' + f'<use class="wall" href="{wall_ref[0]}" width="1920" height="1200"/>' + "".join(body)
 
 if __name__ == "__main__":
