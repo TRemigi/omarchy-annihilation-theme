@@ -69,6 +69,9 @@ placeholders.
 
 ## Building it for real
 
+A spike is in its own repo, `omarchy-annihilation-bar`: Omarchy's bar plus a patch (`kind: "bar"`), drawing the section outlines
+with body, glow, rim and globs. The notes below are what led to it.
+
 - The shell takes a replacement bar as a plugin with `kind: "bar"`. Stock `omarchy.bar` paints one rectangle
   behind the whole strip (`Bar.qml`, in `BarPanel`) and lays the sections inside it, so the replacement is a
   fork of that file with one shaped background per section. The cost is following upstream bar changes.

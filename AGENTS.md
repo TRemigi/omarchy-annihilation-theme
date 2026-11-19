@@ -8,12 +8,13 @@ why, the gotchas, and how to verify your work.
 
 An [Omarchy](https://omarchy.org/) (Arch + Hyprland + a Quickshell-based shell)
 theme themed after *Annihilation* (Alex Garland's 2018 film, from Jeff
-VanderMeer's novel). The project is three repos:
+VanderMeer's novel). The project is four repos:
 
 | Repo | What it is |
 | --- | --- |
 | `omarchy-annihilation-theme` (this repo, `~/dev/omarchy-annihilation-theme`) | The theme, and `extras/`: the Hyprland Lua, the theme-set hook and the installer: what neither a theme nor a plugin can carry. |
 | `omarchy-area-x` (`~/dev/omarchy-area-x`) | The shell plugin (id `annihilation.area-x`; `annihilation.shimmer` until 2026-11-02, so a `shell.json` or a link under that name is a leftover): the Shimmer layer, window glow, screensaver, bar glyph, notification marks and sound. Installed with `omarchy plugin add`. Its design, gotchas and verification are in **its** `AGENTS.md`; they are not mirrored here. It was `extras/plugin/` in this repo until 2026-11-02 (its history was split out with `git subtree split`). |
+| `omarchy-annihilation-bar` (`~/dev/omarchy-annihilation-bar`) | The custom floating-cell bar, a plugin of `kind: "bar"` that is Omarchy's own bar plus a patch. A spike so far, local only. Its design is `mockups/bar/` here. |
 | `omarchy-annihilation-notifications` (`~/dev/omarchy-annihilation-notifications`) | A separate plugin: the themed notification daemon and the arrival light. Optional. |
 
 This repo has two tiers:
@@ -160,14 +161,15 @@ confirm anything live. What works:
 ## Custom bar (design stage)
 
 The user wants a custom bar of floating, rounded sections shaped after `backgrounds/annihilation-119.jpg` (the blue
-cell division). It exists only as mockups in `mockups/bar/`; its README records what was chosen, what was tried and
-dropped, and how it would be built (a `kind: "bar"` plugin forking `omarchy.bar`; whether it gets its own repo, like the
-other plugins, is undecided). Read it before redoing any of the visual decisions: the user has been through several rounds and
+cell division). The design is the mockups in `mockups/bar/`; its README records what was chosen, what was tried and
+dropped, and how it is built (a `kind: "bar"` plugin that patches `omarchy.bar`). The plugin is its own repo,
+`omarchy-annihilation-bar`, currently a spike. Read it before redoing any of the visual decisions: the user has been through several rounds and
 rejected regular scallops, small beads, rainbow colours, hard rings and crisp rim lines.
 
 - Check mockup changes by rendering (`python3 scene.py ... out.svg`, then `rsvg-convert`) and looking; the build is
   deterministic, so an unchanged design should give a byte-identical `page.html`.
-- The user has only seen the mockups as a published page; nothing has run in Quickshell.
+- The user has seen the mockups as a published page. The spike in `omarchy-annihilation-bar` has not been run in a live
+  Quickshell yet.
 - Decided with the user: the full layer set, and the hover, attention and critical states with their colours. The visual
   design of the bar's left-edge form is settled; do not reopen it without being asked.
 - Not drawn yet: the bar hidden or auto-peeking, a toast arriving, and a top or bottom bar.
