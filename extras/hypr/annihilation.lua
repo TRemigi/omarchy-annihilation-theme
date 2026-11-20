@@ -44,10 +44,10 @@ hl.layer_rule({
 })
 
 -- The bar has its own threshold. The compositor's blur mask is a hard cut on the surface's alpha, and the cell bar's glow is
--- translucent and reaches well past each cell: at 0.3 it blurs and tints a band of wallpaper 2 to 5 px round every cell, with a
--- stepped edge. The cells' bodies are 70% opaque or more (the stock bar's background is 82%), so 0.5 blurs exactly them and
--- leaves the glow clear. omarchy-annihilation-bar's test/blur-extent.py measures the band for any threshold.
-hl.layer_rule({ match = { namespace = "^omarchy-bar$" }, blur = true, ignore_alpha = 0.5 })
+-- translucent and reaches well past each cell: at 0.3 it blurs and tints a band of wallpaper about 7 px wide round every cell (2.4
+-- px at 0.5), with a stepped edge. The cells' bodies are 95% opaque and the stock bar's background 82%, so 0.7 still blurs both in
+-- full and leaves the glow clear (about half a pixel). omarchy-annihilation-bar's test/blur-extent.py measures the band.
+hl.layer_rule({ match = { namespace = "^omarchy-bar$" }, blur = true, ignore_alpha = 0.7 })
 
 -- Toasts are deliberately not frosted. The notifications fork draws each toast as an oval that fades out over about 80 px (annihilation.notifications, ToastBody), and the compositor's
 -- blur mask is a hard threshold on the surface's alpha, with no ramp: at 0.3 it cut the frosted backdrop off at a contour just outside the oval, and at 0.9 it still left a hairline at the
