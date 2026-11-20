@@ -172,6 +172,8 @@ rejected regular scallops, small beads, rainbow colours, hard rings and crisp ri
   Quickshell yet.
 - Decided with the user: the full layer set, and the hover, attention and critical states with their colours. The visual
   design of the bar's left-edge form is settled; do not reopen it without being asked.
+- Built and confirmed by the user by sight: the workspaces as a colony of round cells (40 across, the shown one 44) with the mitosis, as the
+  optional `annihilation.workspaces` plugin in the bar repo (`workspaces/`). The user chose those sizes by trying several; do not shrink them.
 - Not drawn yet: the bar hidden or auto-peeking, a toast arriving, and a top or bottom bar.
 
 ## Conventions
